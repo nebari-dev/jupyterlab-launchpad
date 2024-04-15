@@ -1,0 +1,19 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v4.2.6
+_src_path: https://github.com/jupyterlab/extension-template
+author_email: internal-it@quansight.com
+author_name: Nebari development team
+data_format: string
+file_extension: ''
+has_binder: true
+has_settings: true
+kind: frontend
+labextension_name: jupyterlab-new-launcher
+mimetype: ''
+mimetype_name: ''
+project_short_description: A redesigned JupyterLab launcher
+python_name: jupyterlab_new_launcher
+repository: https://github.com/nebari-dev/jupyterlab-new-launcher
+test: true
+viewer_name: ''
+
