@@ -1,7 +1,8 @@
-# jupyterlab_new_launcher
+# jupyterlab-new-launcher
 
 [![Github Actions Status](https://github.com/nebari-dev/jupyterlab-new-launcher/workflows/Build/badge.svg)](https://github.com/nebari-dev/jupyterlab-new-launcher/actions/workflows/build.yml)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/nebari-dev/jupyterlab-new-launcher/main?urlpath=lab)
+
 A redesigned JupyterLab launcher
 
 ## Requirements

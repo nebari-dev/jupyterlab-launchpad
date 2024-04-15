@@ -1,5 +1,71 @@
-/*
-    See the JupyterLab Developer Guide for useful CSS Patterns:
+.jp-Launcher-TypeCard {
+  user-select: none;
+}
 
-    https://jupyterlab.readthedocs.io/en/stable/developer/css.html
-*/
+.jp-Launcher-CardGroup {
+  justify-content: center;
+}
+
+.jp-CollapsibleSection {
+  --jp-animation-depth: 10px;
+  --jp-animation-time: 150ms;
+  --jp-title-height: 24px;
+  padding: var(--jp-animation-depth);
+}
+
+.jp-CollapsibleSection > summary {
+  cursor: pointer;
+  transition: margin var(--jp-animation-time) ease-out;
+  list-style: none;
+}
+
+.jp-CollapsibleSection[open] > summary {
+  margin-bottom: var(--jp-animation-depth);
+}
+
+.jp-CollapsibleSection-CollapserIcon > svg {
+  transition: transform var(--jp-animation-time) ease-out;
+  width: var(--jp-title-height);
+  height: var(--jp-title-height);
+}
+
+.jp-CollapsibleSection[open] .jp-CollapsibleSection-CollapserIcon > svg {
+  transform: rotate(90deg);
+}
+
+.jp-CollapsibleSection-CollapserIconWrapper {
+  display: inline-block;
+}
+
+.jp-CollapsibleSection-Title {
+  display: inline-block;
+  line-height: var(--jp-title-height);
+  vertical-align: top;
+  margin: 0;
+  user-select: none;
+}
+
+.jp-LauncherBody {
+  margin: 0 12px;
+}
+
+.jp-LauncherBody-Title {
+  font-size: 20px;
+}
+
+.jp-Launcher-openByKernel .jp-Launcher-kernelIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.jp-Launcher-openByKernel .jp-LauncherCard-noKernelIcon {
+  font-size: 16px;
+}
+
+.jp-Launcher-openByKernel .jp-LauncherCard-icon {
+  height: 16px;
+}
+
+.jp-Launcher-openByKernel th[data-id='icon'] {
+  width: 16px;
+}

@@ -58,6 +58,7 @@
     },
     "dependencies": {
         "@jupyterlab/application": "^4.0.0",
+        "@jupyterlab/launcher": "^4.0.0",
         "@jupyterlab/settingregistry": "^4.0.0"
     },
     "devDependencies": {
@@ -98,7 +99,10 @@
     "jupyterlab": {
         "extension": true,
         "outputDir": "jupyterlab_new_launcher/labextension",
-        "schemaDir": "schema"
+        "schemaDir": "schema",
+        "disabledExtensions": [
+            "@jupyterlab/launcher-extension"
+        ]
     },
     "eslintIgnore": [
         "node_modules",
