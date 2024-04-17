@@ -10,6 +10,7 @@
   --jp-animation-depth: 10px;
   --jp-animation-time: 150ms;
   --jp-title-height: 24px;
+
   padding: var(--jp-animation-depth);
 }
 
@@ -46,26 +47,76 @@
 }
 
 .jp-LauncherBody {
-  margin: 0 12px;
+  padding: 0 12px;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .jp-LauncherBody-Title {
   font-size: 20px;
 }
 
+.jp-Launcher-openByKernel {
+  --jp-icon-size: 16px;
+}
+
 .jp-Launcher-openByKernel .jp-Launcher-kernelIcon {
-  width: 16px;
-  height: 16px;
+  width: var(--jp-icon-size);
+  height: var(--jp-icon-size);
 }
 
 .jp-Launcher-openByKernel .jp-LauncherCard-noKernelIcon {
-  font-size: 16px;
+  font-size: var(--jp-icon-size);
 }
 
 .jp-Launcher-openByKernel .jp-LauncherCard-icon {
-  height: 16px;
+  height: var(--jp-icon-size);
 }
 
-.jp-Launcher-openByKernel th[data-id='icon'] {
-  width: 16px;
+.jp-Launcher-openByKernel th[data-id='icon'],
+.jp-Launcher-openByKernel th[data-id='star'] {
+  width: var(--jp-icon-size);
+}
+
+.jp-Launcher-openByKernel .jp-starIcon {
+  width: var(--jp-icon-size);
+  height: var(--jp-icon-size);
+}
+
+.jp-starIconButton {
+  --jp-transition-transform: rotate(72deg);
+
+  border: 0;
+  margin: 0;
+  padding: 0 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.jp-starIcon .jp-star-filled {
+  opacity: 0;
+}
+
+.jp-starIcon .jp-star-filled,
+.jp-starIcon .jp-star-border {
+  transition-property: opacity, transform;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
+  transform-origin: center;
+}
+
+.jp-starIconButton.jp-mod-starred .jp-star-filled {
+  opacity: 1;
+  transform: var(--jp-transition-transform);
+}
+
+.jp-starIconButton.jp-mod-starred .jp-star-border {
+  opacity: 0;
+  transform: var(--jp-transition-transform);
+}
+
+/* Styles for scenario where full row is clickable  */
+
+.jp-Launcher-openByKernel tr {
+  cursor: pointer;
 }

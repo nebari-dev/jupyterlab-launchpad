@@ -16,6 +16,7 @@ import { ReadonlyPartialJSONObject } from '@lumino/coreutils';
 import { DockPanel, TabBar, Widget } from '@lumino/widgets';
 import { NewLauncher as Launcher } from './launcher';
 import { LastUsedDatabase } from './last_used';
+import { FavoritesDatabase } from './favorites';
 
 /**
  * The command IDs used by the launcher plugin.
@@ -74,6 +75,7 @@ function activate(
   }
 
   const lastUsedDatabase = new LastUsedDatabase();
+  const favoritesDatabase = new FavoritesDatabase();
 
   commands.addCommand(CommandIDs.create, {
     label: trans.__('New Launcher'),
@@ -94,7 +96,8 @@ function activate(
         callback,
         commands,
         translator,
-        lastUsedDatabase
+        lastUsedDatabase,
+        favoritesDatabase
       });
 
       launcher.model = model;

@@ -5,7 +5,7 @@ export interface ILastUsedDatabase {
   recordAsUsedNow(item: ILauncher.IItemOptions): void;
 }
 
-export class LastUsedDatabase {
+export class LastUsedDatabase implements ILastUsedDatabase {
   constructor() {
     // TODO: use settings registry, or state db, or server to persist this info
     this._db = new Map();

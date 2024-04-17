@@ -14,6 +14,8 @@ import {
 } from '@jupyterlab/ui-components';
 import * as React from 'react';
 import { ILastUsedDatabase } from './last_used';
+import { IFavoritesDatabase } from './favorites';
+import { starIcon } from './icons';
 
 function TypeCard(props: {
   trans: TranslationBundle;
@@ -48,6 +50,8 @@ interface IItem extends ILauncher.IItemOptions {
   iconClass: string;
   execute: () => Promise<void>;
   lastUsed: Date | null;
+  starred: boolean;
+  toggleStar: () => void;
 }
 
 interface IKernelItem extends IItem {
@@ -153,9 +157,17 @@ function LauncherBody(props: {
           }}
           sortKey={'kernel'}
           onRowClick={event => {
-            const element = (event.target as HTMLElement).querySelector(
-              '.jp-TableKernelItem'
-            )!;
+            const target = event.target as HTMLElement;
+            const row = target.closest('tr');
+            if (!row) {
+              return;
+            }
+            const cell = target.closest('td');
+            const starButton = cell?.querySelector('.jp-starIconButton');
+            if (starButton) {
+              return (starButton as HTMLElement).click();
+            }
+            const element = row.querySelector('.jp-TableKernelItem')!;
             (element as HTMLElement).click();
           }}
           columns={[
@@ -189,8 +201,12 @@ function LauncherBody(props: {
               renderCell: (row: IKernelItem) => (
                 <span
                   className="jp-TableKernelItem"
-                  onClick={row.execute}
+                  onClick={event => {
+                    row.execute();
+                    event.stopPropagation();
+                  }}
                   onKeyDown={event => {
+                    // TODO memoize func defs for perf
                     if (event.key === 'Enter') {
                       row.execute();
                     }
@@ -227,6 +243,37 @@ function LauncherBody(props: {
                 }
                 return a.lastUsed > b.lastUsed ? 1 : -1;
               }
+            },
+            {
+              id: 'star',
+              label: '',
+              renderCell: (row: IKernelItem) => {
+                const [, forceUpdate] = React.useReducer(x => x + 1, 0);
+
+                const starred = row.starred;
+                const title = starred
+                  ? trans.__('Click to add this kernel to favourites')
+                  : trans.__('Click to remove the kernel from favourites');
+                return (
+                  <button
+                    className={
+                      starred
+                        ? 'jp-starIconButton jp-mod-starred'
+                        : 'jp-starIconButton'
+                    }
+                    title={title}
+                    onClick={event => {
+                      row.toggleStar();
+                      forceUpdate();
+                      event.stopPropagation();
+                    }}
+                  >
+                    <starIcon.react className="jp-starIcon" />
+                  </button>
+                );
+              },
+              sort: (a: IKernelItem, b: IKernelItem) =>
+                Number(a.starred) - Number(b.starred)
             }
           ]}
         />
@@ -238,6 +285,7 @@ function LauncherBody(props: {
 export namespace NewLauncher {
   export interface IOptions extends ILauncher.IOptions {
     lastUsedDatabase: ILastUsedDatabase;
+    favoritesDatabase: IFavoritesDatabase;
   }
 }
 
@@ -247,8 +295,10 @@ export class NewLauncher extends Launcher {
     this.commands = options.commands;
     this.trans = this.translator.load('jupyterlab-new-launcher');
     this._lastUsedDatabase = options.lastUsedDatabase;
+    this._favoritesDatabase = options.favoritesDatabase;
   }
   private _lastUsedDatabase: ILastUsedDatabase;
+  private _favoritesDatabase: IFavoritesDatabase;
   trans: TranslationBundle;
 
   renderCommand = (item: ILauncher.IItemOptions): IItem => {
@@ -260,15 +310,34 @@ export class NewLauncher extends Launcher {
     const execute = async () => {
       await this.commands.execute(item.command, args);
       this._lastUsedDatabase.recordAsUsedNow(item);
+      obj.lastUsed = this._lastUsedDatabase.get(item);
     };
     const lastUsed = this._lastUsedDatabase.get(item);
-    return { ...item, icon, iconClass, label, caption, execute, lastUsed };
+    const starred = this._favoritesDatabase.get(item) ?? false;
+    const toggleStar = () => {
+      const wasStarred = this._favoritesDatabase.get(item);
+      const newState = !wasStarred;
+      obj.starred = newState;
+      this._favoritesDatabase.set(item, newState);
+    };
+    const obj = {
+      ...item,
+      icon,
+      iconClass,
+      label,
+      caption,
+      execute,
+      lastUsed,
+      starred,
+      toggleStar
+    };
+
+    return obj;
   };
 
   renderKernelCommand = (item: ILauncher.IItemOptions): IItem => {
-    return {
-      ...this.renderCommand(item)
-    };
+    // note: do not use spread syntax here or object attributes will get frozen
+    return this.renderCommand(item);
   };
 
   /**
