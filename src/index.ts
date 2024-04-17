@@ -182,5 +182,8 @@ namespace Private {
   /**
    * The incrementing id used for launcher widgets.
    */
-  export const id = 0;
+  // There is a bug in `prefer-const` for exported let, see:
+  // - https://github.com/typescript-eslint/typescript-eslint/issues/4572
+  // - https://github.com/typescript-eslint/typescript-eslint/issues/4573
+  export let id = 0; // eslint-disable-line prefer-const
 }
