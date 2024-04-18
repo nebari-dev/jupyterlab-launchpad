@@ -103,6 +103,22 @@ function columnLabelFromKey(key: string): string {
   if (key.length === 0) {
     return '(empty)';
   }
+  switch (key) {
+    // Added by nb_conda_kernels <= 2.5.0
+    case 'conda_env_name':
+      return 'Environment';
+    case 'conda_env_path':
+      return 'Environment path';
+    // Will be added once https://github.com/anaconda/nb_conda_kernels/pull/262/ is released
+    case 'conda_language':
+      return 'Language';
+    case 'conda_raw_kernel_name':
+      return 'Kernel';
+    case 'conda_is_base_environment':
+      return 'Base?';
+    case 'conda_is_currently_running':
+      return 'Running?';
+  }
   return key[0].toUpperCase() + key.substring(1);
 }
 
@@ -175,7 +191,10 @@ function LauncherBody(props: {
         {trans.__('Launch New Session')}
       </h2>
       <div className="jp-Launcher-cwd">
-        <h3>{cwd}</h3>
+        <h3>
+          {trans.__('Current directory:')}
+          <code>{cwd ? cwd : '/'}</code>
+        </h3>
       </div>
       <div className="jp-Launcher-searchBox">
         <FilterBox
