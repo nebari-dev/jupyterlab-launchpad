@@ -76,16 +76,17 @@ function activate(
       });
   }
 
-  const lastUsedDatabase = new LastUsedDatabase({
+  const databaseOptions = {
     stateDB,
     fetchInterval: 10000
-  });
-  const favoritesDatabase = new FavoritesDatabase();
+  };
+  const lastUsedDatabase = new LastUsedDatabase(databaseOptions);
+  const favoritesDatabase = new FavoritesDatabase(databaseOptions);
 
   commands.addCommand(CommandIDs.create, {
     label: trans.__('New Launcher'),
     icon: args => (args.toolbar ? addIcon : undefined),
-    execute: (args: ReadonlyPartialJSONObject) => {
+    execute: async (args: ReadonlyPartialJSONObject) => {
       const cwd = (args['cwd'] as string) ?? defaultBrowser?.model.path ?? '';
       const id = `launcher-${Private.id++}`;
       const callback = (item: Widget) => {
@@ -95,6 +96,7 @@ function activate(
           launcher.dispose();
         }
       };
+      await Promise.all([lastUsedDatabase.ready, favoritesDatabase.ready]);
       const launcher = new Launcher({
         model,
         cwd,

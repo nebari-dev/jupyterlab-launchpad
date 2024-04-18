@@ -427,7 +427,7 @@ class Item implements IItem {
     const wasStarred = favoritesDatabase.get(item);
     const newState = !wasStarred;
     this.starred = newState;
-    favoritesDatabase.set(item, newState);
+    return favoritesDatabase.set(item, newState);
   }
   private _setRefreshClock() {
     const value = this._lastUsed;
@@ -533,6 +533,7 @@ export class NewLauncher extends Launcher {
       .filter(item => item.category && item.category === notebookCategory)
       .map(this.renderKernelCommand);
 
+    // TODO: only create items once or if changed; dispose of them too
     const typeItems: IItem[] = typeCommands.map(this.renderCommand);
 
     return (
