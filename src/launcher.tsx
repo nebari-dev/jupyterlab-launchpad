@@ -418,7 +418,7 @@ class Item implements IItem {
   async execute() {
     const { item, commands, lastUsedDatabase } = this._options;
     await commands.execute(item.command, this.args);
-    lastUsedDatabase.recordAsUsedNow(item);
+    await lastUsedDatabase.recordAsUsedNow(item);
     this.lastUsed = lastUsedDatabase.get(item);
     this._refreshLastUsed.emit();
   }

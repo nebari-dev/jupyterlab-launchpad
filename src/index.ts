@@ -9,6 +9,7 @@ import { ICommandPalette, MainAreaWidget } from '@jupyterlab/apputils';
 import { FileBrowserModel, IDefaultFileBrowser } from '@jupyterlab/filebrowser';
 import { ILauncher, LauncherModel } from '@jupyterlab/launcher';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
+import { IStateDB } from '@jupyterlab/statedb';
 import { ITranslator } from '@jupyterlab/translation';
 import { addIcon, launcherIcon } from '@jupyterlab/ui-components';
 import { find } from '@lumino/algorithm';
@@ -33,7 +34,7 @@ const plugin: JupyterFrontEndPlugin<ILauncher> = {
   description: 'A redesigned JupyterLab launcher',
   provides: ILauncher,
   autoStart: true,
-  requires: [ITranslator],
+  requires: [ITranslator, IStateDB],
   optional: [ILabShell, ICommandPalette, IDefaultFileBrowser, ISettingRegistry],
   activate
 };
@@ -46,6 +47,7 @@ export default plugin;
 function activate(
   app: JupyterFrontEnd,
   translator: ITranslator,
+  stateDB: IStateDB,
   labShell: ILabShell | null,
   palette: ICommandPalette | null,
   defaultBrowser: IDefaultFileBrowser | null,
@@ -74,7 +76,10 @@ function activate(
       });
   }
 
-  const lastUsedDatabase = new LastUsedDatabase();
+  const lastUsedDatabase = new LastUsedDatabase({
+    stateDB,
+    fetchInterval: 10000
+  });
   const favoritesDatabase = new FavoritesDatabase();
 
   commands.addCommand(CommandIDs.create, {
