@@ -2,6 +2,7 @@
 // Distributed under the terms of the Modified BSD License.
 import type { CommandRegistry } from '@lumino/commands';
 import type { VirtualElement } from '@lumino/virtualdom';
+import { ReadonlyJSONObject } from '@lumino/coreutils';
 import { Time } from '@jupyterlab/coreutils';
 import { ILauncher, Launcher } from '@jupyterlab/launcher';
 import { TranslationBundle } from '@jupyterlab/translation';
@@ -10,12 +11,17 @@ import {
   FilterBox,
   LabIcon,
   caretRightIcon,
-  Table
+  Table,
+  UseSignal
 } from '@jupyterlab/ui-components';
+import { Signal, ISignal } from '@lumino/signaling';
 import * as React from 'react';
 import { ILastUsedDatabase } from './last_used';
 import { IFavoritesDatabase } from './favorites';
 import { starIcon } from './icons';
+
+const STAR_BUTTON_CLASS = 'jp-starIconButton';
+const KERNEL_ITEM_CLASS = 'jp-TableKernelItem';
 
 function TypeCard(props: {
   trans: TranslationBundle;
@@ -52,6 +58,7 @@ interface IItem extends ILauncher.IItemOptions {
   lastUsed: Date | null;
   starred: boolean;
   toggleStar: () => void;
+  refreshLastUsed: ISignal<IItem, void>;
 }
 
 interface IKernelItem extends IItem {
@@ -92,6 +99,13 @@ function CollapsibleSection(
   );
 }
 
+function columnLabelFromKey(key: string): string {
+  if (key.length === 0) {
+    return '(empty)';
+  }
+  return key[0].toUpperCase() + key.substring(1);
+}
+
 function LauncherBody(props: {
   trans: TranslationBundle;
   cwd: string;
@@ -101,6 +115,59 @@ function LauncherBody(props: {
   const { trans, cwd, typeItems } = props;
   const [query, updateQuery] = React.useState<string>('');
   const KernelTable = Table<IKernelItem>;
+
+  const metadataAvailable = new Set<string>();
+  for (const item of props.notebookItems) {
+    const kernelMetadata = item.metadata?.kernel;
+    if (!kernelMetadata) {
+      continue;
+    }
+    for (const key of Object.keys(kernelMetadata)) {
+      metadataAvailable.add(key);
+    }
+  }
+
+  const extraColumns: Table.IColumn<IKernelItem>[] = [...metadataAvailable].map(
+    metadataKey => {
+      return {
+        id: metadataKey,
+        label: columnLabelFromKey(metadataKey),
+        renderCell: (item: IKernelItem) => {
+          const kernelMeta = item.metadata?.kernel as
+            | ReadonlyJSONObject
+            | undefined;
+          if (!kernelMeta) {
+            return '-';
+          }
+          const value = kernelMeta[metadataKey];
+          return JSON.stringify(value);
+        },
+        sort: (a: IKernelItem, b: IKernelItem) => {
+          const aKernelMeta = a.metadata?.kernel as
+            | ReadonlyJSONObject
+            | undefined;
+          const bKernelMeta = b.metadata?.kernel as
+            | ReadonlyJSONObject
+            | undefined;
+          const aValue = aKernelMeta ? aKernelMeta[metadataKey] : undefined;
+          const bValue = bKernelMeta ? bKernelMeta[metadataKey] : undefined;
+          if (aValue === bValue) {
+            return 0;
+          }
+          if (!aValue) {
+            return 1;
+          }
+          if (!bValue) {
+            return -1;
+          }
+          if (typeof aValue === 'string' && typeof bValue === 'string') {
+            return aValue.localeCompare(bValue);
+          }
+          return aValue > bValue ? 1 : -1;
+        }
+      };
+    }
+  );
 
   return (
     <div className="jp-LauncherBody">
@@ -163,11 +230,11 @@ function LauncherBody(props: {
               return;
             }
             const cell = target.closest('td');
-            const starButton = cell?.querySelector('.jp-starIconButton');
+            const starButton = cell?.querySelector(`.${STAR_BUTTON_CLASS}`);
             if (starButton) {
               return (starButton as HTMLElement).click();
             }
-            const element = row.querySelector('.jp-TableKernelItem')!;
+            const element = row.querySelector(`.${KERNEL_ITEM_CLASS}`)!;
             (element as HTMLElement).click();
           }}
           columns={[
@@ -200,7 +267,7 @@ function LauncherBody(props: {
               label: trans.__('Kernel'),
               renderCell: (row: IKernelItem) => (
                 <span
-                  className="jp-TableKernelItem"
+                  className={KERNEL_ITEM_CLASS}
                   onClick={event => {
                     row.execute();
                     event.stopPropagation();
@@ -219,16 +286,23 @@ function LauncherBody(props: {
               sort: (a: IKernelItem, b: IKernelItem) =>
                 a.label.localeCompare(b.label)
             },
+            ...extraColumns,
             {
               id: 'last-used',
               label: trans.__('Last Used'),
               renderCell: (row: IKernelItem) => {
-                return row.lastUsed ? (
-                  <span title={Time.format(row.lastUsed)}>
-                    {Time.formatHuman(row.lastUsed)}
-                  </span>
-                ) : (
-                  trans.__('Never')
+                return (
+                  <UseSignal signal={row.refreshLastUsed}>
+                    {() => {
+                      return row.lastUsed ? (
+                        <span title={Time.format(row.lastUsed)}>
+                          {Time.formatHuman(row.lastUsed)}
+                        </span>
+                      ) : (
+                        trans.__('Never')
+                      );
+                    }}
+                  </UseSignal>
                 );
               },
               sort: (a: IKernelItem, b: IKernelItem) => {
@@ -258,8 +332,8 @@ function LauncherBody(props: {
                   <button
                     className={
                       starred
-                        ? 'jp-starIconButton jp-mod-starred'
-                        : 'jp-starIconButton'
+                        ? `${STAR_BUTTON_CLASS} jp-mod-starred`
+                        : STAR_BUTTON_CLASS
                     }
                     title={title}
                     onClick={event => {
@@ -289,6 +363,72 @@ export namespace NewLauncher {
   }
 }
 
+class Item implements IItem {
+  // base ILauncher.IItemOptions
+  command: string;
+  args?: ReadonlyJSONObject;
+  category?: string;
+  rank?: number;
+  kernelIconUrl?: string;
+  metadata?: ReadonlyJSONObject;
+  // custom additions
+  label: string;
+  caption: string;
+  icon: VirtualElement.IRenderer | undefined;
+  iconClass: string;
+  starred: boolean;
+
+  constructor(
+    private _options: {
+      commands: CommandRegistry;
+      item: ILauncher.IItemOptions;
+      cwd: string;
+      lastUsedDatabase: ILastUsedDatabase;
+      favoritesDatabase: IFavoritesDatabase;
+    }
+  ) {
+    const { item, commands, lastUsedDatabase, favoritesDatabase, cwd } =
+      _options;
+    const args = { ...item.args, cwd };
+    // base
+    this.command = item.command;
+    this.args = args;
+    this.category = item.category;
+    this.rank = item.rank;
+    this.kernelIconUrl = item.kernelIconUrl;
+    this.metadata = item.metadata;
+    // custom
+    this.iconClass = commands.iconClass(item.command, args);
+    this.icon = commands.icon(item.command, args);
+    this.caption = commands.caption(item.command, args);
+    this.label = commands.label(item.command, args);
+    this._lastUsed = lastUsedDatabase.get(item);
+    this.starred = favoritesDatabase.get(item) ?? false;
+  }
+  get lastUsed(): Date | null {
+    return this._lastUsed;
+  }
+  get refreshLastUsed(): ISignal<IItem, void> {
+    return this._refreshLastUsed;
+  }
+  async execute() {
+    const { item, commands, lastUsedDatabase } = this._options;
+    await commands.execute(item.command, this.args);
+    lastUsedDatabase.recordAsUsedNow(item);
+    this._lastUsed = lastUsedDatabase.get(item);
+    this._refreshLastUsed.emit();
+  }
+  toggleStar() {
+    const { item, favoritesDatabase } = this._options;
+    const wasStarred = favoritesDatabase.get(item);
+    const newState = !wasStarred;
+    this.starred = newState;
+    favoritesDatabase.set(item, newState);
+  }
+  private _refreshLastUsed = new Signal<Item, void>(this);
+  private _lastUsed: Date | null = null;
+}
+
 export class NewLauncher extends Launcher {
   constructor(options: NewLauncher.IOptions) {
     super(options);
@@ -302,37 +442,13 @@ export class NewLauncher extends Launcher {
   trans: TranslationBundle;
 
   renderCommand = (item: ILauncher.IItemOptions): IItem => {
-    const args = { ...item.args, cwd: this.cwd };
-    const iconClass = this.commands.iconClass(item.command, args);
-    const icon = this.commands.icon(item.command, args);
-    const caption = this.commands.caption(item.command, args);
-    const label = this.commands.label(item.command, args);
-    const execute = async () => {
-      await this.commands.execute(item.command, args);
-      this._lastUsedDatabase.recordAsUsedNow(item);
-      obj.lastUsed = this._lastUsedDatabase.get(item);
-    };
-    const lastUsed = this._lastUsedDatabase.get(item);
-    const starred = this._favoritesDatabase.get(item) ?? false;
-    const toggleStar = () => {
-      const wasStarred = this._favoritesDatabase.get(item);
-      const newState = !wasStarred;
-      obj.starred = newState;
-      this._favoritesDatabase.set(item, newState);
-    };
-    const obj = {
-      ...item,
-      icon,
-      iconClass,
-      label,
-      caption,
-      execute,
-      lastUsed,
-      starred,
-      toggleStar
-    };
-
-    return obj;
+    return new Item({
+      item,
+      cwd: this.cwd,
+      commands: this.commands,
+      lastUsedDatabase: this._lastUsedDatabase,
+      favoritesDatabase: this._favoritesDatabase
+    });
   };
 
   renderKernelCommand = (item: ILauncher.IItemOptions): IItem => {
