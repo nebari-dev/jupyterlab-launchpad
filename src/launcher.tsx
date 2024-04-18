@@ -402,11 +402,15 @@ class Item implements IItem {
     this.icon = commands.icon(item.command, args);
     this.caption = commands.caption(item.command, args);
     this.label = commands.label(item.command, args);
-    this._lastUsed = lastUsedDatabase.get(item);
+    this.lastUsed = lastUsedDatabase.get(item);
     this.starred = favoritesDatabase.get(item) ?? false;
   }
   get lastUsed(): Date | null {
     return this._lastUsed;
+  }
+  set lastUsed(value: Date | null) {
+    this._lastUsed = value;
+    this._setRefreshClock();
   }
   get refreshLastUsed(): ISignal<IItem, void> {
     return this._refreshLastUsed;
@@ -415,7 +419,7 @@ class Item implements IItem {
     const { item, commands, lastUsedDatabase } = this._options;
     await commands.execute(item.command, this.args);
     lastUsedDatabase.recordAsUsedNow(item);
-    this._lastUsed = lastUsedDatabase.get(item);
+    this.lastUsed = lastUsedDatabase.get(item);
     this._refreshLastUsed.emit();
   }
   toggleStar() {
@@ -425,7 +429,34 @@ class Item implements IItem {
     this.starred = newState;
     favoritesDatabase.set(item, newState);
   }
+  private _setRefreshClock() {
+    const value = this._lastUsed;
+    if (this._refreshClock !== null) {
+      window.clearTimeout(this._refreshClock);
+      this._refreshClock = null;
+    }
+    if (!value) {
+      return;
+    }
+    const delta = Date.now() - value.getTime();
+    // Refresh every 10 seconds if last used less than a minute ago;
+    // Otherwise refresh every 1 minute if last used less than 1 hour ago
+    // Otherwise refresh every 1 hour.
+    const second = 1000;
+    const minute = 60 * second;
+    const interval =
+      delta < 1 * minute
+        ? 10 * second
+        : delta < 60 * minute
+          ? 1 * minute
+          : 60 * minute;
+    this._refreshClock = window.setTimeout(() => {
+      this._refreshLastUsed.emit();
+      this._setRefreshClock();
+    }, interval);
+  }
   private _refreshLastUsed = new Signal<Item, void>(this);
+  private _refreshClock: number | null = null;
   private _lastUsed: Date | null = null;
 }
 
