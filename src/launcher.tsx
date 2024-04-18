@@ -192,8 +192,7 @@ function LauncherBody(props: {
       </h2>
       <div className="jp-Launcher-cwd">
         <h3>
-          {trans.__('Current directory:')}
-          <code>{cwd ? cwd : '/'}</code>
+          {trans.__('Current directory:')} <code>{cwd ? cwd : '/'}</code>
         </h3>
       </div>
       <div className="jp-Launcher-searchBox">
