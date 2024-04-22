@@ -1,6 +1,15 @@
 import { IStateDB } from '@jupyterlab/statedb';
 import { ReadonlyPartialJSONValue, PromiseDelegate } from '@lumino/coreutils';
 import { ILauncher } from '@jupyterlab/launcher';
+import {
+  ILastUsedDatabase,
+  IFavoritesDatabase,
+  ILauncherDatabase
+} from './types';
+import {
+  JupyterFrontEnd,
+  JupyterFrontEndPlugin
+} from '@jupyterlab/application';
 
 abstract class Database<V extends ReadonlyPartialJSONValue, K> {
   ready: Promise<void>;
@@ -56,3 +65,55 @@ export abstract class ItemDatabase<
     return item.command + '_' + JSON.stringify(item.args);
   }
 }
+
+export class LastUsedDatabase
+  extends ItemDatabase<string>
+  implements ILastUsedDatabase
+{
+  protected _stateDBKey = 'new-launcher:last-used';
+
+  get(item: ILauncher.IItemOptions) {
+    const date = super._get(item);
+    return date ? new Date(date) : null;
+  }
+
+  async recordAsUsedNow(item: ILauncher.IItemOptions) {
+    this._set(item, new Date().toUTCString());
+  }
+}
+
+export class FavoritesDatabase
+  extends ItemDatabase<boolean>
+  implements IFavoritesDatabase
+{
+  protected _stateDBKey = 'new-launcher:favorites';
+
+  get(item: ILauncher.IItemOptions) {
+    return super._get(item) ?? null;
+  }
+
+  async set(item: ILauncher.IItemOptions, isFavourite: boolean) {
+    this._set(item, isFavourite);
+  }
+}
+
+/**
+ * Initialization data for the jupyterlab-new-launcher extension.
+ */
+export const databasePlugin: JupyterFrontEndPlugin<ILauncherDatabase> = {
+  id: 'jupyterlab-new-launcher:database',
+  description: 'A redesigned JupyterLab launcher databases',
+  provides: ILauncherDatabase,
+  autoStart: true,
+  requires: [IStateDB],
+  activate: (app: JupyterFrontEnd, stateDB: IStateDB) => {
+    const databaseOptions = {
+      stateDB,
+      fetchInterval: 10000
+    };
+    return {
+      lastUsed: new LastUsedDatabase(databaseOptions),
+      favorites: new FavoritesDatabase(databaseOptions)
+    };
+  }
+};

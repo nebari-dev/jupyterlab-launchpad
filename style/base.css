@@ -57,31 +57,40 @@
   font-size: 20px;
 }
 
-.jp-Launcher-openByKernel {
+.jp-NewLauncher-table {
   --jp-icon-size: 16px;
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.jp-Launcher-openByKernel .jp-Launcher-kernelIcon {
+.jp-NewLauncher-table .jp-Launcher-kernelIcon {
   width: var(--jp-icon-size);
   height: var(--jp-icon-size);
 }
 
-.jp-Launcher-openByKernel .jp-LauncherCard-noKernelIcon {
+.jp-NewLauncher-table .jp-LauncherCard-noKernelIcon {
   font-size: var(--jp-icon-size);
 }
 
-.jp-Launcher-openByKernel .jp-LauncherCard-icon {
+.jp-NewLauncher-table .jp-LauncherCard-icon {
   height: var(--jp-icon-size);
 }
 
-.jp-Launcher-openByKernel th[data-id='icon'],
-.jp-Launcher-openByKernel th[data-id='star'] {
+.jp-NewLauncher-table th[data-id='icon'],
+.jp-NewLauncher-table th[data-id='star'] {
   width: var(--jp-icon-size);
 }
 
-.jp-Launcher-openByKernel .jp-starIcon {
+.jp-NewLauncher-table .jp-starIcon {
   width: var(--jp-icon-size);
   height: var(--jp-icon-size);
+}
+
+.jp-NewLauncher-table-scroller {
+  overflow: auto;
+  margin-top: 4px;
 }
 
 .jp-starIconButton {

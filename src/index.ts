@@ -9,32 +9,31 @@ import { ICommandPalette, MainAreaWidget } from '@jupyterlab/apputils';
 import { FileBrowserModel, IDefaultFileBrowser } from '@jupyterlab/filebrowser';
 import { ILauncher, LauncherModel } from '@jupyterlab/launcher';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
-import { IStateDB } from '@jupyterlab/statedb';
 import { ITranslator } from '@jupyterlab/translation';
 import { addIcon, launcherIcon } from '@jupyterlab/ui-components';
 import { find } from '@lumino/algorithm';
 import { ReadonlyPartialJSONObject } from '@lumino/coreutils';
 import { DockPanel, TabBar, Widget } from '@lumino/widgets';
 import { NewLauncher as Launcher } from './launcher';
-import { LastUsedDatabase } from './last_used';
-import { FavoritesDatabase } from './favorites';
-import { CommandIDs } from './types';
+import { CommandIDs, ILauncherDatabase, MAIN_PLUGIN_ID } from './types';
 import { addCommands } from './commands';
+import { sessionDialogsPlugin } from './dialogs';
+import { databasePlugin } from './database';
 
 /**
  * Initialization data for the jupyterlab-new-launcher extension.
  */
-const plugin: JupyterFrontEndPlugin<ILauncher> = {
-  id: 'jupyterlab-new-launcher:plugin',
+const launcherPlugin: JupyterFrontEndPlugin<ILauncher> = {
+  id: MAIN_PLUGIN_ID,
   description: 'A redesigned JupyterLab launcher',
   provides: ILauncher,
   autoStart: true,
-  requires: [ITranslator, IStateDB, ISettingRegistry],
+  requires: [ITranslator, ISettingRegistry, ILauncherDatabase],
   optional: [ILabShell, ICommandPalette, IDefaultFileBrowser],
   activate
 };
 
-export default plugin;
+export default [launcherPlugin, sessionDialogsPlugin, databasePlugin];
 
 /**
  * Activate the launcher.
@@ -42,8 +41,8 @@ export default plugin;
 function activate(
   app: JupyterFrontEnd,
   translator: ITranslator,
-  stateDB: IStateDB,
   settingRegistry: ISettingRegistry,
+  database: ILauncherDatabase,
   labShell: ILabShell | null,
   palette: ICommandPalette | null,
   defaultBrowser: IDefaultFileBrowser | null
@@ -52,14 +51,7 @@ function activate(
   const trans = translator.load('jupyterlab-new-launcher');
   const model = new LauncherModel();
 
-  const databaseOptions = {
-    stateDB,
-    fetchInterval: 10000
-  };
-  const lastUsedDatabase = new LastUsedDatabase(databaseOptions);
-  const favoritesDatabase = new FavoritesDatabase(databaseOptions);
-
-  settingRegistry.load(plugin.id).then(settings => {
+  settingRegistry.load(MAIN_PLUGIN_ID).then(settings => {
     addCommands(app, trans, settings);
   });
 
@@ -77,16 +69,16 @@ function activate(
         }
       };
 
-      const settings = await settingRegistry.load(plugin.id);
-      await Promise.all([lastUsedDatabase.ready, favoritesDatabase.ready]);
+      const settings = await settingRegistry.load(MAIN_PLUGIN_ID);
+      await Promise.all([database.lastUsed.ready, database.favorites.ready]);
       const launcher = new Launcher({
         model,
         cwd,
         callback,
         commands,
         translator,
-        lastUsedDatabase,
-        favoritesDatabase,
+        lastUsedDatabase: database.lastUsed,
+        favoritesDatabase: database.favorites,
         settings
       });
 

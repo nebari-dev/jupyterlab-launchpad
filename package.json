@@ -101,7 +101,8 @@
         "outputDir": "jupyterlab_new_launcher/labextension",
         "schemaDir": "schema",
         "disabledExtensions": [
-            "@jupyterlab/launcher-extension"
+            "@jupyterlab/launcher-extension",
+            "@jupyterlab/apputils-extension:sessionDialogs"
         ]
     },
     "eslintIgnore": [

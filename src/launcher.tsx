@@ -1,9 +1,9 @@
 // Copyright (c) Nebari Development Team.
 // Distributed under the terms of the Modified BSD License.
 import type { CommandRegistry } from '@lumino/commands';
-import type { VirtualElement } from '@lumino/virtualdom';
 import { ReadonlyJSONObject } from '@lumino/coreutils';
 import { Time } from '@jupyterlab/coreutils';
+import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ILauncher, Launcher } from '@jupyterlab/launcher';
 import { TranslationBundle } from '@jupyterlab/translation';
 import {
@@ -15,13 +15,17 @@ import {
   UseSignal,
   MenuSvg
 } from '@jupyterlab/ui-components';
-import { Signal, ISignal } from '@lumino/signaling';
 import * as React from 'react';
-import { ILastUsedDatabase } from './last_used';
-import { IFavoritesDatabase } from './favorites';
-import { ISettingsLayout, CommandIDs } from './types';
+import {
+  ISettingsLayout,
+  CommandIDs,
+  IItem,
+  IKernelItem,
+  ILastUsedDatabase,
+  IFavoritesDatabase
+} from './types';
 import { starIcon } from './icons';
-import { ISettingRegistry } from '@jupyterlab/settingregistry';
+import { Item } from './item';
 
 const STAR_BUTTON_CLASS = 'jp-starIconButton';
 const KERNEL_ITEM_CLASS = 'jp-TableKernelItem';
@@ -50,22 +54,6 @@ function TypeCard(props: {
       </div>
     </div>
   );
-}
-
-interface IItem extends ILauncher.IItemOptions {
-  label: string;
-  caption: string;
-  icon: VirtualElement.IRenderer | undefined;
-  iconClass: string;
-  execute: () => Promise<void>;
-  lastUsed: Date | null;
-  starred: boolean;
-  toggleStar: () => void;
-  refreshLastUsed: ISignal<IItem, void>;
-}
-
-interface IKernelItem extends IItem {
-  //kernel: string;
 }
 
 function CollapsibleSection(
@@ -136,11 +124,94 @@ function LauncherBody(props: {
   const { trans, cwd, typeItems } = props;
   const [query, updateQuery] = React.useState<string>('');
 
+  const metadataAvailable = new Set<string>();
+  for (const item of props.notebookItems) {
+    const kernelMetadata = item.metadata?.kernel;
+    if (!kernelMetadata) {
+      continue;
+    }
+    for (const key of Object.keys(kernelMetadata)) {
+      metadataAvailable.add(key);
+    }
+  }
+
+  return (
+    <div className="jp-LauncherBody">
+      <h2 className="jp-LauncherBody-Title">
+        {trans.__('Launch New Session')}
+      </h2>
+      <div className="jp-Launcher-cwd">
+        <h3>
+          {trans.__('Current directory:')} <code>{cwd ? cwd : '/'}</code>
+        </h3>
+      </div>
+      <div className="jp-Launcher-searchBox">
+        <FilterBox
+          placeholder={trans.__('Filter')}
+          updateFilter={(fn, query) => {
+            updateQuery(query ?? '');
+          }}
+          initialQuery={''}
+          useFuzzyFilter={false}
+        />
+      </div>
+      <CollapsibleSection
+        className="jp-Launcher-openByType"
+        title={trans.__('Open New by Type')}
+        open={true} // TODO: store this in layout/state higher up
+      >
+        {typeItems
+          .filter(
+            item =>
+              !query ||
+              item.label.toLowerCase().indexOf(query.toLowerCase()) !== -1
+          )
+          .map(item => (
+            <TypeCard item={item} trans={trans} />
+          ))}
+      </CollapsibleSection>
+      <CollapsibleSection
+        className="jp-Launcher-openByKernel"
+        title={trans.__('Open New by Kernel')}
+        open={true} // TODO: store this in layout/state higher up
+      >
+        <KernelTable
+          items={props.notebookItems}
+          commands={props.commands}
+          showSearchBox={false}
+          query={query}
+          settings={props.settings}
+          trans={trans}
+        />
+      </CollapsibleSection>
+    </div>
+  );
+}
+
+export function KernelTable(props: {
+  trans: TranslationBundle;
+  items: IKernelItem[];
+  commands: CommandRegistry;
+  settings: ISettingRegistry.ISettings;
+  showSearchBox: boolean;
+  query: string;
+}) {
+  const { trans } = props;
+  let query: string;
+  let updateQuery: (value: string) => void;
+  if (props.showSearchBox) {
+    const [_query, _updateQuery] = React.useState<string>('');
+    query = _query;
+    updateQuery = _updateQuery;
+  } else {
+    query = props.query;
+  }
+
   // Hoisted to avoid "Rendered fewer hooks than expected" error on toggling the Star column
   const [, forceUpdate] = React.useReducer(x => x + 1, 0);
 
   const metadataAvailable = new Set<string>();
-  for (const item of props.notebookItems) {
+  for (const item of props.items) {
     const kernelMetadata = item.metadata?.kernel;
     if (!kernelMetadata) {
       continue;
@@ -313,7 +384,7 @@ function LauncherBody(props: {
     (props.settings.composite.columnOrder as ISettingsLayout['columnOrder']) ??
       initialColumnOrder
   );
-  const KernelTable = Table<IKernelItem>;
+  const KernelItemTable = Table<IKernelItem>;
 
   const onSettings = () => {
     const newHiddenColumns =
@@ -338,123 +409,95 @@ function LauncherBody(props: {
   });
 
   return (
-    <div className="jp-LauncherBody">
-      <h2 className="jp-LauncherBody-Title">
-        {trans.__('Launch New Session')}
-      </h2>
-      <div className="jp-Launcher-cwd">
-        <h3>
-          {trans.__('Current directory:')} <code>{cwd ? cwd : '/'}</code>
-        </h3>
-      </div>
-      <div className="jp-Launcher-searchBox">
-        <FilterBox
-          placeholder={trans.__('Filter')}
-          updateFilter={(fn, query) => {
-            updateQuery(query ?? '');
-          }}
-          initialQuery={''}
-          useFuzzyFilter={false}
-        />
-      </div>
-      <CollapsibleSection
-        className="jp-Launcher-openByType"
-        title={trans.__('Open New by Type')}
-        open={true} // TODO: store this in layout/state higher up
-      >
-        {typeItems
-          .filter(
-            item =>
-              !query ||
-              item.label.toLowerCase().indexOf(query.toLowerCase()) !== -1
-          )
-          .map(item => (
-            <TypeCard item={item} trans={trans} />
-          ))}
-      </CollapsibleSection>
-      <CollapsibleSection
-        className="jp-Launcher-openByKernel"
-        title={trans.__('Open New by Kernel')}
-        open={true} // TODO: store this in layout/state higher up
-      >
-        <div
-          onContextMenu={(event: React.MouseEvent) => {
-            event.preventDefault();
-            const contextMenu = new MenuSvg({ commands: props.commands });
-            const columnsSubMenu = new MenuSvg({ commands: props.commands });
-            for (const column of columns) {
-              columnsSubMenu.addItem({
-                command: CommandIDs.toggleColumn,
-                args: { id: column.id, label: column.label }
-              });
-            }
-            columnsSubMenu.title.label = trans.__('Visible Columns');
-            contextMenu.addItem({
-              type: 'submenu',
-              submenu: columnsSubMenu
-            });
-            const id = (
-              (event.target as HTMLElement).closest(
-                'th[data-id]'
-              ) as HTMLElement
-            )?.dataset['id'];
-            if (id) {
-              contextMenu.addItem({
-                command: CommandIDs.moveColumn,
-                args: { direction: 'left', order: columnOrder, id }
-              });
-              contextMenu.addItem({
-                command: CommandIDs.moveColumn,
-                args: { direction: 'right', order: columnOrder, id }
-              });
-            }
-            contextMenu.open(event.clientX, event.clientY);
-          }}
-        >
-          <KernelTable
-            rows={props.notebookItems
-              .filter(
-                kernel =>
-                  kernel.label.toLowerCase().indexOf(query.toLowerCase()) !== -1
-              )
-              .map(data => {
-                return {
-                  data: data,
-                  key: data.command + JSON.stringify(data.args)
-                };
-              })}
-            blankIndicator={() => {
-              return <div>{trans.__('No entries')}</div>;
+    <div className="jp-NewLauncher-table">
+      {props.showSearchBox ? (
+        <div className="jp-Launcher-searchBox">
+          <FilterBox
+            placeholder={trans.__('Filter')}
+            updateFilter={(fn, query) => {
+              updateQuery(query ?? '');
             }}
-            sortKey={'kernel'}
-            onRowClick={event => {
-              const target = event.target as HTMLElement;
-              const row = target.closest('tr');
-              if (!row) {
-                return;
-              }
-              const cell = target.closest('td');
-              const starButton = cell?.querySelector(`.${STAR_BUTTON_CLASS}`);
-              if (starButton) {
-                return (starButton as HTMLElement).click();
-              }
-              const element = row.querySelector(`.${KERNEL_ITEM_CLASS}`)!;
-              (element as HTMLElement).click();
-            }}
-            columns={columns
-              .filter(column => !hiddenColumns[column.id])
-              .map(column => {
-                return {
-                  ...column,
-                  rank: columnOrder.indexOf(column.id) ?? 10
-                };
-              })
-              .sort((a, b) => {
-                return a.rank - b.rank;
-              })}
+            initialQuery={''}
+            useFuzzyFilter={false}
           />
         </div>
-      </CollapsibleSection>
+      ) : null}
+      <div
+        className="jp-NewLauncher-table-scroller"
+        onContextMenu={(event: React.MouseEvent) => {
+          event.preventDefault();
+          const contextMenu = new MenuSvg({ commands: props.commands });
+          const columnsSubMenu = new MenuSvg({ commands: props.commands });
+          for (const column of columns) {
+            columnsSubMenu.addItem({
+              command: CommandIDs.toggleColumn,
+              args: { id: column.id, label: column.label }
+            });
+          }
+          columnsSubMenu.title.label = trans.__('Visible Columns');
+          contextMenu.addItem({
+            type: 'submenu',
+            submenu: columnsSubMenu
+          });
+          const id = (
+            (event.target as HTMLElement).closest('th[data-id]') as HTMLElement
+          )?.dataset['id'];
+          if (id) {
+            contextMenu.addItem({
+              command: CommandIDs.moveColumn,
+              args: { direction: 'left', order: columnOrder, id }
+            });
+            contextMenu.addItem({
+              command: CommandIDs.moveColumn,
+              args: { direction: 'right', order: columnOrder, id }
+            });
+          }
+          contextMenu.open(event.clientX, event.clientY);
+        }}
+      >
+        <KernelItemTable
+          rows={props.items
+            .filter(
+              kernel =>
+                kernel.label.toLowerCase().indexOf(query.toLowerCase()) !== -1
+            )
+            .map(data => {
+              return {
+                data: data,
+                key: data.command + JSON.stringify(data.args)
+              };
+            })}
+          blankIndicator={() => {
+            return <div>{trans.__('No entries')}</div>;
+          }}
+          sortKey={'kernel'}
+          onRowClick={event => {
+            const target = event.target as HTMLElement;
+            const row = target.closest('tr');
+            if (!row) {
+              return;
+            }
+            const cell = target.closest('td');
+            const starButton = cell?.querySelector(`.${STAR_BUTTON_CLASS}`);
+            if (starButton) {
+              return (starButton as HTMLElement).click();
+            }
+            const element = row.querySelector(`.${KERNEL_ITEM_CLASS}`)!;
+            (element as HTMLElement).click();
+          }}
+          columns={columns
+            .filter(column => !hiddenColumns[column.id])
+            .map(column => {
+              return {
+                ...column,
+                rank: columnOrder.indexOf(column.id) ?? 10
+              };
+            })
+            .sort((a, b) => {
+              return a.rank - b.rank;
+            })}
+        />
+      </div>
     </div>
   );
 }
@@ -465,103 +508,6 @@ export namespace NewLauncher {
     favoritesDatabase: IFavoritesDatabase;
     settings: ISettingRegistry.ISettings;
   }
-}
-
-class Item implements IItem {
-  // base ILauncher.IItemOptions
-  command: string;
-  args?: ReadonlyJSONObject;
-  category?: string;
-  rank?: number;
-  kernelIconUrl?: string;
-  metadata?: ReadonlyJSONObject;
-  // custom additions
-  label: string;
-  caption: string;
-  icon: VirtualElement.IRenderer | undefined;
-  iconClass: string;
-  starred: boolean;
-
-  constructor(
-    private _options: {
-      commands: CommandRegistry;
-      item: ILauncher.IItemOptions;
-      cwd: string;
-      lastUsedDatabase: ILastUsedDatabase;
-      favoritesDatabase: IFavoritesDatabase;
-    }
-  ) {
-    const { item, commands, lastUsedDatabase, favoritesDatabase, cwd } =
-      _options;
-    const args = { ...item.args, cwd };
-    // base
-    this.command = item.command;
-    this.args = args;
-    this.category = item.category;
-    this.rank = item.rank;
-    this.kernelIconUrl = item.kernelIconUrl;
-    this.metadata = item.metadata;
-    // custom
-    this.iconClass = commands.iconClass(item.command, args);
-    this.icon = commands.icon(item.command, args);
-    this.caption = commands.caption(item.command, args);
-    this.label = commands.label(item.command, args);
-    this.lastUsed = lastUsedDatabase.get(item);
-    this.starred = favoritesDatabase.get(item) ?? false;
-  }
-  get lastUsed(): Date | null {
-    return this._lastUsed;
-  }
-  set lastUsed(value: Date | null) {
-    this._lastUsed = value;
-    this._setRefreshClock();
-  }
-  get refreshLastUsed(): ISignal<IItem, void> {
-    return this._refreshLastUsed;
-  }
-  async execute() {
-    const { item, commands, lastUsedDatabase } = this._options;
-    await commands.execute(item.command, this.args);
-    await lastUsedDatabase.recordAsUsedNow(item);
-    this.lastUsed = lastUsedDatabase.get(item);
-    this._refreshLastUsed.emit();
-  }
-  toggleStar() {
-    const { item, favoritesDatabase } = this._options;
-    const wasStarred = favoritesDatabase.get(item);
-    const newState = !wasStarred;
-    this.starred = newState;
-    return favoritesDatabase.set(item, newState);
-  }
-  private _setRefreshClock() {
-    const value = this._lastUsed;
-    if (this._refreshClock !== null) {
-      window.clearTimeout(this._refreshClock);
-      this._refreshClock = null;
-    }
-    if (!value) {
-      return;
-    }
-    const delta = Date.now() - value.getTime();
-    // Refresh every 10 seconds if last used less than a minute ago;
-    // Otherwise refresh every 1 minute if last used less than 1 hour ago
-    // Otherwise refresh every 1 hour.
-    const second = 1000;
-    const minute = 60 * second;
-    const interval =
-      delta < 1 * minute
-        ? 10 * second
-        : delta < 60 * minute
-          ? 1 * minute
-          : 60 * minute;
-    this._refreshClock = window.setTimeout(() => {
-      this._refreshLastUsed.emit();
-      this._setRefreshClock();
-    }, interval);
-  }
-  private _refreshLastUsed = new Signal<Item, void>(this);
-  private _refreshClock: number | null = null;
-  private _lastUsed: Date | null = null;
 }
 
 export class NewLauncher extends Launcher {
