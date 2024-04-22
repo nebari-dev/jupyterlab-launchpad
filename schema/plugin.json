@@ -1,6 +1,8 @@
 {
   "jupyter.lab.shortcuts": [],
-  "title": "jupyterlab-new-launcher",
+  "jupyter.lab.setting-icon": "ui-components:launcher",
+  "jupyter.lab.setting-icon-label": "New Launcher",
+  "title": "New Launcher",
   "description": "jupyterlab-new-launcher settings.",
   "type": "object",
   "properties": {
