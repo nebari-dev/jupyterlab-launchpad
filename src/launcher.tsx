@@ -397,15 +397,17 @@ function LauncherBody(props: {
               (event.target as HTMLElement).closest(
                 'th[data-id]'
               ) as HTMLElement
-            )?.dataset['id'] as string;
-            contextMenu.addItem({
-              command: CommandIDs.moveColumn,
-              args: { direction: 'left', order: columnOrder, id }
-            });
-            contextMenu.addItem({
-              command: CommandIDs.moveColumn,
-              args: { direction: 'right', order: columnOrder, id }
-            });
+            )?.dataset['id'];
+            if (id) {
+              contextMenu.addItem({
+                command: CommandIDs.moveColumn,
+                args: { direction: 'left', order: columnOrder, id }
+              });
+              contextMenu.addItem({
+                command: CommandIDs.moveColumn,
+                args: { direction: 'right', order: columnOrder, id }
+              });
+            }
             contextMenu.open(event.clientX, event.clientY);
           }}
         >
