@@ -18,6 +18,7 @@
   cursor: pointer;
   transition: margin var(--jp-animation-time) ease-out;
   list-style: none;
+  display: inline-block; /* contain the clickable area */
 }
 
 .jp-CollapsibleSection[open] > summary {

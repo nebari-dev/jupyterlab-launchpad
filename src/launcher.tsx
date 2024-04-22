@@ -12,13 +12,16 @@ import {
   LabIcon,
   caretRightIcon,
   Table,
-  UseSignal
+  UseSignal,
+  MenuSvg
 } from '@jupyterlab/ui-components';
 import { Signal, ISignal } from '@lumino/signaling';
 import * as React from 'react';
 import { ILastUsedDatabase } from './last_used';
 import { IFavoritesDatabase } from './favorites';
+import { ISettingsLayout, CommandIDs } from './types';
 import { starIcon } from './icons';
+import { ISettingRegistry } from '@jupyterlab/settingregistry';
 
 const STAR_BUTTON_CLASS = 'jp-starIconButton';
 const KERNEL_ITEM_CLASS = 'jp-TableKernelItem';
@@ -127,10 +130,14 @@ function LauncherBody(props: {
   cwd: string;
   typeItems: IItem[];
   notebookItems: IKernelItem[];
+  commands: CommandRegistry;
+  settings: ISettingRegistry.ISettings;
 }): React.ReactElement {
   const { trans, cwd, typeItems } = props;
   const [query, updateQuery] = React.useState<string>('');
-  const KernelTable = Table<IKernelItem>;
+
+  // Hoisted to avoid "Rendered fewer hooks than expected" error on toggling the Star column
+  const [, forceUpdate] = React.useReducer(x => x + 1, 0);
 
   const metadataAvailable = new Set<string>();
   for (const item of props.notebookItems) {
@@ -185,6 +192,151 @@ function LauncherBody(props: {
     }
   );
 
+  const columns: Table.IColumn<IKernelItem>[] = [
+    {
+      id: 'icon',
+      label: trans.__('Icon'),
+      renderCell: (row: IKernelItem) => (
+        <div className="jp-LauncherCard-icon" onClick={() => row.execute()}>
+          {row.kernelIconUrl ? (
+            <img
+              src={row.kernelIconUrl}
+              className="jp-Launcher-kernelIcon"
+              alt={row.label}
+            />
+          ) : (
+            <div className="jp-LauncherCard-noKernelIcon">
+              {row.label[0].toUpperCase()}
+            </div>
+          )}
+        </div>
+      ),
+      sort: (a: IKernelItem, b: IKernelItem) =>
+        a.command.localeCompare(b.command)
+    },
+    {
+      id: 'kernel',
+      label: trans.__('Kernel'),
+      renderCell: (row: IKernelItem) => (
+        <span
+          className={KERNEL_ITEM_CLASS}
+          onClick={event => {
+            row.execute();
+            event.stopPropagation();
+          }}
+          onKeyDown={event => {
+            // TODO memoize func defs for perf
+            if (event.key === 'Enter') {
+              row.execute();
+            }
+          }}
+          tabIndex={0}
+        >
+          {row.label}
+        </span>
+      ),
+      sort: (a: IKernelItem, b: IKernelItem) => a.label.localeCompare(b.label)
+    },
+    ...extraColumns,
+    {
+      id: 'last-used',
+      label: trans.__('Last Used'),
+      renderCell: (row: IKernelItem) => {
+        return (
+          <UseSignal signal={row.refreshLastUsed}>
+            {() => {
+              return row.lastUsed ? (
+                <span title={Time.format(row.lastUsed)}>
+                  {Time.formatHuman(row.lastUsed)}
+                </span>
+              ) : (
+                trans.__('Never')
+              );
+            }}
+          </UseSignal>
+        );
+      },
+      sort: (a: IKernelItem, b: IKernelItem) => {
+        if (a.lastUsed === b.lastUsed) {
+          return 0;
+        }
+        if (!a.lastUsed) {
+          return 1;
+        }
+        if (!b.lastUsed) {
+          return -1;
+        }
+        return a.lastUsed > b.lastUsed ? 1 : -1;
+      }
+    },
+    {
+      id: 'star',
+      label: '',
+      renderCell: (row: IKernelItem) => {
+        const starred = row.starred;
+        const title = starred
+          ? trans.__('Click to add this kernel to favourites')
+          : trans.__('Click to remove the kernel from favourites');
+        return (
+          <button
+            className={
+              starred
+                ? `${STAR_BUTTON_CLASS} jp-mod-starred`
+                : STAR_BUTTON_CLASS
+            }
+            title={title}
+            onClick={event => {
+              row.toggleStar();
+              forceUpdate();
+              event.stopPropagation();
+            }}
+          >
+            <starIcon.react className="jp-starIcon" />
+          </button>
+        );
+      },
+      sort: (a: IKernelItem, b: IKernelItem) =>
+        Number(a.starred) - Number(b.starred)
+    }
+  ];
+
+  const [hiddenColumns, setHiddenColumns] = React.useState<
+    ISettingsLayout['hiddenColumns']
+  >(
+    (props.settings.composite
+      .hiddenColumns as ISettingsLayout['hiddenColumns']) ?? {}
+  );
+  const initialColumnOrder = columns.map(c => c.id);
+  const [columnOrder, setColumnOrder] = React.useState<
+    ISettingsLayout['columnOrder']
+  >(
+    (props.settings.composite.columnOrder as ISettingsLayout['columnOrder']) ??
+      initialColumnOrder
+  );
+  const KernelTable = Table<IKernelItem>;
+
+  const onSettings = () => {
+    const newHiddenColumns =
+      (props.settings.composite
+        .hiddenColumns as ISettingsLayout['hiddenColumns']) ?? {};
+    if (hiddenColumns !== newHiddenColumns) {
+      setHiddenColumns(newHiddenColumns);
+    }
+    const newColumnOrder =
+      (props.settings.composite
+        .columnOrder as ISettingsLayout['columnOrder']) ?? initialColumnOrder;
+    if (columnOrder !== newColumnOrder) {
+      setColumnOrder(newColumnOrder);
+    }
+  };
+
+  React.useEffect(() => {
+    props.settings.changed.connect(onSettings);
+    return () => {
+      props.settings.changed.disconnect(onSettings);
+    };
+  });
+
   return (
     <div className="jp-LauncherBody">
       <h2 className="jp-LauncherBody-Title">
@@ -225,150 +377,81 @@ function LauncherBody(props: {
         title={trans.__('Open New by Kernel')}
         open={true} // TODO: store this in layout/state higher up
       >
-        <KernelTable
-          rows={props.notebookItems
-            .filter(
-              kernel =>
-                kernel.label.toLowerCase().indexOf(query.toLowerCase()) !== -1
-            )
-            .map(data => {
-              return {
-                data: data,
-                key: data.command + JSON.stringify(data.args)
-              };
-            })}
-          blankIndicator={() => {
-            return <div>{trans.__('No entries')}</div>;
-          }}
-          sortKey={'kernel'}
-          onRowClick={event => {
-            const target = event.target as HTMLElement;
-            const row = target.closest('tr');
-            if (!row) {
-              return;
+        <div
+          onContextMenu={(event: React.MouseEvent) => {
+            event.preventDefault();
+            const contextMenu = new MenuSvg({ commands: props.commands });
+            const columnsSubMenu = new MenuSvg({ commands: props.commands });
+            for (const column of columns) {
+              columnsSubMenu.addItem({
+                command: CommandIDs.toggleColumn,
+                args: { id: column.id, label: column.label }
+              });
             }
-            const cell = target.closest('td');
-            const starButton = cell?.querySelector(`.${STAR_BUTTON_CLASS}`);
-            if (starButton) {
-              return (starButton as HTMLElement).click();
-            }
-            const element = row.querySelector(`.${KERNEL_ITEM_CLASS}`)!;
-            (element as HTMLElement).click();
+            columnsSubMenu.title.label = trans.__('Visible Columns');
+            contextMenu.addItem({
+              type: 'submenu',
+              submenu: columnsSubMenu
+            });
+            const id = (
+              (event.target as HTMLElement).closest(
+                'th[data-id]'
+              ) as HTMLElement
+            )?.dataset['id'] as string;
+            contextMenu.addItem({
+              command: CommandIDs.moveColumn,
+              args: { direction: 'left', order: columnOrder, id }
+            });
+            contextMenu.addItem({
+              command: CommandIDs.moveColumn,
+              args: { direction: 'right', order: columnOrder, id }
+            });
+            contextMenu.open(event.clientX, event.clientY);
           }}
-          columns={[
-            {
-              id: 'icon',
-              label: trans.__('Icon'),
-              renderCell: (row: IKernelItem) => (
-                <div
-                  className="jp-LauncherCard-icon"
-                  onClick={() => row.execute()}
-                >
-                  {row.kernelIconUrl ? (
-                    <img
-                      src={row.kernelIconUrl}
-                      className="jp-Launcher-kernelIcon"
-                      alt={row.label}
-                    />
-                  ) : (
-                    <div className="jp-LauncherCard-noKernelIcon">
-                      {row.label[0].toUpperCase()}
-                    </div>
-                  )}
-                </div>
-              ),
-              sort: (a: IKernelItem, b: IKernelItem) =>
-                a.command.localeCompare(b.command)
-            },
-            {
-              id: 'kernel',
-              label: trans.__('Kernel'),
-              renderCell: (row: IKernelItem) => (
-                <span
-                  className={KERNEL_ITEM_CLASS}
-                  onClick={event => {
-                    row.execute();
-                    event.stopPropagation();
-                  }}
-                  onKeyDown={event => {
-                    // TODO memoize func defs for perf
-                    if (event.key === 'Enter') {
-                      row.execute();
-                    }
-                  }}
-                  tabIndex={0}
-                >
-                  {row.label}
-                </span>
-              ),
-              sort: (a: IKernelItem, b: IKernelItem) =>
-                a.label.localeCompare(b.label)
-            },
-            ...extraColumns,
-            {
-              id: 'last-used',
-              label: trans.__('Last Used'),
-              renderCell: (row: IKernelItem) => {
-                return (
-                  <UseSignal signal={row.refreshLastUsed}>
-                    {() => {
-                      return row.lastUsed ? (
-                        <span title={Time.format(row.lastUsed)}>
-                          {Time.formatHuman(row.lastUsed)}
-                        </span>
-                      ) : (
-                        trans.__('Never')
-                      );
-                    }}
-                  </UseSignal>
-                );
-              },
-              sort: (a: IKernelItem, b: IKernelItem) => {
-                if (a.lastUsed === b.lastUsed) {
-                  return 0;
-                }
-                if (!a.lastUsed) {
-                  return 1;
-                }
-                if (!b.lastUsed) {
-                  return -1;
-                }
-                return a.lastUsed > b.lastUsed ? 1 : -1;
+        >
+          <KernelTable
+            rows={props.notebookItems
+              .filter(
+                kernel =>
+                  kernel.label.toLowerCase().indexOf(query.toLowerCase()) !== -1
+              )
+              .map(data => {
+                return {
+                  data: data,
+                  key: data.command + JSON.stringify(data.args)
+                };
+              })}
+            blankIndicator={() => {
+              return <div>{trans.__('No entries')}</div>;
+            }}
+            sortKey={'kernel'}
+            onRowClick={event => {
+              const target = event.target as HTMLElement;
+              const row = target.closest('tr');
+              if (!row) {
+                return;
               }
-            },
-            {
-              id: 'star',
-              label: '',
-              renderCell: (row: IKernelItem) => {
-                const [, forceUpdate] = React.useReducer(x => x + 1, 0);
-
-                const starred = row.starred;
-                const title = starred
-                  ? trans.__('Click to add this kernel to favourites')
-                  : trans.__('Click to remove the kernel from favourites');
-                return (
-                  <button
-                    className={
-                      starred
-                        ? `${STAR_BUTTON_CLASS} jp-mod-starred`
-                        : STAR_BUTTON_CLASS
-                    }
-                    title={title}
-                    onClick={event => {
-                      row.toggleStar();
-                      forceUpdate();
-                      event.stopPropagation();
-                    }}
-                  >
-                    <starIcon.react className="jp-starIcon" />
-                  </button>
-                );
-              },
-              sort: (a: IKernelItem, b: IKernelItem) =>
-                Number(a.starred) - Number(b.starred)
-            }
-          ]}
-        />
+              const cell = target.closest('td');
+              const starButton = cell?.querySelector(`.${STAR_BUTTON_CLASS}`);
+              if (starButton) {
+                return (starButton as HTMLElement).click();
+              }
+              const element = row.querySelector(`.${KERNEL_ITEM_CLASS}`)!;
+              (element as HTMLElement).click();
+            }}
+            columns={columns
+              .filter(column => !hiddenColumns[column.id])
+              .map(column => {
+                return {
+                  ...column,
+                  rank: columnOrder.indexOf(column.id) ?? 10
+                };
+              })
+              .sort((a, b) => {
+                return a.rank - b.rank;
+              })}
+          />
+        </div>
       </CollapsibleSection>
     </div>
   );
@@ -378,6 +461,7 @@ export namespace NewLauncher {
   export interface IOptions extends ILauncher.IOptions {
     lastUsedDatabase: ILastUsedDatabase;
     favoritesDatabase: IFavoritesDatabase;
+    settings: ISettingRegistry.ISettings;
   }
 }
 
@@ -485,6 +569,7 @@ export class NewLauncher extends Launcher {
     this.trans = this.translator.load('jupyterlab-new-launcher');
     this._lastUsedDatabase = options.lastUsedDatabase;
     this._favoritesDatabase = options.favoritesDatabase;
+    this._settings = options.settings;
   }
   private _lastUsedDatabase: ILastUsedDatabase;
   private _favoritesDatabase: IFavoritesDatabase;
@@ -558,10 +643,13 @@ export class NewLauncher extends Launcher {
       <LauncherBody
         trans={this.trans}
         cwd={this.cwd}
+        commands={this.commands}
         typeItems={typeItems}
         notebookItems={notebookItems}
+        settings={this._settings}
       />
     );
   }
   protected commands: CommandRegistry;
+  private _settings: ISettingRegistry.ISettings;
 }

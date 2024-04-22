@@ -18,13 +18,8 @@ import { DockPanel, TabBar, Widget } from '@lumino/widgets';
 import { NewLauncher as Launcher } from './launcher';
 import { LastUsedDatabase } from './last_used';
 import { FavoritesDatabase } from './favorites';
-
-/**
- * The command IDs used by the launcher plugin.
- */
-namespace CommandIDs {
-  export const create = 'launcher:create';
-}
+import { CommandIDs } from './types';
+import { addCommands } from './commands';
 
 /**
  * Initialization data for the jupyterlab-new-launcher extension.
@@ -34,8 +29,8 @@ const plugin: JupyterFrontEndPlugin<ILauncher> = {
   description: 'A redesigned JupyterLab launcher',
   provides: ILauncher,
   autoStart: true,
-  requires: [ITranslator, IStateDB],
-  optional: [ILabShell, ICommandPalette, IDefaultFileBrowser, ISettingRegistry],
+  requires: [ITranslator, IStateDB, ISettingRegistry],
+  optional: [ILabShell, ICommandPalette, IDefaultFileBrowser],
   activate
 };
 
@@ -48,33 +43,14 @@ function activate(
   app: JupyterFrontEnd,
   translator: ITranslator,
   stateDB: IStateDB,
+  settingRegistry: ISettingRegistry,
   labShell: ILabShell | null,
   palette: ICommandPalette | null,
-  defaultBrowser: IDefaultFileBrowser | null,
-  settingRegistry: ISettingRegistry | null
+  defaultBrowser: IDefaultFileBrowser | null
 ): ILauncher {
   const { commands, shell } = app;
   const trans = translator.load('jupyterlab-new-launcher');
   const model = new LauncherModel();
-
-  console.log('JupyterLab extension jupyterlab-new-launcher is activated!');
-
-  if (settingRegistry) {
-    settingRegistry
-      .load(plugin.id)
-      .then(settings => {
-        console.log(
-          'jupyterlab-new-launcher settings loaded:',
-          settings.composite
-        );
-      })
-      .catch(reason => {
-        console.error(
-          'Failed to load settings for jupyterlab-new-launcher.',
-          reason
-        );
-      });
-  }
 
   const databaseOptions = {
     stateDB,
@@ -82,6 +58,10 @@ function activate(
   };
   const lastUsedDatabase = new LastUsedDatabase(databaseOptions);
   const favoritesDatabase = new FavoritesDatabase(databaseOptions);
+
+  settingRegistry.load(plugin.id).then(settings => {
+    addCommands(app, trans, settings);
+  });
 
   commands.addCommand(CommandIDs.create, {
     label: trans.__('New Launcher'),
@@ -96,6 +76,8 @@ function activate(
           launcher.dispose();
         }
       };
+
+      const settings = await settingRegistry.load(plugin.id);
       await Promise.all([lastUsedDatabase.ready, favoritesDatabase.ready]);
       const launcher = new Launcher({
         model,
@@ -104,7 +86,8 @@ function activate(
         commands,
         translator,
         lastUsedDatabase,
-        favoritesDatabase
+        favoritesDatabase,
+        settings
       });
 
       launcher.model = model;
