@@ -19,7 +19,7 @@ import {
   TranslationBundle
 } from '@jupyterlab/translation';
 
-import { KernelTable } from './launcher';
+import { KernelTable } from './components/table';
 import {
   IItem,
   ILastUsedDatabase,
