@@ -5,6 +5,15 @@
 
 A redesigned JupyterLab launcher
 
+![new launcher][launcher]
+
+Kernel selection dialog:
+
+![new dialog][dialog]
+
+[launcher]: https://raw.githubusercontent.com/nebari-dev/jupyterlab-new-launcher/main/docs/images/launcher.png
+[dialog]: https://raw.githubusercontent.com/nebari-dev/jupyterlab-new-launcher/main/docs/images/dialog.png
+
 ## Requirements
 
 - JupyterLab >= 4.0.0
@@ -14,7 +23,7 @@ A redesigned JupyterLab launcher
 To install the extension, execute:
 
 ```bash
-pip install jupyterlab_new_launcher
+pip install jupyterlab-new-launcher
 ```
 
 ## Uninstall
@@ -22,7 +31,7 @@ pip install jupyterlab_new_launcher
 To remove the extension, execute:
 
 ```bash
-pip uninstall jupyterlab_new_launcher
+pip uninstall jupyterlab-new-launcher
 ```
 
 ## Contributing
