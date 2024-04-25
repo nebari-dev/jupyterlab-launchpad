@@ -118,6 +118,7 @@ function LauncherBody(props: {
   cwd: string;
   typeItems: IItem[];
   notebookItems: IKernelItem[];
+  consoleItems: IKernelItem[];
   commands: CommandRegistry;
   settings: ISettingRegistry.ISettings;
 }): React.ReactElement {
@@ -157,7 +158,7 @@ function LauncherBody(props: {
       </div>
       <CollapsibleSection
         className="jp-Launcher-openByType"
-        title={trans.__('Open New by Type')}
+        title={trans.__('Create Empty')}
         open={true} // TODO: store this in layout/state higher up
       >
         {typeItems
@@ -172,11 +173,26 @@ function LauncherBody(props: {
       </CollapsibleSection>
       <CollapsibleSection
         className="jp-Launcher-openByKernel"
-        title={trans.__('Open New by Kernel')}
+        title={trans.__('Launch Notebook')}
         open={true} // TODO: store this in layout/state higher up
       >
         <KernelTable
           items={props.notebookItems}
+          commands={props.commands}
+          showSearchBox={false}
+          query={query}
+          settings={props.settings}
+          trans={trans}
+          onClick={item => item.execute()}
+        />
+      </CollapsibleSection>
+      <CollapsibleSection
+        className="jp-Launcher-openByKernel"
+        title={trans.__('Launch Console')}
+        open={false}
+      >
+        <KernelTable
+          items={props.consoleItems}
           commands={props.commands}
           showSearchBox={false}
           query={query}
@@ -589,6 +605,11 @@ export class NewLauncher extends Launcher {
       .filter(item => item.category && item.category === notebookCategory)
       .map(this.renderKernelCommand);
 
+    const consoleItems = items
+      .filter(item => item.category && item.category === consoleCategory)
+      .map(this.renderKernelCommand);
+
+
     // TODO: only create items once or if changed; dispose of them too
     const typeItems: IItem[] = typeCommands.map(this.renderCommand);
 
@@ -599,6 +620,7 @@ export class NewLauncher extends Launcher {
         commands={this.commands}
         typeItems={typeItems}
         notebookItems={notebookItems}
+        consoleItems={consoleItems}
         settings={this._settings}
       />
     );
