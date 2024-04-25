@@ -11,6 +11,7 @@ import {
   Dialog,
   ReactWidget
 } from '@jupyterlab/apputils';
+import { Kernel } from '@jupyterlab/services';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import {
   ITranslator,
@@ -24,6 +25,7 @@ import {
   ILastUsedDatabase,
   IFavoritesDatabase,
   ILauncherDatabase,
+  IKernelItem,
   MAIN_PLUGIN_ID
 } from './types';
 import { Item } from './item';
@@ -58,7 +60,8 @@ class CustomSessionContextDialogs extends SessionContextDialogs {
       }),
       Dialog.okButton({
         label: trans.__('Select'),
-        ariaLabel: trans.__('Select Kernel')
+        ariaLabel: trans.__('Select Kernel'),
+        className: 'jp-KernelSelector-SelectButton'
       })
     ];
 
@@ -66,7 +69,7 @@ class CustomSessionContextDialogs extends SessionContextDialogs {
     const hasCheckbox = typeof autoStartDefault === 'boolean';
     const settings = await this.options.settingRegistry.load(MAIN_PLUGIN_ID);
 
-    const dialog = new Dialog({
+    const dialog = new Dialog<Partial<Kernel.IModel> | null>({
       title: trans.__('Select Kernel'),
       body: new KernelSelector({
         data: {
@@ -78,7 +81,10 @@ class CustomSessionContextDialogs extends SessionContextDialogs {
         favoritesDatabase: this.options.database.favorites,
         lastUsedDatabase: this.options.database.lastUsed,
         settings,
-        trans
+        trans,
+        acceptDialog: () => {
+          dialog.resolve(1);
+        }
       }),
       buttons,
       checkbox: hasCheckbox
@@ -179,9 +185,7 @@ export class KernelSelector extends ReactWidget {
   protected render(): React.ReactElement<any> | null {
     const items: ILauncher.IItemOptions[] = [];
 
-    for (const [_, spec] of Object.entries(
-      this.options.data.specs!.kernelspecs!
-    )) {
+    for (const spec of Object.values(this.options.data.specs!.kernelspecs!)) {
       if (!spec) {
         continue;
       }
@@ -208,13 +212,26 @@ export class KernelSelector extends ReactWidget {
         commands={this.commands}
         items={notebookItems}
         settings={this._settings}
-        query={''}
+        query=""
         showSearchBox={true}
+        onClick={item => {
+          this._selection = item;
+          this.options.acceptDialog();
+        }}
       />
     );
   }
+
+  getValue(): Partial<Kernel.IModel> | null {
+    if (!this._selection) {
+      return null;
+    }
+    return { name: this._selection.args!.kernelName as string };
+  }
+
   protected commands: CommandRegistry;
   private _settings: ISettingRegistry.ISettings;
+  private _selection: IKernelItem | null = null;
 }
 
 export namespace KernelSelector {
@@ -225,5 +242,6 @@ export namespace KernelSelector {
     commands: CommandRegistry;
     trans: TranslationBundle;
     data: SessionContext.IKernelSearch;
+    acceptDialog: () => void;
   }
 }

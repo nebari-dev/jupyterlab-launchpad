@@ -66,6 +66,12 @@ export class Item implements IItem {
     this.lastUsed = lastUsedDatabase.get(item);
     this._refreshLastUsed.emit();
   }
+  async markAsUsed() {
+    const { item, lastUsedDatabase } = this._options;
+    await lastUsedDatabase.recordAsUsedNow(item);
+    this.lastUsed = lastUsedDatabase.get(item);
+    this._refreshLastUsed.emit();
+  }
   toggleStar() {
     const { item, favoritesDatabase } = this._options;
     const wasStarred = favoritesDatabase.get(item);

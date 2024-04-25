@@ -182,6 +182,7 @@ function LauncherBody(props: {
           query={query}
           settings={props.settings}
           trans={trans}
+          onClick={item => item.execute()}
         />
       </CollapsibleSection>
     </div>
@@ -195,6 +196,7 @@ export function KernelTable(props: {
   settings: ISettingRegistry.ISettings;
   showSearchBox: boolean;
   query: string;
+  onClick: (item: IKernelItem) => void;
 }) {
   const { trans } = props;
   let query: string;
@@ -268,7 +270,10 @@ export function KernelTable(props: {
       id: 'icon',
       label: trans.__('Icon'),
       renderCell: (row: IKernelItem) => (
-        <div className="jp-LauncherCard-icon" onClick={() => row.execute()}>
+        <div
+          className="jp-LauncherCard-icon"
+          onClick={() => props.onClick(row)}
+        >
           {row.kernelIconUrl ? (
             <img
               src={row.kernelIconUrl}
@@ -292,7 +297,7 @@ export function KernelTable(props: {
         <span
           className={KERNEL_ITEM_CLASS}
           onClick={event => {
-            row.execute();
+            props.onClick(row);
             event.stopPropagation();
           }}
           onKeyDown={event => {
