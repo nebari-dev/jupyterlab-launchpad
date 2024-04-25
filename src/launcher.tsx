@@ -13,7 +13,9 @@ import {
   caretRightIcon,
   Table,
   UseSignal,
-  MenuSvg
+  MenuSvg,
+  notebookIcon,
+  consoleIcon
 } from '@jupyterlab/ui-components';
 import * as React from 'react';
 import {
@@ -24,7 +26,7 @@ import {
   ILastUsedDatabase,
   IFavoritesDatabase
 } from './types';
-import { starIcon } from './icons';
+import { starIcon, fileIcon } from './icons';
 import { Item } from './item';
 
 const STAR_BUTTON_CLASS = 'jp-starIconButton';
@@ -46,7 +48,6 @@ function TypeCard(props: {
         <LabIcon.resolveReact
           icon={item.icon}
           iconClass={classes(item.iconClass, 'jp-Icon-cover')}
-          stylesheet="launcherCard"
         />
       </div>
       <div className="jp-LauncherCard-label">
@@ -60,6 +61,7 @@ function CollapsibleSection(
   props: React.PropsWithChildren<{
     title: string;
     className: string;
+    icon: LabIcon;
     open: boolean;
   }>
 ) {
@@ -81,6 +83,10 @@ function CollapsibleSection(
         >
           <caretRightIcon.react className="jp-CollapsibleSection-CollapserIcon" />
         </div>
+        <props.icon.react
+          tag="span"
+          className="jp-CollapsibleSection-CategoryIcon"
+        />
         <h3 className="jp-CollapsibleSection-Title">{props.title}</h3>
       </summary>
       <div className="jp-Launcher-CardGroup jp-Launcher-cardContainer">
@@ -119,10 +125,11 @@ function LauncherBody(props: {
   typeItems: IItem[];
   notebookItems: IKernelItem[];
   consoleItems: IKernelItem[];
+  otherItems: IItem[];
   commands: CommandRegistry;
   settings: ISettingRegistry.ISettings;
 }): React.ReactElement {
-  const { trans, cwd, typeItems } = props;
+  const { trans, cwd, typeItems, otherItems } = props;
   const [query, updateQuery] = React.useState<string>('');
 
   const metadataAvailable = new Set<string>();
@@ -138,15 +145,22 @@ function LauncherBody(props: {
 
   return (
     <div className="jp-LauncherBody">
-      <div className="jp-Launcher-cwd">
-        <h3>
-          {trans.__('Current directory:')} <code>{cwd ? cwd : '/'}</code>
-        </h3>
+      <div className="jp-NewLauncher-TopBar">
+        <div className="jp-Launcher-cwd">
+          <h3>
+            {trans.__('Current folder:')} <code>{cwd ? cwd : '/'}</code>
+          </h3>
+        </div>
+        <div className="jp-NewLauncher-OtherItems">
+          {otherItems.map(item => (
+            <TypeCard item={item} trans={trans} />
+          ))}
+        </div>
       </div>
       <div className="jp-Launcher-searchBox">
         <FilterBox
           placeholder={trans.__('Filter')}
-          updateFilter={(fn, query) => {
+          updateFilter={(_, query) => {
             updateQuery(query ?? '');
           }}
           initialQuery={''}
@@ -156,6 +170,7 @@ function LauncherBody(props: {
       <CollapsibleSection
         className="jp-Launcher-openByType"
         title={trans.__('Create Empty')}
+        icon={fileIcon}
         open={true} // TODO: store this in layout/state higher up
       >
         {typeItems
@@ -171,6 +186,7 @@ function LauncherBody(props: {
       <CollapsibleSection
         className="jp-Launcher-openByKernel"
         title={trans.__('Launch Notebook')}
+        icon={notebookIcon}
         open={true} // TODO: store this in layout/state higher up
       >
         <KernelTable
@@ -186,6 +202,7 @@ function LauncherBody(props: {
       <CollapsibleSection
         className="jp-Launcher-openByKernel"
         title={trans.__('Launch Console')}
+        icon={consoleIcon}
         open={false}
       >
         <KernelTable
@@ -432,7 +449,7 @@ export function KernelTable(props: {
         <div className="jp-Launcher-searchBox">
           <FilterBox
             placeholder={trans.__('Filter')}
-            updateFilter={(fn, query) => {
+            updateFilter={(_, query) => {
               updateQuery(query ?? '');
             }}
             initialQuery={''}
@@ -572,9 +589,17 @@ export class NewLauncher extends Launcher {
     const consoleCategory = trans.__('Console');
     const kernelCategories = [notebookCategory, consoleCategory];
 
+    const otherCommands = ['inspector:open'];
+
+    const otherItems = items
+      .filter(item => otherCommands.includes(item.command))
+      .map(this.renderCommand);
+
     // TODO: maybe better to filter out everything from default lab and re-populate the kernel categories manually to get more metadata?
     const nonKernelItems = items.filter(
-      item => !item.category || !kernelCategories.includes(item.category)
+      item =>
+        (!item.category || !kernelCategories.includes(item.category)) &&
+        !otherCommands.includes(item.command)
     );
     const rankOverrides = {
       'terminal:create-new': 3, // TODO: replace with terminal which asks for environment choice?
@@ -606,7 +631,6 @@ export class NewLauncher extends Launcher {
       .filter(item => item.category && item.category === consoleCategory)
       .map(this.renderKernelCommand);
 
-
     // TODO: only create items once or if changed; dispose of them too
     const typeItems: IItem[] = typeCommands.map(this.renderCommand);
 
@@ -618,6 +642,7 @@ export class NewLauncher extends Launcher {
         typeItems={typeItems}
         notebookItems={notebookItems}
         consoleItems={consoleItems}
+        otherItems={otherItems}
         settings={this._settings}
       />
     );

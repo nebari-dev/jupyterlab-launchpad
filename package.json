@@ -196,7 +196,8 @@
             "property-no-vendor-prefix": null,
             "selector-class-pattern": "^([a-z][A-z\\d]*)(-[A-z\\d]+)*$",
             "selector-no-vendor-prefix": null,
-            "value-no-vendor-prefix": null
+            "value-no-vendor-prefix": null,
+            "no-descending-specificity": null
         }
     }
 }

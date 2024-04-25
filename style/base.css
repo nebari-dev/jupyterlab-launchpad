@@ -1,7 +1,3 @@
-.jp-Launcher-TypeCard {
-  user-select: none;
-}
-
 .jp-Launcher-CardGroup {
   justify-content: center;
 }
@@ -12,6 +8,47 @@
   --jp-title-height: 24px;
 
   padding: var(--jp-animation-depth);
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.jp-Launcher-cwd > h3 {
+  font-size: var(--jp-ui-font-size1);
+  margin: 0;
+}
+
+.jp-NewLauncher-OtherItems .jp-LauncherCard-label {
+  display: none;
+}
+
+.jp-NewLauncher-OtherItems .jp-Launcher-TypeCard {
+  width: unset;
+  min-height: unset;
+  flex-direction: row;
+  margin: 0;
+  box-shadow: none;
+  border-color: var(--jp-border-color0);
+}
+
+.jp-NewLauncher-OtherItems .jp-LauncherCard-icon {
+  height: 24px;
+}
+
+.jp-NewLauncher-OtherItems .jp-Launcher-TypeCard > .jp-LauncherCard-icon svg {
+  height: 16px;
+  height: 16px;
+}
+
+.jp-NewLauncher-TopBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.jp-Launcher-searchBox input {
+  box-shadow: none;
+  border: var(--jp-border-width) solid var(--jp-border-color1);
 }
 
 .jp-CollapsibleSection > summary {
@@ -19,6 +56,12 @@
   transition: margin var(--jp-animation-time) ease-out;
   list-style: none;
   display: inline-block; /* contain the clickable area */
+  padding-right: 12px; /* but extend it a little */
+  min-width: 185px;
+}
+
+.jp-CollapsibleSection > summary:hover {
+  background-color: var(--jp-layout-color2);
 }
 
 .jp-CollapsibleSection[open] > summary {
@@ -39,16 +82,24 @@
   display: inline-block;
 }
 
+.jp-CollapsibleSection-CategoryIcon > svg {
+  width: 24px;
+  height: 24px;
+  margin-left: 4px;
+  margin-right: 8px;
+}
+
 .jp-CollapsibleSection-Title {
   display: inline-block;
   line-height: var(--jp-title-height);
   vertical-align: top;
   margin: 0;
   user-select: none;
+  font-weight: normal;
 }
 
 .jp-LauncherBody {
-  padding: 0 12px;
+  padding: 0 24px;
   height: 100%;
   overflow-y: auto;
 }
@@ -62,7 +113,7 @@
 }
 
 .jp-NewLauncher-table .jp-sortable-table {
-  border: var(--jp-border-width) solid var(--jp-border-color3);
+  border: var(--jp-border-width) solid var(--jp-border-color2);
   border-top: 0;
 }
 
@@ -139,4 +190,15 @@
 
 .jp-NewLauncher-table tr {
   cursor: pointer;
+}
+
+.jp-Launcher-TypeCard {
+  user-select: none;
+}
+
+.jp-Launcher-TypeCard > .jp-LauncherCard-icon svg {
+  align-items: center;
+  display: flex;
+  height: 52px;
+  width: 52px;
 }
