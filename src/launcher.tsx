@@ -227,6 +227,7 @@ export function KernelTable(props: {
   showSearchBox: boolean;
   query: string;
   onClick: (item: IKernelItem) => void;
+  hideColumns?: string[];
 }) {
   const { trans } = props;
   let query: string;
@@ -266,6 +267,9 @@ export function KernelTable(props: {
             return '-';
           }
           const value = kernelMeta[metadataKey];
+          if (typeof value === 'string') {
+            return value;
+          }
           return JSON.stringify(value);
         },
         sort: (a: IKernelItem, b: IKernelItem) => {
@@ -295,7 +299,7 @@ export function KernelTable(props: {
     }
   );
 
-  const columns: Table.IColumn<IKernelItem>[] = [
+  const availableColumns: Table.IColumn<IKernelItem>[] = [
     {
       id: 'icon',
       label: trans.__('Icon'),
@@ -405,6 +409,10 @@ export function KernelTable(props: {
         Number(a.starred) - Number(b.starred)
     }
   ];
+  const forceHiddenColumns = props.hideColumns ?? [];
+  const columns = availableColumns.filter(
+    column => !forceHiddenColumns.includes(column.id)
+  );
 
   const [hiddenColumns, setHiddenColumns] = React.useState<
     ISettingsLayout['hiddenColumns']

@@ -182,8 +182,21 @@
   max-width: unset;
 }
 
+.jp-KernelSelector-Dialog > .jp-Dialog-content > .jp-Dialog-header {
+  display: none;
+}
+
 .jp-KernelSelector-SelectButton {
   display: none;
+}
+
+.jp-KernelSelector-Dialog .jp-NewLauncher-table {
+  margin-bottom: 8px;
+}
+
+.jp-KernelSelector-Section {
+  margin: 0;
+  margin-bottom: 4px;
 }
 
 /* Styles for scenario where full row is clickable  */

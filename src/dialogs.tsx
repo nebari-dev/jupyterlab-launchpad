@@ -184,8 +184,9 @@ export class KernelSelector extends ReactWidget {
    */
   protected render(): React.ReactElement<any> | null {
     const items: ILauncher.IItemOptions[] = [];
+    const specs = this.options.data.specs!.kernelspecs!;
 
-    for (const spec of Object.values(this.options.data.specs!.kernelspecs!)) {
+    for (const spec of Object.values(specs)) {
       if (!spec) {
         continue;
       }
@@ -200,31 +201,85 @@ export class KernelSelector extends ReactWidget {
         kernelIconUrl,
         metadata: {
           kernel: JSONExt.deepCopy(spec.metadata || {}) as ReadonlyJSONValue
+        }
+      });
+    }
+    const runningItems: ILauncher.IItemOptions[] = [];
+    for (const model of this.options.data.sessions!) {
+      const kernel = model.kernel;
+      if (!kernel) {
+        continue;
+      }
+      const spec = specs[kernel.name]!;
+      const kernelIconUrl =
+        spec.resources['logo-svg'] || spec.resources['logo-64x64'];
+      runningItems.push({
+        command: 'notebook:create-new',
+        args: {
+          isLauncher: true,
+          kernelName: spec.name
         },
-        category: this.trans.__('Notebook')
+        kernelIconUrl,
+        metadata: {
+          kernel: {
+            ...JSONExt.deepCopy(spec.metadata || {}),
+            state: kernel.execution_state ?? 'running',
+            'used by': model.name
+          } as ReadonlyJSONValue,
+          model: kernel as unknown as ReadonlyJSONValue
+        }
       });
     }
     const notebookItems = items.map(this.renderKernelCommand);
+    const runningKernelsItems = runningItems.map(this.renderKernelCommand);
 
     return (
-      <KernelTable
-        trans={this.trans}
-        commands={this.commands}
-        items={notebookItems}
-        settings={this._settings}
-        query=""
-        showSearchBox={true}
-        onClick={item => {
-          this._selection = item;
-          this.options.acceptDialog();
-        }}
-      />
+      <>
+        <h3 className="jp-KernelSelector-Section">
+          {this.trans.__('Start a new kernel')}
+        </h3>
+        <KernelTable
+          trans={this.trans}
+          commands={this.commands}
+          items={notebookItems}
+          settings={this._settings}
+          query=""
+          showSearchBox={true}
+          onClick={item => {
+            this._selection = item;
+            this.options.acceptDialog();
+          }}
+        />
+        {runningKernelsItems.length > 0 ? (
+          <>
+            <h3 className="jp-KernelSelector-Section">
+              {this.trans.__('Connect to a running kernel')}
+            </h3>
+            <KernelTable
+              trans={this.trans}
+              commands={this.commands}
+              items={runningKernelsItems}
+              settings={this._settings}
+              query=""
+              showSearchBox={false}
+              onClick={item => {
+                this._selection = item;
+                this.options.acceptDialog();
+              }}
+              hideColumns={['last-used', 'star']}
+            />
+          </>
+        ) : null}
+      </>
     );
   }
 
   getValue(): Partial<Kernel.IModel> | null {
     if (!this._selection) {
       return null;
+    }
+    if (this._selection.metadata?.model) {
+      return this._selection.metadata.model as unknown as Kernel.IModel;
     }
     return { name: this._selection.args!.kernelName as string };
   }
