@@ -138,9 +138,6 @@ function LauncherBody(props: {
 
   return (
     <div className="jp-LauncherBody">
-      <h2 className="jp-LauncherBody-Title">
-        {trans.__('Launch New Session')}
-      </h2>
       <div className="jp-Launcher-cwd">
         <h3>
           {trans.__('Current directory:')} <code>{cwd ? cwd : '/'}</code>

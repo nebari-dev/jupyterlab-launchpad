@@ -53,10 +53,6 @@
   overflow-y: auto;
 }
 
-.jp-LauncherBody-Title {
-  font-size: 20px;
-}
-
 .jp-NewLauncher-table {
   --jp-icon-size: 16px;
 
