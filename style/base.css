@@ -125,6 +125,11 @@
   transform: var(--jp-transition-transform);
 }
 
+.jp-KernelSelector-Dialog > .jp-Dialog-content {
+  max-height: 80%;
+  max-width: unset;
+}
+
 /* Styles for scenario where full row is clickable  */
 
 .jp-Launcher-openByKernel tr {

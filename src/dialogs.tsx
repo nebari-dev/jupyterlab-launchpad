@@ -91,6 +91,7 @@ class CustomSessionContextDialogs extends SessionContextDialogs {
           }
         : null
     });
+    dialog.node.classList.add('jp-KernelSelector-Dialog');
 
     const result = await dialog.launch();
 
