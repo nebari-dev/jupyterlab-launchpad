@@ -15,6 +15,7 @@ dependencies:
   - jupyterlab >=4.0.0,<5
   # labextension build dependencies
   - nodejs >=18,<19
+  - nb_conda_kernels
   - pip
   - wheel
   # additional packages for demos
