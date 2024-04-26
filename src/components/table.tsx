@@ -23,12 +23,12 @@ function columnLabelFromKey(key: string): string {
     return '(empty)';
   }
   switch (key) {
-    // Added by nb_conda_kernels <= 2.5.0
+    // Added by nb_conda_kernels
     case 'conda_env_name':
       return 'Environment';
     case 'conda_env_path':
       return 'Environment path';
-    // Will be added once https://github.com/anaconda/nb_conda_kernels/pull/262/ is released
+    // Added by nb_conda_kernels >= 2.5.1
     case 'conda_language':
       return 'Language';
     case 'conda_raw_kernel_name':
@@ -351,7 +351,7 @@ export function KernelTable(props: {
             (element as HTMLElement).click();
           }}
           columns={columns
-            .filter(column => !hiddenColumns[column.id])
+            .filter(column => hiddenColumns[column.id] !== 'hidden')
             .map(column => {
               return {
                 ...column,

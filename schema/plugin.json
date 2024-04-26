@@ -9,10 +9,13 @@
     "hiddenColumns": {
       "type": "object",
       "default": {
-        "conda_env_path": true,
-        "conda_raw_kernel_name": true
+        "conda_env_path": "hidden",
+        "conda_raw_kernel_name": "hidden"
       },
-      "additionalProperties": { "type": "boolean" }
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["visible", "hidden"]
+      }
     },
     "columnOrder": {
       "type": "array",

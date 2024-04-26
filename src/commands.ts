@@ -29,10 +29,10 @@ export function addCommands(
         (settings.user.hiddenColumns as
           | ISettingsLayout['hiddenColumns']
           | undefined) ?? {};
-      if (columns[id]) {
-        columns[id] = false;
+      if (columns[id] === 'visible' || !columns[id]) {
+        columns[id] = 'hidden';
       } else {
-        columns[id] = true;
+        columns[id] = 'visible';
       }
       await settings.set('hiddenColumns', columns);
     },
@@ -47,7 +47,7 @@ export function addCommands(
         (settings.user.hiddenColumns as
           | ISettingsLayout['hiddenColumns']
           | undefined) ?? {};
-      return !columns[id];
+      return columns[id] !== 'hidden';
     }
   });
   app.commands.addCommand(CommandIDs.moveColumn, {

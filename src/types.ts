@@ -17,7 +17,7 @@ export namespace CommandIDs {
 }
 
 export interface ISettingsLayout {
-  hiddenColumns: Record<string, boolean>;
+  hiddenColumns: Record<string, 'visible' | 'hidden'>;
   columnOrder: string[];
 }
 
