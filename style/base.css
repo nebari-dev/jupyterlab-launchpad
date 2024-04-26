@@ -140,6 +140,12 @@
   height: var(--jp-icon-size);
 }
 
+.jp-starIconButton:hover > .jp-starIcon {
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--jp-layout-color3);
+  background: var(--jp-layout-color1);
+}
+
 .jp-NewLauncher-table-scroller {
   overflow: auto;
   margin-top: 4px;
