@@ -3,6 +3,7 @@ import {
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
 import type { CommandRegistry } from '@lumino/commands';
+import type { Message } from '@lumino/messaging';
 import {
   SessionContextDialogs,
   ISessionContextDialogs,
@@ -178,6 +179,23 @@ export class KernelSelector extends ReactWidget {
       favoritesDatabase: this._favoritesDatabase
     });
   };
+
+  onBeforeAttach(msg: Message) {
+    super.onBeforeAttach(msg);
+    this.node.style.minWidth = '';
+    this.node.style.minHeight = '';
+  }
+
+  onAfterAttach(msg: Message) {
+    super.onAfterAttach(msg);
+    requestAnimationFrame(() => {
+      // Set minimum dimensions so that when user starts typing to filter
+      // the kernels the dialog does not start jumping around.
+      const bbox = this.node.getBoundingClientRect();
+      this.node.style.minWidth = bbox.width + 'px';
+      this.node.style.minHeight = bbox.height + 'px';
+    });
+  }
 
   /**
    * Render the launcher to virtual DOM nodes.
