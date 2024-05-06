@@ -47,8 +47,13 @@
 }
 
 .jp-Launcher-searchBox input {
+  /* no longer needed in lab 4.2, but kept for backward compatibility */
   box-shadow: none;
   border: var(--jp-border-width) solid var(--jp-border-color1);
+}
+
+.jp-Launcher-searchBox .jp-FilterBox {
+  width: 100%;
 }
 
 .jp-CollapsibleSection > summary {
