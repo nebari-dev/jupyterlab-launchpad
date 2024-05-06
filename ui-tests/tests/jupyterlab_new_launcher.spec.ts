@@ -2,14 +2,14 @@ import { expect, test, galata } from '@jupyterlab/galata';
 
 const SETTINGS_ID = 'jupyterlab-new-launcher:plugin';
 
-describe('Default settings', () => {
+test.describe('Default settings', () => {
   test('should render new launcher', async ({ page }) => {
     const launcher = page.locator('.jp-LauncherBody');
     expect(await launcher.screenshot()).toMatchSnapshot('launcher.png');
   });
 });
 
-describe('With starred section', () => {
+test.describe('With starred section', () => {
   test.use({
     mockSettings: {
       ...galata.DEFAULT_SETTINGS,
