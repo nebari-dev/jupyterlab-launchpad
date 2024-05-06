@@ -123,49 +123,43 @@ export function KernelTable(props: {
 
   const availableColumns: Table.IColumn<IKernelItem>[] = [
     {
-      id: 'icon',
-      label: trans.__('Icon'),
-      renderCell: (row: IKernelItem) => (
-        <div
-          className="jp-LauncherCard-icon"
-          onClick={() => props.onClick(row)}
-        >
-          {row.kernelIconUrl ? (
-            <img
-              src={row.kernelIconUrl}
-              className="jp-Launcher-kernelIcon"
-              alt={row.label}
-            />
-          ) : (
-            <div className="jp-LauncherCard-noKernelIcon">
-              {row.label[0].toUpperCase()}
-            </div>
-          )}
-        </div>
-      ),
-      sort: (a: IKernelItem, b: IKernelItem) =>
-        a.command.localeCompare(b.command)
-    },
-    {
       id: 'kernel',
       label: trans.__('Kernel'),
       renderCell: (row: IKernelItem) => (
-        <span
-          className={KERNEL_ITEM_CLASS}
-          onClick={event => {
-            props.onClick(row);
-            event.stopPropagation();
-          }}
-          onKeyDown={event => {
-            // TODO memoize func defs for perf
-            if (event.key === 'Enter') {
-              row.execute();
-            }
-          }}
-          tabIndex={0}
-        >
-          {row.label}
-        </span>
+        <>
+          <span
+            className="jp-LauncherCard-icon"
+            onClick={() => props.onClick(row)}
+          >
+            {row.kernelIconUrl ? (
+              <img
+                src={row.kernelIconUrl}
+                className="jp-Launcher-kernelIcon"
+                alt={row.label}
+              />
+            ) : (
+              <div className="jp-LauncherCard-noKernelIcon">
+                {row.label[0].toUpperCase()}
+              </div>
+            )}
+          </span>
+          <span
+            className={KERNEL_ITEM_CLASS}
+            onClick={event => {
+              props.onClick(row);
+              event.stopPropagation();
+            }}
+            onKeyDown={event => {
+              // TODO memoize func defs for perf
+              if (event.key === 'Enter') {
+                row.execute();
+              }
+            }}
+            tabIndex={0}
+          >
+            {row.label}
+          </span>
+        </>
       ),
       sort: (a: IKernelItem, b: IKernelItem) => a.label.localeCompare(b.label)
     },

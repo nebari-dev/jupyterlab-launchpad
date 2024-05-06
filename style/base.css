@@ -124,10 +124,20 @@
 
 .jp-NewLauncher-table .jp-LauncherCard-noKernelIcon {
   font-size: var(--jp-icon-size);
+  line-height: var(--jp-icon-size);
 }
 
 .jp-NewLauncher-table .jp-LauncherCard-icon {
   height: var(--jp-icon-size);
+  width: var(--jp-icon-size);
+  display: inline-block;
+}
+
+.jp-TableKernelItem {
+  display: inline-block;
+  line-height: var(--jp-icon-size);
+  vertical-align: top;
+  padding-left: 4px;
 }
 
 .jp-NewLauncher-table th[data-id='icon'],
