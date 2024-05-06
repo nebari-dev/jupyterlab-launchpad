@@ -47,8 +47,12 @@
 }
 
 .jp-Launcher-searchBox input {
-  /* no longer needed in lab 4.2, but kept for backward compatibility */
+  /* (no longer needed in lab 4.2+) */
   box-shadow: none;
+}
+
+.jp-Launcher-searchBox input,
+.jp-Launcher-searchBox jp-search::part(root) {
   border: var(--jp-border-width) solid var(--jp-border-color1);
 }
 
