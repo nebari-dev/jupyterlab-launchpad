@@ -1,5 +1,6 @@
 import { IStateDB } from '@jupyterlab/statedb';
 import { ReadonlyPartialJSONValue, PromiseDelegate } from '@lumino/coreutils';
+import { Signal } from '@lumino/signaling';
 import { ILauncher } from '@jupyterlab/launcher';
 import {
   ILastUsedDatabase,
@@ -94,7 +95,14 @@ export class FavoritesDatabase
 
   async set(item: ILauncher.IItemOptions, isFavourite: boolean) {
     this._set(item, isFavourite);
+    this._changed.emit();
   }
+
+  get changed() {
+    return this._changed;
+  }
+
+  private _changed = new Signal<FavoritesDatabase, void>(this);
 }
 
 /**

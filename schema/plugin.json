@@ -7,6 +7,7 @@
   "type": "object",
   "properties": {
     "hiddenColumns": {
+      "title": "Hidden columns",
       "type": "object",
       "default": {
         "conda_env_path": "hidden",
@@ -18,10 +19,15 @@
       }
     },
     "columnOrder": {
+      "title": "Column order",
       "type": "array",
       "items": {
         "type": "string"
       }
+    },
+    "starredSection": {
+      "type": "boolean",
+      "title": "Show starred section"
     }
   },
   "additionalProperties": false

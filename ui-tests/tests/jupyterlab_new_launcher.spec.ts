@@ -1,6 +1,36 @@
-import { expect, test } from '@jupyterlab/galata';
+import { expect, test, galata } from '@jupyterlab/galata';
 
-test('should render new launcher', async ({ page }) => {
-  const launcher = page.locator('.jp-LauncherBody');
-  expect(await launcher.screenshot()).toMatchSnapshot('launcher.png');
+const SETTINGS_ID = 'jupyterlab-new-launcher:plugin';
+
+describe('Default settings', () => {
+  test('should render new launcher', async ({ page }) => {
+    const launcher = page.locator('.jp-LauncherBody');
+    expect(await launcher.screenshot()).toMatchSnapshot('launcher.png');
+  });
+});
+
+describe('With starred section', () => {
+  test.use({
+    mockSettings: {
+      ...galata.DEFAULT_SETTINGS,
+      [SETTINGS_ID]: {
+        ...galata.DEFAULT_SETTINGS[SETTINGS_ID],
+        starredSection: true
+      }
+    }
+  });
+
+  test('should render new launcher with starred section', async ({ page }) => {
+    const launcher = page.locator('.jp-LauncherBody');
+    // expand the console section
+    await page.locator('.jp-Launcher-launchConsole summary').click();
+    // star some items
+    await page
+      .locator('.jp-Launcher-launchNotebook .jp-starIconButton')
+      .click();
+    await page.locator('.jp-Launcher-launchConsole .jp-starIconButton').click();
+    expect(await launcher.screenshot()).toMatchSnapshot(
+      'launcher-with-starred.png'
+    );
+  });
 });

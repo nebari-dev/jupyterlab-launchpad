@@ -19,6 +19,7 @@ export namespace CommandIDs {
 export interface ISettingsLayout {
   hiddenColumns: Record<string, 'visible' | 'hidden'>;
   columnOrder: string[];
+  starredSection: boolean;
 }
 
 export interface IItem extends ILauncher.IItemOptions {
@@ -47,6 +48,7 @@ export interface IFavoritesDatabase {
   ready: Promise<void>;
   get(item: ILauncher.IItemOptions): boolean | null;
   set(item: ILauncher.IItemOptions, isFavourite: boolean): Promise<void>;
+  changed: ISignal<IFavoritesDatabase, void>;
 }
 
 /**

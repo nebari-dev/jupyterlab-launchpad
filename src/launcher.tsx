@@ -1,6 +1,7 @@
 // Copyright (c) Nebari Development Team.
 // Distributed under the terms of the Modified BSD License.
 import type { CommandRegistry } from '@lumino/commands';
+import type { ISignal } from '@lumino/signaling';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ILauncher, Launcher } from '@jupyterlab/launcher';
 import { TranslationBundle } from '@jupyterlab/translation';
@@ -14,9 +15,10 @@ import {
   IItem,
   IKernelItem,
   ILastUsedDatabase,
-  IFavoritesDatabase
+  IFavoritesDatabase,
+  ISettingsLayout
 } from './types';
-import { fileIcon } from './icons';
+import { fileIcon, starIcon } from './icons';
 import { Item } from './item';
 import { KernelTable } from './components/table';
 import { CollapsibleSection } from './components/section';
@@ -31,9 +33,44 @@ function LauncherBody(props: {
   otherItems: IItem[];
   commands: CommandRegistry;
   settings: ISettingRegistry.ISettings;
+  favouritesChanged?: ISignal<IFavoritesDatabase, void>;
 }): React.ReactElement {
-  const { trans, cwd, typeItems, otherItems } = props;
+  const { trans, cwd, typeItems, otherItems, favouritesChanged } = props;
   const [query, updateQuery] = React.useState<string>('');
+  const [, forceUpdate] = React.useReducer(x => x + 1, 0);
+  const [showStarred, updateShowStarred] = React.useState<
+    ISettingsLayout['starredSection']
+  >(
+    props.settings.composite.starredSection as ISettingsLayout['starredSection']
+  );
+
+  const syncSettings = () => {
+    updateShowStarred(
+      props.settings.composite
+        .starredSection as ISettingsLayout['starredSection']
+    );
+  };
+
+  React.useEffect(() => {
+    props.settings.changed.connect(syncSettings);
+    return () => {
+      props.settings.changed.disconnect(syncSettings);
+    };
+  });
+
+  if (favouritesChanged) {
+    const updateIfNeeded = () => {
+      if (showStarred) {
+        forceUpdate();
+      }
+    };
+    React.useEffect(() => {
+      favouritesChanged.connect(updateIfNeeded);
+      return () => {
+        favouritesChanged.disconnect(updateIfNeeded);
+      };
+    });
+  }
 
   const metadataAvailable = new Set<string>();
   for (const item of props.notebookItems) {
@@ -86,8 +123,28 @@ function LauncherBody(props: {
             <TypeCard item={item} trans={trans} />
           ))}
       </CollapsibleSection>
+      {showStarred ? (
+        <CollapsibleSection
+          className="jp-Launcher-openByKernel"
+          title={trans.__('Starred')}
+          icon={starIcon}
+          open={true} // TODO: store this in layout/state higher up
+        >
+          <KernelTable
+            items={[...props.notebookItems, ...props.consoleItems].filter(
+              item => item.starred
+            )}
+            commands={props.commands}
+            showSearchBox={false}
+            query={query}
+            settings={props.settings}
+            trans={trans}
+            onClick={item => item.execute()}
+          />
+        </CollapsibleSection>
+      ) : null}
       <CollapsibleSection
-        className="jp-Launcher-openByKernel"
+        className="jp-Launcher-openByKernel jp-Launcher-launchNotebook"
         title={trans.__('Launch Notebook')}
         icon={notebookIcon}
         open={true} // TODO: store this in layout/state higher up
@@ -103,7 +160,7 @@ function LauncherBody(props: {
         />
       </CollapsibleSection>
       <CollapsibleSection
-        className="jp-Launcher-openByKernel"
+        className="jp-Launcher-openByKernel jp-Launcher-launchConsole"
         title={trans.__('Launch Console')}
         icon={consoleIcon}
         open={false}
@@ -229,6 +286,7 @@ export class NewLauncher extends Launcher {
         consoleItems={consoleItems}
         otherItems={otherItems}
         settings={this._settings}
+        favouritesChanged={this._favoritesDatabase.changed}
       />
     );
   }
