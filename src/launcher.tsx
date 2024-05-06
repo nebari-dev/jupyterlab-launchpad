@@ -83,6 +83,10 @@ function LauncherBody(props: {
     }
   }
 
+  const starred = [...props.notebookItems, ...props.consoleItems].filter(
+    item => item.starred
+  );
+
   return (
     <div className="jp-LauncherBody">
       <div className="jp-NewLauncher-TopBar">
@@ -130,17 +134,20 @@ function LauncherBody(props: {
           icon={starIcon}
           open={true} // TODO: store this in layout/state higher up
         >
-          <KernelTable
-            items={[...props.notebookItems, ...props.consoleItems].filter(
-              item => item.starred
-            )}
-            commands={props.commands}
-            showSearchBox={false}
-            query={query}
-            settings={props.settings}
-            trans={trans}
-            onClick={item => item.execute()}
-          />
+          {starred.length > 0 ? (
+            <KernelTable
+              items={starred}
+              commands={props.commands}
+              showSearchBox={false}
+              showWidgetType={true}
+              query={query}
+              settings={props.settings}
+              trans={trans}
+              onClick={item => item.execute()}
+            />
+          ) : (
+            'No starred items'
+          )}
         </CollapsibleSection>
       ) : null}
       <CollapsibleSection

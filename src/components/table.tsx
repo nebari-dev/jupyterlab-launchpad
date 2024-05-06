@@ -50,6 +50,7 @@ export function KernelTable(props: {
   query: string;
   onClick: (item: IKernelItem) => void;
   hideColumns?: string[];
+  showWidgetType?: boolean;
 }) {
   const { trans } = props;
   let query: string;
@@ -120,6 +121,18 @@ export function KernelTable(props: {
       };
     }
   );
+
+  if (props.showWidgetType) {
+    extraColumns.push({
+      id: 'widget-type',
+      label: trans.__('Type'),
+      renderCell: (row: IKernelItem) => {
+        return row.command.split(':')[0];
+      },
+      sort: (a: IKernelItem, b: IKernelItem) =>
+        a.command.localeCompare(b.command)
+    });
+  }
 
   const availableColumns: Table.IColumn<IKernelItem>[] = [
     {
