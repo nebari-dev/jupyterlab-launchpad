@@ -21,6 +21,7 @@ export interface ISettingsLayout {
   columnOrder: string[];
   starredSection: boolean;
   collapsedSections: Record<string, 'collapsed' | 'expanded'>;
+  searchAllSections: boolean;
 }
 
 export interface IItem extends ILauncher.IItemOptions {

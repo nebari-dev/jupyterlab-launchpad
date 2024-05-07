@@ -38,3 +38,22 @@ test.describe('With starred section', () => {
     );
   });
 });
+
+test.describe('Filter individual', () => {
+  test.use({
+    mockSettings: {
+      ...galata.DEFAULT_SETTINGS,
+      [SETTINGS_ID]: {
+        ...galata.DEFAULT_SETTINGS[SETTINGS_ID],
+        searchAllSections: false
+      }
+    }
+  });
+
+  test('search in individual sections', async ({ page }) => {
+    const launcher = page.locator('.jp-LauncherBody');
+    expect(await launcher.screenshot()).toMatchSnapshot(
+      'launcher-search-in-individual.png'
+    );
+  });
+});
