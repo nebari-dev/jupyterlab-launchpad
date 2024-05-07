@@ -17,6 +17,11 @@
   margin: 0;
 }
 
+.jp-NewLauncher-OtherItems {
+  display: flex;
+  gap: 4px;
+}
+
 .jp-NewLauncher-OtherItems .jp-LauncherCard-label {
   display: none;
 }

@@ -2,10 +2,11 @@
 // Distributed under the terms of the Modified BSD License.
 import type { CommandRegistry } from '@lumino/commands';
 import type { VirtualElement } from '@lumino/virtualdom';
-import { ReadonlyJSONObject } from '@lumino/coreutils';
+import { ReadonlyJSONObject, JSONObject } from '@lumino/coreutils';
 import { ILauncher } from '@jupyterlab/launcher';
 import { Signal, ISignal } from '@lumino/signaling';
 import { IItem, IFavoritesDatabase, ILastUsedDatabase } from './types';
+import { codeServerIcon } from './icons';
 
 export class Item implements IItem {
   // base ILauncher.IItemOptions
@@ -50,19 +51,29 @@ export class Item implements IItem {
     this.starred = favoritesDatabase.get(item) ?? false;
     // special handling for conda-store
     // https://www.nebari.dev/docs/faq/#why-is-there-duplication-in-names-of-environments
+    const kernel = this.metadata['kernel'] as JSONObject;
     const condaStoreMatch = (
-      (this.metadata['conda_env_name'] as string | undefined) ?? ''
+      (kernel['conda_env_name'] as string | undefined) ?? ''
     ).match(/(?<namespace>.+)-(?<duplicate>\1)-(?<environment>.+)/);
     if (condaStoreMatch && this.metadata) {
       const groups = condaStoreMatch.groups!;
       this.label =
-        (this.metadata['conda_language'] as string | undefined) ??
-        groups.environment;
+        (kernel['conda_language'] as string | undefined) ?? groups.environment;
       this.metadata = {
         ...this.metadata,
-        conda_env_name: groups.environment,
-        Namespace: groups.namespace
+        kernel: {
+          ...kernel,
+          conda_env_name: groups.environment,
+          Namespace: groups.namespace
+        }
       };
+    }
+    // set the code-server icon to support dark theme properly
+    if (
+      this.command === 'server-proxy:open' &&
+      this.kernelIconUrl?.endsWith('/vscode')
+    ) {
+      this.icon = codeServerIcon;
     }
   }
   get lastUsed(): Date | null {
