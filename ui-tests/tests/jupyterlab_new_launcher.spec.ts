@@ -29,6 +29,8 @@ test.describe('With starred section', () => {
       .locator('.jp-Launcher-launchNotebook .jp-starIconButton')
       .click();
     await page.locator('.jp-Launcher-launchConsole .jp-starIconButton').click();
+    // collapse the "create empty" section
+    await page.locator('.jp-Launcher-openByType summary').click();
     expect(await launcher.screenshot()).toMatchSnapshot(
       'launcher-with-starred.png'
     );
