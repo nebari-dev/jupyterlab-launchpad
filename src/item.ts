@@ -40,7 +40,7 @@ export class Item implements IItem {
     this.category = item.category;
     this.rank = item.rank;
     this.kernelIconUrl = item.kernelIconUrl;
-    this.metadata = item.metadata;
+    this.metadata = item.metadata ?? {};
     // custom
     this.iconClass = commands.iconClass(item.command, args);
     this.icon = commands.icon(item.command, args);
@@ -48,6 +48,22 @@ export class Item implements IItem {
     this.label = commands.label(item.command, args);
     this.lastUsed = lastUsedDatabase.get(item);
     this.starred = favoritesDatabase.get(item) ?? false;
+    // special handling for conda-store
+    // https://www.nebari.dev/docs/faq/#why-is-there-duplication-in-names-of-environments
+    const condaStoreMatch = (
+      (this.metadata['conda_env_name'] as string | undefined) ?? ''
+    ).match(/(?<namespace>.+)-(?<duplicate>\1)-(?<environment>.+)/);
+    if (condaStoreMatch && this.metadata) {
+      const groups = condaStoreMatch.groups!;
+      this.label =
+        (this.metadata['conda_language'] as string | undefined) ??
+        groups.environment;
+      this.metadata = {
+        ...this.metadata,
+        conda_env_name: groups.environment,
+        Namespace: groups.namespace
+      };
+    }
   }
   get lastUsed(): Date | null {
     return this._lastUsed;
