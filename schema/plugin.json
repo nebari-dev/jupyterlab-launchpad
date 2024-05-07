@@ -62,6 +62,15 @@
           "$ref": "#/$defs/collapseState"
         }
       }
+    },
+    "utilityCommands": {
+      "title": "Utility commands",
+      "description": "Commands for launcher buttons which should be moved to the utility bar in top right corner.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": ["inspector:open", "scheduling:list-jobs-from-launcher"]
     }
   },
   "additionalProperties": false,
