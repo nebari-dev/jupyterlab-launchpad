@@ -212,6 +212,8 @@ export namespace NewLauncher {
   }
 }
 
+const SERVER_PROXY_COMMAND = 'server-proxy:open';
+
 export class NewLauncher extends Launcher {
   constructor(options: NewLauncher.IOptions) {
     super(options);
@@ -256,7 +258,8 @@ export class NewLauncher extends Launcher {
     const consoleCategory = trans.__('Console');
     const kernelCategories = [notebookCategory, consoleCategory];
 
-    const otherCommands = ['inspector:open'];
+    const otherCommands = this._settings.composite
+      .utilityCommands as ISettingsLayout['utilityCommands'];
 
     const otherItems = items
       .filter(item => otherCommands.includes(item.command))
@@ -265,8 +268,9 @@ export class NewLauncher extends Launcher {
     // TODO: maybe better to filter out everything from default lab and re-populate the kernel categories manually to get more metadata?
     const nonKernelItems = items.filter(
       item =>
-        (!item.category || !kernelCategories.includes(item.category)) &&
-        !otherCommands.includes(item.command)
+        ((!item.category || !kernelCategories.includes(item.category)) &&
+          !otherCommands.includes(item.command)) ||
+        item.command === SERVER_PROXY_COMMAND
     );
     const rankOverrides = {
       'terminal:create-new': 3, // TODO: replace with terminal which asks for environment choice?
@@ -291,11 +295,21 @@ export class NewLauncher extends Launcher {
     ].sort((a, b) => (a?.rank ?? 0) - (b?.rank ?? 0));
 
     const notebookItems = items
-      .filter(item => item.category && item.category === notebookCategory)
+      .filter(
+        item =>
+          item.category &&
+          item.category === notebookCategory &&
+          item.command !== SERVER_PROXY_COMMAND
+      )
       .map(this.renderKernelCommand);
 
     const consoleItems = items
-      .filter(item => item.category && item.category === consoleCategory)
+      .filter(
+        item =>
+          item.category &&
+          item.category === consoleCategory &&
+          item.command !== SERVER_PROXY_COMMAND
+      )
       .map(this.renderKernelCommand);
 
     // TODO: only create items once or if changed; dispose of them too
