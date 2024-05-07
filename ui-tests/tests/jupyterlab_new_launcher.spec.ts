@@ -2,8 +2,6 @@ import { expect, test, galata } from '@jupyterlab/galata';
 
 const SETTINGS_ID = 'jupyterlab-new-launcher:plugin';
 
-test.use({ tmpPath: 'test-launcher' });
-
 test.describe('Default settings', () => {
   test('should render new launcher', async ({ page }) => {
     const launcher = page.locator('.jp-LauncherBody');
@@ -33,6 +31,8 @@ test.describe('With starred section', () => {
     await page.locator('.jp-Launcher-launchConsole .jp-starIconButton').click();
     // collapse the "create empty" section
     await page.locator('.jp-Launcher-openByType summary').click();
+    // wait for animations to complete
+    await page.waitForTimeout(400);
     expect(await launcher.screenshot()).toMatchSnapshot(
       'launcher-with-starred.png'
     );
