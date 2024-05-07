@@ -20,6 +20,7 @@ export interface ISettingsLayout {
   hiddenColumns: Record<string, 'visible' | 'hidden'>;
   columnOrder: string[];
   starredSection: boolean;
+  collapsedSections: Record<string, 'collapsed' | 'expanded'>;
 }
 
 export interface IItem extends ILauncher.IItemOptions {

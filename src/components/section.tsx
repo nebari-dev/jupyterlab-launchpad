@@ -9,12 +9,17 @@ export function CollapsibleSection(
     className: string;
     icon: LabIcon;
     open: boolean;
+    onToggled?: (open: boolean) => void;
   }>
 ) {
   const [open, setOpen] = React.useState<boolean>(props.open);
 
-  const handleToggle = (event: { currentTarget: { open: boolean } }) =>
+  const handleToggle = (event: { currentTarget: { open: boolean } }) => {
     setOpen(event.currentTarget.open);
+    if (props.onToggled) {
+      props.onToggled(event.currentTarget.open);
+    }
+  };
 
   return (
     <details
