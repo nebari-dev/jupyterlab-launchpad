@@ -2,6 +2,8 @@ import { expect, test, galata } from '@jupyterlab/galata';
 
 const SETTINGS_ID = 'jupyterlab-new-launcher:plugin';
 
+test.use({ tmpPath: 'test-launcher' });
+
 test.describe('Default settings', () => {
   test('should render new launcher', async ({ page }) => {
     const launcher = page.locator('.jp-LauncherBody');
