@@ -44,11 +44,24 @@ function LauncherBody(props: {
     props.settings.composite.starredSection as ISettingsLayout['starredSection']
   );
 
+  const [searchAll, updateSearchAll] = React.useState<
+    ISettingsLayout['searchAllSections']
+  >(
+    props.settings.composite
+      .searchAllSections as ISettingsLayout['searchAllSections']
+  );
+
   const syncSettings = () => {
-    updateShowStarred(
-      props.settings.composite
-        .starredSection as ISettingsLayout['starredSection']
-    );
+    const newStarred = props.settings.composite
+      .starredSection as ISettingsLayout['starredSection'];
+    if (showStarred !== newStarred) {
+      updateShowStarred(newStarred);
+    }
+    const newSearchAll = props.settings.composite
+      .searchAllSections as ISettingsLayout['searchAllSections'];
+    if (searchAll !== newSearchAll) {
+      updateSearchAll(newSearchAll);
+    }
   };
 
   React.useEffect(() => {
@@ -104,16 +117,18 @@ function LauncherBody(props: {
           ))}
         </div>
       </div>
-      <div className="jp-Launcher-searchBox">
-        <FilterBox
-          placeholder={trans.__('Filter')}
-          updateFilter={(_, query) => {
-            updateQuery(query ?? '');
-          }}
-          initialQuery={''}
-          useFuzzyFilter={false}
-        />
-      </div>
+      {searchAll ? (
+        <div className="jp-Launcher-searchBox">
+          <FilterBox
+            placeholder={trans.__('Filter')}
+            updateFilter={(_, query) => {
+              updateQuery(query ?? '');
+            }}
+            initialQuery={''}
+            useFuzzyFilter={false}
+          />
+        </div>
+      ) : null}
       <CollapsibleSection
         className="jp-Launcher-openByType"
         title={trans.__('Create Empty')}
@@ -141,7 +156,7 @@ function LauncherBody(props: {
             <KernelTable
               items={starred}
               commands={props.commands}
-              showSearchBox={false}
+              showSearchBox={!searchAll}
               showWidgetType={true}
               query={query}
               settings={props.settings}
@@ -162,7 +177,7 @@ function LauncherBody(props: {
         <KernelTable
           items={props.notebookItems}
           commands={props.commands}
-          showSearchBox={false}
+          showSearchBox={!searchAll}
           query={query}
           settings={props.settings}
           trans={trans}
@@ -178,7 +193,7 @@ function LauncherBody(props: {
         <KernelTable
           items={props.consoleItems}
           commands={props.commands}
-          showSearchBox={false}
+          showSearchBox={!searchAll}
           query={query}
           settings={props.settings}
           trans={trans}

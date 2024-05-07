@@ -29,6 +29,11 @@
       "type": "boolean",
       "title": "Show starred section"
     },
+    "searchAllSections": {
+      "type": "boolean",
+      "title": "Search in all sections",
+      "default": true
+    },
     "collapsedSections": {
       "title": "Collapsed sections",
       "description": "Whether to start launcher with given section collapsed.",

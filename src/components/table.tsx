@@ -55,8 +55,9 @@ export function KernelTable(props: {
   const { trans } = props;
   let query: string;
   let updateQuery: (value: string) => void;
+  // Note: state cannot be defined in conditionals, or React will error out when toggling it.
+  const [_query, _updateQuery] = React.useState<string>('');
   if (props.showSearchBox) {
-    const [_query, _updateQuery] = React.useState<string>('');
     query = _query;
     updateQuery = _updateQuery;
   } else {
@@ -285,7 +286,7 @@ export function KernelTable(props: {
       {props.showSearchBox ? (
         <div className="jp-Launcher-searchBox">
           <FilterBox
-            placeholder={trans.__('Filter')}
+            placeholder={trans.__('Filter kernels')}
             updateFilter={(_, query) => {
               updateQuery(query ?? '');
             }}
