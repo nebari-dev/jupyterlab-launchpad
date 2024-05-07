@@ -51,22 +51,25 @@ export class Item implements IItem {
     this.starred = favoritesDatabase.get(item) ?? false;
     // special handling for conda-store
     // https://www.nebari.dev/docs/faq/#why-is-there-duplication-in-names-of-environments
-    const kernel = this.metadata['kernel'] as JSONObject;
-    const condaStoreMatch = (
-      (kernel['conda_env_name'] as string | undefined) ?? ''
-    ).match(/(?<namespace>.+)-(?<duplicate>\1)-(?<environment>.+)/);
-    if (condaStoreMatch && this.metadata) {
-      const groups = condaStoreMatch.groups!;
-      this.label =
-        (kernel['conda_language'] as string | undefined) ?? groups.environment;
-      this.metadata = {
-        ...this.metadata,
-        kernel: {
-          ...kernel,
-          conda_env_name: groups.environment,
-          Namespace: groups.namespace
-        }
-      };
+    const kernel = this.metadata['kernel'] as JSONObject | undefined;
+    if (kernel) {
+      const condaStoreMatch = (
+        (kernel['conda_env_name'] as string | undefined) ?? ''
+      ).match(/(?<namespace>.+)-(?<duplicate>\1)-(?<environment>.+)/);
+      if (condaStoreMatch && this.metadata) {
+        const groups = condaStoreMatch.groups!;
+        this.label =
+          (kernel['conda_language'] as string | undefined) ??
+          groups.environment;
+        this.metadata = {
+          ...this.metadata,
+          kernel: {
+            ...kernel,
+            conda_env_name: groups.environment,
+            Namespace: groups.namespace
+          }
+        };
+      }
     }
     // set the code-server icon to support dark theme properly
     if (
