@@ -28,7 +28,42 @@
     "starredSection": {
       "type": "boolean",
       "title": "Show starred section"
+    },
+    "collapsedSections": {
+      "title": "Collapsed sections",
+      "description": "Whether to start launcher with given section collapsed.",
+      "type": "object",
+      "default": {
+        "create-empty": "expanded",
+        "starred": "expanded",
+        "launch-notebook": "expanded",
+        "launch-console": "collapsed"
+      },
+      "properties": {
+        "create-empty": {
+          "title": "Create Empty",
+          "$ref": "#/$defs/collapseState"
+        },
+        "starred": {
+          "title": "Starred",
+          "$ref": "#/$defs/collapseState"
+        },
+        "launch-notebook": {
+          "title": "Launch Notebook",
+          "$ref": "#/$defs/collapseState"
+        },
+        "launch-console": {
+          "title": "Launch Console",
+          "$ref": "#/$defs/collapseState"
+        }
+      }
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "collapseState": {
+      "type": "string",
+      "enum": ["collapsed", "expanded"]
+    }
+  }
 }

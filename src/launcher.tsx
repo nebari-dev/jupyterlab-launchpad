@@ -87,6 +87,9 @@ function LauncherBody(props: {
     item => item.starred
   );
 
+  const startCollapsed = props.settings.composite
+    .collapsedSections as ISettingsLayout['collapsedSections'];
+
   return (
     <div className="jp-LauncherBody">
       <div className="jp-NewLauncher-TopBar">
@@ -115,7 +118,7 @@ function LauncherBody(props: {
         className="jp-Launcher-openByType"
         title={trans.__('Create Empty')}
         icon={fileIcon}
-        open={true} // TODO: store this in layout/state higher up
+        open={startCollapsed['create-empty'] !== 'collapsed'}
       >
         {typeItems
           .filter(
@@ -132,7 +135,7 @@ function LauncherBody(props: {
           className="jp-Launcher-openByKernel"
           title={trans.__('Starred')}
           icon={starIcon}
-          open={true} // TODO: store this in layout/state higher up
+          open={startCollapsed['starred'] !== 'collapsed'}
         >
           {starred.length > 0 ? (
             <KernelTable
@@ -154,7 +157,7 @@ function LauncherBody(props: {
         className="jp-Launcher-openByKernel jp-Launcher-launchNotebook"
         title={trans.__('Launch Notebook')}
         icon={notebookIcon}
-        open={true} // TODO: store this in layout/state higher up
+        open={startCollapsed['launch-notebook'] !== 'collapsed'}
       >
         <KernelTable
           items={props.notebookItems}
@@ -170,7 +173,7 @@ function LauncherBody(props: {
         className="jp-Launcher-openByKernel jp-Launcher-launchConsole"
         title={trans.__('Launch Console')}
         icon={consoleIcon}
-        open={false}
+        open={startCollapsed['launch-console'] !== 'collapsed'}
       >
         <KernelTable
           items={props.consoleItems}
