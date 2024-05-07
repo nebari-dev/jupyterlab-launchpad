@@ -12,7 +12,8 @@ channels:
 dependencies:
   # runtime dependencies
   - python >=3.10,<3.11.0a0
-  - jupyterlab >=4.0.0,<5
+  - jupyterlab >=4.2.0,<5
+  - jupyterlab-server >=2.27.1
   # labextension build dependencies
   - nodejs >=18,<19
   - nb_conda_kernels
