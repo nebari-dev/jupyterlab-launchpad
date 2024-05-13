@@ -19,6 +19,7 @@ import { CommandIDs, ILauncherDatabase, MAIN_PLUGIN_ID } from './types';
 import { addCommands } from './commands';
 import { sessionDialogsPlugin } from './dialogs';
 import { databasePlugin } from './database';
+import webkitCSSPatch from '../style/webkit.raw.css';
 
 /**
  * Initialization data for the jupyterlab-new-launcher extension.
@@ -35,6 +36,13 @@ const launcherPlugin: JupyterFrontEndPlugin<ILauncher> = {
 
 export default [launcherPlugin, sessionDialogsPlugin, databasePlugin];
 
+function createStyleSheet(text: string): HTMLStyleElement {
+  const style = document.createElement('style');
+  style.setAttribute('type', 'text/css');
+  style.appendChild(document.createTextNode(text));
+  return style;
+}
+
 /**
  * Activate the launcher.
  */
@@ -50,6 +58,14 @@ function activate(
   const { commands, shell } = app;
   const trans = translator.load('jupyterlab-new-launcher');
   const model = new LauncherModel();
+
+  if (
+    navigator.userAgent.indexOf('AppleWebKit') !== -1 &&
+    navigator.userAgent.indexOf('Chrome') === -1
+  ) {
+    const style = createStyleSheet(webkitCSSPatch);
+    document.body.appendChild(style);
+  }
 
   settingRegistry.load(MAIN_PLUGIN_ID).then(settings => {
     addCommands(app, trans, settings);

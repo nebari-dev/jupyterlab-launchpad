@@ -1,0 +1,10 @@
+.jp-starIconButton {
+  /* do not rotate on webkit as the result is off when zoomed in see https://bugs.webkit.org/show_bug.cgi?id=194903 */
+  --jp-transition-transform: rotate(0deg);
+}
+
+.jp-starIcon .jp-star-filled,
+.jp-starIcon .jp-star-border {
+  /* disable animation on webkit */
+  transition-property: none;
+}
