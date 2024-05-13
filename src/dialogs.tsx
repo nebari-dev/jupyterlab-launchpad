@@ -320,6 +320,6 @@ export namespace KernelSelector {
     trans: TranslationBundle;
     data: SessionContext.IKernelSearch;
     acceptDialog: () => void;
-    name: string
+    name: string;
   }
 }
