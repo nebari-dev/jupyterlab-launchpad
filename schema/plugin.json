@@ -11,7 +11,10 @@
       "type": "object",
       "default": {
         "conda_env_path": "hidden",
-        "conda_raw_kernel_name": "hidden"
+        "conda_raw_kernel_name": "hidden",
+        "conda_language": "hidden",
+        "conda_is_base_environment": "hidden",
+        "conda_is_currently_running": "hidden"
       },
       "additionalProperties": {
         "type": "string",

@@ -64,9 +64,9 @@ export class Item implements IItem {
         this.metadata = {
           ...this.metadata,
           kernel: {
-            ...kernel,
+            Namespace: groups.namespace,
             conda_env_name: groups.environment,
-            Namespace: groups.namespace
+            ...kernel
           }
         };
       }
