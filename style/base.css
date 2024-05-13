@@ -149,8 +149,6 @@
 
 .jp-TableKernelItem {
   line-height: var(--jp-icon-size);
-  top: -2px;
-  position: relative;
 }
 
 .jp-TableKernelItem > .jp-LauncherCard-icon {
@@ -274,12 +272,21 @@
   text-overflow: ellipsis;
 
   /* TODO share values for padding and height from `.jp-sortable-table-tr > td` via variable; not top padding is a sum of bottom and top in plain td to align text. */
-  padding: 6px 12px 0;
-  height: 18px;
+  padding: 5px 12px 1px;
 }
 
 .jp-sortable-table-tr > td > .jp-starIconButton {
   white-space: nowrap;
+}
+
+.jp-sortable-table-tr > th,
+.jp-sortable-table-tr > td {
+  padding: 3px 12px;
+}
+
+td > .jp-starIconButton {
+  position: relative;
+  top: 1px;
 }
 
 /* To contribute upstream  */
@@ -326,6 +333,7 @@ This will likely be needed upstream when no ellipsis wrapping is used.
 
 .jp-sortable-table-th-wrapper > label {
   overflow: hidden;
+  font-weight: 500;
 }
 
 .jp-sortable-table-th-wrapper {
