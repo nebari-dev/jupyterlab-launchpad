@@ -5,12 +5,8 @@ import { ReadonlyJSONObject } from '@lumino/coreutils';
 import { Time } from '@jupyterlab/coreutils';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { TranslationBundle } from '@jupyterlab/translation';
-import {
-  FilterBox,
-  Table,
-  UseSignal,
-  MenuSvg
-} from '@jupyterlab/ui-components';
+import { FilterBox, UseSignal, MenuSvg } from '@jupyterlab/ui-components';
+import { Table } from './base-table';
 import * as React from 'react';
 import { ISettingsLayout, CommandIDs, IKernelItem } from '../types';
 import { starIcon } from '../icons';
@@ -39,6 +35,14 @@ function columnLabelFromKey(key: string): string {
       return 'Running?';
   }
   return key[0].toUpperCase() + key.substring(1);
+}
+
+function EllipsedCell(props: React.PropsWithChildren<{ title?: string }>) {
+  return (
+    <div className="jp-ellipsis-wrapper" title={props.title}>
+      <div className="jp-ellipsis">{props.children}</div>
+    </div>
+  );
 }
 
 export function KernelTable(props: {
@@ -87,14 +91,17 @@ export function KernelTable(props: {
           const kernelMeta = item.metadata?.kernel as
             | ReadonlyJSONObject
             | undefined;
-          if (!kernelMeta) {
-            return '-';
-          }
-          const value = kernelMeta[metadataKey];
-          if (typeof value === 'string') {
-            return value;
-          }
-          return JSON.stringify(value);
+          const render = () => {
+            if (!kernelMeta) {
+              return '-';
+            }
+            const value = kernelMeta[metadataKey];
+            if (typeof value === 'string') {
+              return value;
+            }
+            return JSON.stringify(value);
+          };
+          return <EllipsedCell>{render()}</EllipsedCell>;
         },
         sort: (a: IKernelItem, b: IKernelItem) => {
           const aKernelMeta = a.metadata?.kernel as
@@ -140,23 +147,7 @@ export function KernelTable(props: {
       id: 'kernel',
       label: trans.__('Kernel'),
       renderCell: (row: IKernelItem) => (
-        <>
-          <span
-            className="jp-LauncherCard-icon"
-            onClick={() => props.onClick(row)}
-          >
-            {row.kernelIconUrl ? (
-              <img
-                src={row.kernelIconUrl}
-                className="jp-Launcher-kernelIcon"
-                alt={row.label}
-              />
-            ) : (
-              <div className="jp-LauncherCard-noKernelIcon">
-                {row.label[0].toUpperCase()}
-              </div>
-            )}
-          </span>
+        <EllipsedCell>
           <span
             className={KERNEL_ITEM_CLASS}
             onClick={event => {
@@ -171,9 +162,25 @@ export function KernelTable(props: {
             }}
             tabIndex={0}
           >
-            {row.label}
+            <span
+              className="jp-LauncherCard-icon"
+              onClick={() => props.onClick(row)}
+            >
+              {row.kernelIconUrl ? (
+                <img
+                  src={row.kernelIconUrl}
+                  className="jp-Launcher-kernelIcon"
+                  alt={row.label}
+                />
+              ) : (
+                <div className="jp-LauncherCard-noKernelIcon">
+                  {row.label[0].toUpperCase()}
+                </div>
+              )}
+            </span>
+            <span className="jp-TableKernelItem-label">{row.label}</span>
           </span>
-        </>
+        </EllipsedCell>
       ),
       sort: (a: IKernelItem, b: IKernelItem) => a.label.localeCompare(b.label)
     },
@@ -185,12 +192,20 @@ export function KernelTable(props: {
         return (
           <UseSignal signal={row.refreshLastUsed}>
             {() => {
-              return row.lastUsed ? (
-                <span title={Time.format(row.lastUsed)}>
-                  {Time.formatHuman(row.lastUsed)}
-                </span>
-              ) : (
-                trans.__('Never')
+              return (
+                <EllipsedCell
+                  title={
+                    row.lastUsed
+                      ? Time.format(row.lastUsed)
+                      : trans.__(
+                          'No information about last use of this kernel is available in the layout database'
+                        )
+                  }
+                >
+                  {row.lastUsed
+                    ? Time.formatHuman(row.lastUsed)
+                    : trans.__('Never')}
+                </EllipsedCell>
               );
             }}
           </UseSignal>
