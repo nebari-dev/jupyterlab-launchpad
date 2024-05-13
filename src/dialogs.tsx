@@ -78,6 +78,7 @@ class CustomSessionContextDialogs extends SessionContextDialogs {
           sessions: sessionContext.sessionManager.running(),
           preference: sessionContext.kernelPreference
         },
+        name: sessionContext.name,
         commands: this.options.commands,
         favoritesDatabase: this.options.database.favorites,
         lastUsedDatabase: this.options.database.lastUsed,
@@ -164,10 +165,10 @@ export class KernelSelector extends ReactWidget {
     this._lastUsedDatabase = options.lastUsedDatabase;
     this._favoritesDatabase = options.favoritesDatabase;
     this._settings = options.settings;
+    this._name = options.name;
     this.trans = options.trans;
   }
-  private _lastUsedDatabase: ILastUsedDatabase;
-  private _favoritesDatabase: IFavoritesDatabase;
+
   trans: TranslationBundle;
 
   renderKernelCommand = (item: ILauncher.IItemOptions): IItem => {
@@ -254,7 +255,7 @@ export class KernelSelector extends ReactWidget {
     return (
       <>
         <h3 className="jp-KernelSelector-Section">
-          {this.trans.__('Start a new kernel')}
+          {this.trans.__('Start a new kernel for "%1"', this._name)}
         </h3>
         <KernelTable
           trans={this.trans}
@@ -305,6 +306,9 @@ export class KernelSelector extends ReactWidget {
   protected commands: CommandRegistry;
   private _settings: ISettingRegistry.ISettings;
   private _selection: IKernelItem | null = null;
+  private _lastUsedDatabase: ILastUsedDatabase;
+  private _favoritesDatabase: IFavoritesDatabase;
+  private _name: string;
 }
 
 export namespace KernelSelector {
@@ -316,5 +320,6 @@ export namespace KernelSelector {
     trans: TranslationBundle;
     data: SessionContext.IKernelSearch;
     acceptDialog: () => void;
+    name: string
   }
 }
