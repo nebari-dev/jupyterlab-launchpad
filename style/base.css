@@ -298,6 +298,7 @@
   box-sizing: border-box;
   height: 24px;
   padding: 0;
+  -webkit-user-select: none;
 }
 
 .jp-sortable-table-resize-handle:hover {
