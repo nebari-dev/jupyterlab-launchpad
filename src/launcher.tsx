@@ -170,7 +170,7 @@ function LauncherBody(props: {
       ) : null}
       <CollapsibleSection
         className="jp-Launcher-openByKernel jp-Launcher-launchNotebook"
-        title={trans.__('Launch Notebook')}
+        title={trans.__('Launch New Notebook')}
         icon={notebookIcon}
         open={startCollapsed['launch-notebook'] !== 'collapsed'}
       >
@@ -186,7 +186,7 @@ function LauncherBody(props: {
       </CollapsibleSection>
       <CollapsibleSection
         className="jp-Launcher-openByKernel jp-Launcher-launchConsole"
-        title={trans.__('Launch Console')}
+        title={trans.__('Launch New Console')}
         icon={consoleIcon}
         open={startCollapsed['launch-console'] !== 'collapsed'}
       >
