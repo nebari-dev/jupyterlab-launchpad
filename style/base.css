@@ -148,10 +148,17 @@
 }
 
 .jp-TableKernelItem {
-  display: inline-block;
   line-height: var(--jp-icon-size);
+}
+
+.jp-TableKernelItem > .jp-LauncherCard-icon {
+  margin-right: 4px;
   vertical-align: top;
-  padding-left: 4px;
+  height: var(--jp-icon-size);
+}
+
+.jp-TableKernelItem-label {
+  vertical-align: top;
 }
 
 .jp-NewLauncher-table th[data-id='icon'],
@@ -244,4 +251,96 @@
   display: flex;
   height: 52px;
   width: 52px;
+}
+
+.jp-NewLauncher-table .jp-sortable-table-tr > td {
+  white-space: nowrap;
+}
+
+.jp-sortable-table-tr > td.jp-mod-col-resized > .jp-ellipsis-wrapper {
+  white-space: nowrap;
+  position: absolute;
+  inset: 0;
+}
+
+.jp-sortable-table-tr
+  > td.jp-mod-col-resized
+  > .jp-ellipsis-wrapper
+  > .jp-ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  /* TODO share values for padding and height from `.jp-sortable-table-tr > td` via variable; not top padding is a sum of bottom and top in plain td to align text. */
+  padding: 5px 12px 1px;
+}
+
+.jp-sortable-table-tr > td > .jp-starIconButton {
+  white-space: nowrap;
+}
+
+.jp-sortable-table-tr > th,
+.jp-sortable-table-tr > td {
+  padding: 3px 12px;
+}
+
+td > .jp-starIconButton {
+  position: relative;
+  top: 1px;
+}
+
+/* To contribute upstream  */
+
+.jp-sortable-table-resize-handle {
+  width: 4px;
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  cursor: ew-resize;
+}
+
+.jp-sortable-table-tr > th {
+  overflow: hidden;
+  box-sizing: border-box;
+  height: 24px;
+  padding: 0;
+  -webkit-user-select: none;
+}
+
+.jp-sortable-table-resize-handle:hover {
+  background: var(--jp-layout-color3);
+}
+
+.jp-header-resizing > .jp-sortable-table-resize-handle {
+  background: var(--jp-brand-color1) !important;
+}
+
+body.jp-mod-resize-table * {
+  cursor: ew-resize;
+}
+
+body.jp-mod-resize-table .jp-sortable-table {
+  pointer-events: none;
+}
+
+/*
+This will likely be needed upstream when no ellipsis wrapping is used.
+.jp-sortable-table-tr > td > * {
+  white-space: normal;
+}
+*/
+
+.jp-sortable-table-th-wrapper > label {
+  overflow: hidden;
+  font-weight: 500;
+}
+
+.jp-sortable-table-th-wrapper {
+  width: inherit;
+  box-sizing: border-box;
+  padding: 4px 12px 2px;
+
+  /* fill-available is only needed when heading does not collapse
+  /* min-width: -webkit-fill-available; */
 }
