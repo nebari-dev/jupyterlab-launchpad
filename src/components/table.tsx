@@ -230,8 +230,8 @@ export function KernelTable(props: {
       renderCell: (row: IKernelItem) => {
         const starred = row.starred;
         const title = starred
-          ? trans.__('Click to add this kernel to favourites')
-          : trans.__('Click to remove the kernel from favourites');
+          ? trans.__('Click to remove the kernel from favourites')
+          : trans.__('Click to add this kernel to favourites');
         return (
           <button
             className={
