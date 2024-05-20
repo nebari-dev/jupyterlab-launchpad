@@ -7,6 +7,29 @@ test.describe('Default settings', () => {
     const launcher = page.locator('.jp-LauncherBody');
     expect(await launcher.screenshot()).toMatchSnapshot('launcher.png');
   });
+
+  test('should open table context menu', async ({ page }) => {
+    const tableHead = page.locator(
+      '.jp-Launcher-launchNotebook thead > tr > th[data-id="star"]'
+    );
+    await tableHead.click({ button: 'right' });
+    const contextMenu = page.locator('.jp-NewLauncher-contextMenu');
+    await expect(contextMenu).toBeVisible();
+    expect
+      .soft(await contextMenu.screenshot())
+      .toMatchSnapshot('table-context-menu.png');
+    const visibleColumnsEntry = page.locator(
+      '.jp-NewLauncher-contextMenu li >> text="Visible Columns"'
+    );
+    await visibleColumnsEntry.hover();
+    const columnsContextMenu = page.locator(
+      '.jp-NewLauncher-contextMenu-visibleColumns'
+    );
+    await expect(columnsContextMenu).toBeVisible();
+    expect
+      .soft(await columnsContextMenu.screenshot())
+      .toMatchSnapshot('table-context-menu-visible-columns.png');
+  });
 });
 
 test.describe('With starred section', () => {

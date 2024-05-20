@@ -315,7 +315,9 @@ export function KernelTable(props: {
         onContextMenu={(event: React.MouseEvent) => {
           event.preventDefault();
           const contextMenu = new MenuSvg({ commands: props.commands });
+          contextMenu.addClass('jp-NewLauncher-contextMenu');
           const columnsSubMenu = new MenuSvg({ commands: props.commands });
+          columnsSubMenu.addClass('jp-NewLauncher-contextMenu-visibleColumns');
           for (const column of columns) {
             columnsSubMenu.addItem({
               command: CommandIDs.toggleColumn,
