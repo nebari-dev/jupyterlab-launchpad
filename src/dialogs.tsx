@@ -86,7 +86,8 @@ class CustomSessionContextDialogs extends SessionContextDialogs {
         trans,
         acceptDialog: () => {
           dialog.resolve(1);
-        }
+        },
+        type: sessionContext.type
       }),
       buttons,
       checkbox: hasCheckbox
@@ -204,6 +205,11 @@ export class KernelSelector extends ReactWidget {
   protected render(): React.ReactElement<any> | null {
     const items: ILauncher.IItemOptions[] = [];
     const specs = this.options.data.specs!.kernelspecs!;
+    // Note: this command is not executed, but it is only used to match favourite/last used metadata
+    const command =
+      this.options.type === 'console'
+        ? 'console:create'
+        : 'notebook:create-new';
 
     for (const spec of Object.values(specs)) {
       if (!spec) {
@@ -212,11 +218,17 @@ export class KernelSelector extends ReactWidget {
       const kernelIconUrl =
         spec.resources['logo-svg'] || spec.resources['logo-64x64'];
       items.push({
-        command: 'notebook:create-new',
-        args: {
-          isLauncher: true,
-          kernelName: spec.name
-        },
+        command,
+        args:
+          this.options.type === 'console'
+            ? {
+                isLauncher: true,
+                kernelPreference: { name: spec.name }
+              }
+            : {
+                isLauncher: true,
+                kernelName: spec.name
+              },
         kernelIconUrl,
         metadata: {
           kernel: JSONExt.deepCopy(spec.metadata || {}) as ReadonlyJSONValue
@@ -233,11 +245,17 @@ export class KernelSelector extends ReactWidget {
       const kernelIconUrl =
         spec.resources['logo-svg'] || spec.resources['logo-64x64'];
       runningItems.push({
-        command: 'notebook:create-new',
-        args: {
-          isLauncher: true,
-          kernelName: spec.name
-        },
+        command,
+        args:
+          this.options.type === 'console'
+            ? {
+                isLauncher: true,
+                kernelPreference: { name: spec.name }
+              }
+            : {
+                isLauncher: true,
+                kernelName: spec.name
+              },
         kernelIconUrl,
         metadata: {
           kernel: {
@@ -268,6 +286,8 @@ export class KernelSelector extends ReactWidget {
             this._selection = item;
             this.options.acceptDialog();
           }}
+          favouritesChanged={this._favoritesDatabase.changed}
+          lastUsedChanged={this._lastUsedDatabase.changed}
         />
         {runningKernelsItems.length > 0 ? (
           <>
@@ -286,6 +306,8 @@ export class KernelSelector extends ReactWidget {
                 this.options.acceptDialog();
               }}
               hideColumns={['last-used', 'star']}
+              favouritesChanged={this._favoritesDatabase.changed}
+              lastUsedChanged={this._lastUsedDatabase.changed}
             />
           </>
         ) : null}
@@ -297,9 +319,13 @@ export class KernelSelector extends ReactWidget {
     if (!this._selection) {
       return null;
     }
+    // Update last used date
+    this._selection.markAsUsedNow().catch(console.warn);
+    // User selected an existing kernel
     if (this._selection.metadata?.model) {
       return this._selection.metadata.model as unknown as Kernel.IModel;
     }
+    // User starts a new kernel
     return { name: this._selection.args!.kernelName as string };
   }
 
@@ -321,5 +347,7 @@ export namespace KernelSelector {
     data: SessionContext.IKernelSearch;
     acceptDialog: () => void;
     name: string;
+    // known values are "notebook" and "console"
+    type: string;
   }
 }

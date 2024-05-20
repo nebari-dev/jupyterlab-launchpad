@@ -71,6 +71,40 @@ function activate(
     addCommands(app, trans, settings);
   });
 
+  // Detect kernels started outside of the launcher, e.g. automatically due to having notebooks open from previous session
+  const lastSessionActivity: Record<string, string> = {};
+  const recordSessionActivity = async () => {
+    const models = [...app.serviceManager.sessions.running()];
+    for (const model of models) {
+      if (!model.kernel) {
+        continue;
+      }
+      let command: string;
+      if (model.type === 'notebook') {
+        command = 'notebook:create-new';
+      } else if (model.type === 'console') {
+        command = 'console:create';
+      } else {
+        command = 'unknown';
+      }
+      const key = command + '-' + model.kernel.name;
+      const activity = model.kernel.last_activity;
+      if (activity && lastSessionActivity[key] !== activity) {
+        lastSessionActivity[key] = activity;
+        const item = {
+          command,
+          args: {
+            isLauncher: true,
+            kernelName: model.kernel.name
+          }
+        };
+        await database.lastUsed.recordAsUsed(item, new Date(activity));
+      }
+    }
+  };
+  app.serviceManager.sessions.ready.then(recordSessionActivity);
+  app.serviceManager.sessions.runningChanged.connect(recordSessionActivity);
+
   commands.addCommand(CommandIDs.create, {
     label: trans.__('New Launcher'),
     icon: args => (args.toolbar ? addIcon : undefined),
@@ -87,6 +121,7 @@ function activate(
 
       const settings = await settingRegistry.load(MAIN_PLUGIN_ID);
       await Promise.all([database.lastUsed.ready, database.favorites.ready]);
+
       const launcher = new Launcher({
         model,
         cwd,

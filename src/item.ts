@@ -21,7 +21,6 @@ export class Item implements IItem {
   caption: string;
   icon: VirtualElement.IRenderer | undefined;
   iconClass: string;
-  starred: boolean;
 
   constructor(
     private _options: {
@@ -32,8 +31,7 @@ export class Item implements IItem {
       favoritesDatabase: IFavoritesDatabase;
     }
   ) {
-    const { item, commands, lastUsedDatabase, favoritesDatabase, cwd } =
-      _options;
+    const { item, commands, cwd } = _options;
     const args = { ...item.args, cwd };
     // base
     this.command = item.command;
@@ -47,8 +45,6 @@ export class Item implements IItem {
     this.icon = commands.icon(item.command, args);
     this.caption = commands.caption(item.command, args);
     this.label = commands.label(item.command, args);
-    this.lastUsed = lastUsedDatabase.get(item);
-    this.starred = favoritesDatabase.get(item) ?? false;
     // special handling for conda-store
     // https://www.nebari.dev/docs/faq/#why-is-there-duplication-in-names-of-environments
     const kernel = this.metadata['kernel'] as JSONObject | undefined;
@@ -79,12 +75,18 @@ export class Item implements IItem {
       this.icon = codeServerIcon;
     }
   }
-  get lastUsed(): Date | null {
-    return this._lastUsed;
+  get starred() {
+    const { item, favoritesDatabase } = this._options;
+    return favoritesDatabase.get(item) ?? false;
   }
-  set lastUsed(value: Date | null) {
-    this._lastUsed = value;
-    this._setRefreshClock();
+  get lastUsed(): Date | null {
+    const value = this._lastUsed;
+    this._setRefreshClock(value);
+    return value;
+  }
+  private get _lastUsed(): Date | null {
+    const { item, lastUsedDatabase } = this._options;
+    return lastUsedDatabase.get(item);
   }
   get refreshLastUsed(): ISignal<IItem, void> {
     return this._refreshLastUsed;
@@ -93,24 +95,20 @@ export class Item implements IItem {
     const { item, commands, lastUsedDatabase } = this._options;
     await commands.execute(item.command, this.args);
     await lastUsedDatabase.recordAsUsedNow(item);
-    this.lastUsed = lastUsedDatabase.get(item);
     this._refreshLastUsed.emit();
   }
-  async markAsUsed() {
+  async markAsUsedNow() {
     const { item, lastUsedDatabase } = this._options;
     await lastUsedDatabase.recordAsUsedNow(item);
-    this.lastUsed = lastUsedDatabase.get(item);
     this._refreshLastUsed.emit();
   }
-  toggleStar() {
+  async toggleStar() {
     const { item, favoritesDatabase } = this._options;
     const wasStarred = favoritesDatabase.get(item);
     const newState = !wasStarred;
-    this.starred = newState;
     return favoritesDatabase.set(item, newState);
   }
-  private _setRefreshClock() {
-    const value = this._lastUsed;
+  private _setRefreshClock(value: Date | null) {
     if (this._refreshClock !== null) {
       window.clearTimeout(this._refreshClock);
       this._refreshClock = null;
@@ -132,10 +130,9 @@ export class Item implements IItem {
           : 60 * minute;
     this._refreshClock = window.setTimeout(() => {
       this._refreshLastUsed.emit();
-      this._setRefreshClock();
+      this._setRefreshClock(this._lastUsed);
     }, interval);
   }
   private _refreshLastUsed = new Signal<Item, void>(this);
   private _refreshClock: number | null = null;
-  private _lastUsed: Date | null = null;
 }

@@ -33,8 +33,9 @@ export interface IItem extends ILauncher.IItemOptions {
   execute: () => Promise<void>;
   lastUsed: Date | null;
   starred: boolean;
-  toggleStar: () => void;
+  toggleStar: () => Promise<void>;
   refreshLastUsed: ISignal<IItem, void>;
+  markAsUsedNow: () => Promise<void>;
 }
 
 export interface IKernelItem extends IItem {
@@ -44,7 +45,9 @@ export interface IKernelItem extends IItem {
 export interface ILastUsedDatabase {
   ready: Promise<void>;
   get(item: ILauncher.IItemOptions): Date | null;
+  recordAsUsed(item: ILauncher.IItemOptions, date: Date): Promise<void>;
   recordAsUsedNow(item: ILauncher.IItemOptions): Promise<void>;
+  changed: ISignal<ILastUsedDatabase, void>;
 }
 
 export interface IFavoritesDatabase {

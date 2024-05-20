@@ -79,8 +79,19 @@ export class LastUsedDatabase
   }
 
   async recordAsUsedNow(item: ILauncher.IItemOptions) {
-    this._set(item, new Date().toUTCString());
+    await this.recordAsUsed(item, new Date());
   }
+
+  async recordAsUsed(item: ILauncher.IItemOptions, date: Date) {
+    await this._set(item, date.toUTCString());
+    this._changed.emit();
+  }
+
+  get changed() {
+    return this._changed;
+  }
+
+  private _changed = new Signal<LastUsedDatabase, void>(this);
 }
 
 export class FavoritesDatabase
@@ -94,7 +105,7 @@ export class FavoritesDatabase
   }
 
   async set(item: ILauncher.IItemOptions, isFavourite: boolean) {
-    this._set(item, isFavourite);
+    await this._set(item, isFavourite);
     this._changed.emit();
   }
 
