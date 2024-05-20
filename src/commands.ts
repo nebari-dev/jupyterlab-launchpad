@@ -26,7 +26,7 @@ export function addCommands(
         return console.error('Column ID missing');
       }
       const columns =
-        (settings.user.hiddenColumns as
+        (settings.composite.hiddenColumns as
           | ISettingsLayout['hiddenColumns']
           | undefined) ?? {};
       if (columns[id] === 'visible' || !columns[id]) {
@@ -44,7 +44,7 @@ export function addCommands(
         return false;
       }
       const columns =
-        (settings.user.hiddenColumns as
+        (settings.composite.hiddenColumns as
           | ISettingsLayout['hiddenColumns']
           | undefined) ?? {};
       return columns[id] !== 'hidden';
