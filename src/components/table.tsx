@@ -345,10 +345,29 @@ export function KernelTable(props: {
       >
         <KernelItemTable
           rows={props.items
-            .filter(
-              kernel =>
-                kernel.label.toLowerCase().indexOf(query.toLowerCase()) !== -1
-            )
+            .filter(kernel => {
+              const lowerCaseQuery = query.toLowerCase();
+              // search in label
+              if (kernel.label.toLowerCase().includes(lowerCaseQuery)) {
+                return true;
+              }
+              // search in columns generated out of metadata
+              const kernelMeta = kernel.metadata?.kernel as
+                | ReadonlyJSONObject
+                | undefined;
+              if (!kernelMeta) {
+                return;
+              }
+              for (const metadataKey of metadataAvailable) {
+                const value = kernelMeta[metadataKey];
+                if (typeof value === 'string') {
+                  if (value.toLowerCase().includes(lowerCaseQuery)) {
+                    return true;
+                  }
+                }
+              }
+              return false;
+            })
             .map(data => {
               return {
                 data: data,
