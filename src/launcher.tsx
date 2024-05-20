@@ -33,7 +33,8 @@ function LauncherBody(props: {
   otherItems: IItem[];
   commands: CommandRegistry;
   settings: ISettingRegistry.ISettings;
-  favouritesChanged?: ISignal<IFavoritesDatabase, void>;
+  favouritesChanged: ISignal<IFavoritesDatabase, void>;
+  lastUsedChanged: ISignal<ILastUsedDatabase, void>;
 }): React.ReactElement {
   const { trans, cwd, typeItems, otherItems, favouritesChanged } = props;
   const [query, updateQuery] = React.useState<string>('');
@@ -162,6 +163,8 @@ function LauncherBody(props: {
               settings={props.settings}
               trans={trans}
               onClick={item => item.execute()}
+              favouritesChanged={props.favouritesChanged}
+              lastUsedChanged={props.lastUsedChanged}
             />
           ) : (
             'No starred items'
@@ -182,6 +185,8 @@ function LauncherBody(props: {
           settings={props.settings}
           trans={trans}
           onClick={item => item.execute()}
+          favouritesChanged={props.favouritesChanged}
+          lastUsedChanged={props.lastUsedChanged}
         />
       </CollapsibleSection>
       <CollapsibleSection
@@ -198,6 +203,8 @@ function LauncherBody(props: {
           settings={props.settings}
           trans={trans}
           onClick={item => item.execute()}
+          favouritesChanged={props.favouritesChanged}
+          lastUsedChanged={props.lastUsedChanged}
         />
       </CollapsibleSection>
     </div>
@@ -326,6 +333,7 @@ export class NewLauncher extends Launcher {
         otherItems={otherItems}
         settings={this._settings}
         favouritesChanged={this._favoritesDatabase.changed}
+        lastUsedChanged={this._lastUsedDatabase.changed}
       />
     );
   }

@@ -2,13 +2,20 @@
 // Distributed under the terms of the Modified BSD License.
 import type { CommandRegistry } from '@lumino/commands';
 import { ReadonlyJSONObject } from '@lumino/coreutils';
+import type { ISignal } from '@lumino/signaling';
 import { Time } from '@jupyterlab/coreutils';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { TranslationBundle } from '@jupyterlab/translation';
 import { FilterBox, UseSignal, MenuSvg } from '@jupyterlab/ui-components';
 import { Table } from './base-table';
 import * as React from 'react';
-import { ISettingsLayout, CommandIDs, IKernelItem } from '../types';
+import {
+  ISettingsLayout,
+  IFavoritesDatabase,
+  ILastUsedDatabase,
+  CommandIDs,
+  IKernelItem
+} from '../types';
 import { starIcon } from '../icons';
 
 const STAR_BUTTON_CLASS = 'jp-starIconButton';
@@ -55,6 +62,8 @@ export function KernelTable(props: {
   onClick: (item: IKernelItem) => void;
   hideColumns?: string[];
   showWidgetType?: boolean;
+  favouritesChanged: ISignal<IFavoritesDatabase, void>;
+  lastUsedChanged: ISignal<ILastUsedDatabase, void>;
 }) {
   const { trans } = props;
   let query: string;
@@ -70,6 +79,19 @@ export function KernelTable(props: {
 
   // Hoisted to avoid "Rendered fewer hooks than expected" error on toggling the Star column
   const [, forceUpdate] = React.useReducer(x => x + 1, 0);
+
+  React.useEffect(() => {
+    props.favouritesChanged.connect(forceUpdate);
+    return () => {
+      props.favouritesChanged.disconnect(forceUpdate);
+    };
+  });
+  React.useEffect(() => {
+    props.lastUsedChanged.connect(forceUpdate);
+    return () => {
+      props.lastUsedChanged.disconnect(forceUpdate);
+    };
+  });
 
   const metadataAvailable = new Set<string>();
   for (const item of props.items) {
@@ -240,10 +262,9 @@ export function KernelTable(props: {
                 : STAR_BUTTON_CLASS
             }
             title={title}
-            onClick={event => {
-              row.toggleStar();
-              forceUpdate();
+            onClick={async event => {
               event.stopPropagation();
+              await row.toggleStar();
             }}
           >
             <starIcon.react className="jp-starIcon" />
