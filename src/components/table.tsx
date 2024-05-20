@@ -38,9 +38,32 @@ function columnLabelFromKey(key: string): string {
 }
 
 function EllipsedCell(props: React.PropsWithChildren<{ title?: string }>) {
+  const [innerTitle, setInnerTitle] = React.useState<string | undefined>(
+    undefined
+  );
+  const elementRef = React.useRef<HTMLDivElement>(null);
   return (
     <div className="jp-ellipsis-wrapper" title={props.title}>
-      <div className="jp-ellipsis">{props.children}</div>
+      <div
+        className="jp-ellipsis"
+        title={innerTitle}
+        ref={elementRef}
+        onMouseEnter={() => {
+          if (props.title) {
+            // do nothing if there is a parent title
+            return;
+          }
+          const el = elementRef.current;
+          // if the ellipsis is active, add a title so that user can see the full text on hover
+          if (el && el.scrollWidth > el.clientWidth) {
+            setInnerTitle(el.innerText);
+          } else {
+            setInnerTitle(undefined);
+          }
+        }}
+      >
+        {props.children}
+      </div>
     </div>
   );
 }
