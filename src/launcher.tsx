@@ -254,6 +254,9 @@ export class NewLauncher extends Launcher {
     this._favoritesDatabase = options.favoritesDatabase;
     this._settings = options.settings;
     this._newModel = options.model;
+    this._newModel.sectionAdded.connect(() => {
+      this.update();
+    });
   }
   private _lastUsedDatabase: ILastUsedDatabase;
   private _favoritesDatabase: IFavoritesDatabase;
