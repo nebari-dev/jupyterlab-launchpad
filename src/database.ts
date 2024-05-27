@@ -11,15 +11,19 @@ import {
   JupyterFrontEnd,
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
+import { requestAPI } from './handler';
+
+type SimpleDB = Omit<IStateDB, 'list' | 'toJSON' | 'remove'>;
 
 abstract class Database<V extends ReadonlyPartialJSONValue, K> {
   ready: Promise<void>;
-  constructor(options: { stateDB: IStateDB; fetchInterval: number }) {
+  constructor(options: { stateDB: SimpleDB; fetchInterval: number }) {
     this._stateDB = options.stateDB;
     const ready = new PromiseDelegate<void>();
     this.ready = ready.promise;
-    this._updateDB().then(() => ready.resolve());
-    window.setInterval(this._updateDB, options.fetchInterval);
+    // delay until the child class is ready (so that _stateDBKey is there)
+    window.setTimeout(() => this._updateDB().then(() => ready.resolve()), 0);
+    window.setInterval(this._updateDB.bind(this), options.fetchInterval);
   }
   protected _get(item: K) {
     if (!this._db) {
@@ -34,10 +38,10 @@ abstract class Database<V extends ReadonlyPartialJSONValue, K> {
     db[this._itemKey(item)] = value;
     await this._stateDB.save(this._stateDBKey, db);
   }
-  private _updateDB = async () => {
+  private async _updateDB() {
     const db = await this._fetch();
     this._db = db;
-  };
+  }
   private async _fetch(): Promise<Record<string, V>> {
     let db = (await this._stateDB.fetch(this._stateDBKey)) as
       | Record<string, V>
@@ -56,7 +60,7 @@ abstract class Database<V extends ReadonlyPartialJSONValue, K> {
   protected abstract _itemKey(item: K): string;
   protected abstract _stateDBKey: string;
   private _db: Record<string, V> | null = null;
-  private _stateDB: IStateDB;
+  private _stateDB: SimpleDB;
 }
 
 export abstract class ItemDatabase<
@@ -71,7 +75,7 @@ export class LastUsedDatabase
   extends ItemDatabase<string>
   implements ILastUsedDatabase
 {
-  protected _stateDBKey = 'new-launcher:last-used';
+  protected readonly _stateDBKey = 'new-launcher:last-used';
 
   get(item: ILauncher.IItemOptions) {
     const date = super._get(item);
@@ -98,7 +102,7 @@ export class FavoritesDatabase
   extends ItemDatabase<boolean>
   implements IFavoritesDatabase
 {
-  protected _stateDBKey = 'new-launcher:favorites';
+  protected readonly _stateDBKey = 'new-launcher:favorites';
 
   get(item: ILauncher.IItemOptions) {
     return super._get(item) ?? null;
@@ -116,6 +120,30 @@ export class FavoritesDatabase
   private _changed = new Signal<FavoritesDatabase, void>(this);
 }
 
+type DatabaseId = 'new-launcher:favorites' | 'new-launcher:last-used';
+
+class SingletonStateDB<
+  T extends ReadonlyPartialJSONValue = ReadonlyPartialJSONValue
+> implements SimpleDB
+{
+  async fetch(id: DatabaseId): Promise<T | undefined> {
+    console.log('endpoint', id, this._endpointsMap[id], this._endpointsMap);
+    return await requestAPI<T>(this._endpointsMap[id]);
+  }
+
+  async save(id: DatabaseId, value: T): Promise<any> {
+    await requestAPI<T>(this._endpointsMap[id], {
+      method: 'POST',
+      body: JSON.stringify(value)
+    });
+  }
+
+  private _endpointsMap = {
+    'new-launcher:favorites': 'database/favorites',
+    'new-launcher:last-used': 'database/last-used'
+  };
+}
+
 /**
  * Initialization data for the jupyterlab-new-launcher extension.
  */
@@ -124,10 +152,9 @@ export const databasePlugin: JupyterFrontEndPlugin<ILauncherDatabase> = {
   description: 'A redesigned JupyterLab launcher databases',
   provides: ILauncherDatabase,
   autoStart: true,
-  requires: [IStateDB],
-  activate: (app: JupyterFrontEnd, stateDB: IStateDB) => {
+  activate: (app: JupyterFrontEnd) => {
     const databaseOptions = {
-      stateDB,
+      stateDB: new SingletonStateDB(),
       fetchInterval: 10000
     };
     return {
