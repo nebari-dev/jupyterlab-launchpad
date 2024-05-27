@@ -127,7 +127,6 @@ class SingletonStateDB<
 > implements SimpleDB
 {
   async fetch(id: DatabaseId): Promise<T | undefined> {
-    console.log('endpoint', id, this._endpointsMap[id], this._endpointsMap);
     return await requestAPI<T>(this._endpointsMap[id]);
   }
 
