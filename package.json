@@ -1,6 +1,6 @@
 {
     "name": "jupyterlab-new-launcher",
-    "version": "0.3.3",
+    "version": "0.4.0",
     "description": "A redesigned JupyterLab launcher",
     "keywords": [
         "jupyter",
