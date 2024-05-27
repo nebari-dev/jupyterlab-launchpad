@@ -57,6 +57,7 @@ export class Item implements IItem {
         this.label =
           (kernel['conda_language'] as string | undefined) ??
           groups.environment;
+        delete kernel['conda_env_name'];
         this.metadata = {
           ...this.metadata,
           kernel: {
