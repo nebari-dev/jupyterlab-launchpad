@@ -4,8 +4,22 @@ import type { ILauncher } from '@jupyterlab/launcher';
 import type { VirtualElement } from '@lumino/virtualdom';
 import type { ISignal } from '@lumino/signaling';
 import { Token } from '@lumino/coreutils';
+import type { LabIcon } from '@jupyterlab/ui-components';
 
 export const MAIN_PLUGIN_ID = 'jupyterlab-new-launcher:plugin';
+
+export interface INewLauncher extends ILauncher {
+  addSection(options: ISectionOptions): void;
+}
+
+export interface ISectionOptions {
+  id: string;
+  title: string;
+  className: string;
+  icon: LabIcon;
+  render: () => React.ReactNode;
+  rank: number;
+}
 
 /**
  * The command IDs used by the launcher plugin.
