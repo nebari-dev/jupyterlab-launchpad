@@ -11,12 +11,14 @@ import {
   consoleIcon
 } from '@jupyterlab/ui-components';
 import * as React from 'react';
+import { NewModel } from './model';
 import {
   IItem,
   IKernelItem,
   ILastUsedDatabase,
   IFavoritesDatabase,
-  ISettingsLayout
+  ISettingsLayout,
+  ISectionOptions
 } from './types';
 import { fileIcon, starIcon } from './icons';
 import { Item } from './item';
@@ -35,6 +37,7 @@ function LauncherBody(props: {
   settings: ISettingRegistry.ISettings;
   favouritesChanged: ISignal<IFavoritesDatabase, void>;
   lastUsedChanged: ISignal<ILastUsedDatabase, void>;
+  sections: ISectionOptions[];
 }): React.ReactElement {
   const { trans, cwd, typeItems, otherItems, favouritesChanged } = props;
   const [query, updateQuery] = React.useState<string>('');
@@ -104,6 +107,91 @@ function LauncherBody(props: {
   const startCollapsed = props.settings.composite
     .collapsedSections as ISettingsLayout['collapsedSections'];
 
+  const builtinSections: ISectionOptions[] = [
+    {
+      className: 'jp-Launcher-openByType',
+      title: trans.__('Create Empty'),
+      icon: fileIcon,
+      id: 'create-empty',
+      rank: 1,
+      render: () =>
+        typeItems
+          .filter(
+            item =>
+              !query ||
+              item.label.toLowerCase().indexOf(query.toLowerCase()) !== -1
+          )
+          .map(item => <TypeCard item={item} trans={trans} />)
+    },
+    {
+      className: 'jp-Launcher-openByKernel jp-Launcher-launchNotebook',
+      title: trans.__('Launch New Notebook'),
+      icon: notebookIcon,
+      id: 'launch-notebook',
+      rank: 3,
+      render: () => (
+        <KernelTable
+          items={props.notebookItems}
+          commands={props.commands}
+          showSearchBox={!searchAll}
+          query={query}
+          settings={props.settings}
+          trans={trans}
+          onClick={item => item.execute()}
+          favouritesChanged={props.favouritesChanged}
+          lastUsedChanged={props.lastUsedChanged}
+        />
+      )
+    },
+    {
+      className: 'jp-Launcher-openByKernel jp-Launcher-launchConsole',
+      title: trans.__('Launch New Console'),
+      icon: consoleIcon,
+      id: 'launch-console',
+      rank: 5,
+      render: () => (
+        <KernelTable
+          items={props.consoleItems}
+          commands={props.commands}
+          showSearchBox={!searchAll}
+          query={query}
+          settings={props.settings}
+          trans={trans}
+          onClick={item => item.execute()}
+          favouritesChanged={props.favouritesChanged}
+          lastUsedChanged={props.lastUsedChanged}
+        />
+      )
+    }
+  ];
+  if (showStarred) {
+    builtinSections.push({
+      className: 'jp-Launcher-openByKernel',
+      title: trans.__('Starred'),
+      icon: starIcon,
+      id: 'starred',
+      rank: 2,
+      render: () =>
+        starred.length > 0 ? (
+          <KernelTable
+            items={starred}
+            commands={props.commands}
+            showSearchBox={!searchAll}
+            showWidgetType={true}
+            query={query}
+            settings={props.settings}
+            trans={trans}
+            onClick={item => item.execute()}
+            favouritesChanged={props.favouritesChanged}
+            lastUsedChanged={props.lastUsedChanged}
+          />
+        ) : (
+          'No starred items'
+        )
+    });
+  }
+  const allSections = [...builtinSections, ...props.sections];
+
   return (
     <div className="jp-LauncherBody">
       <div className="jp-NewLauncher-TopBar">
@@ -130,83 +218,18 @@ function LauncherBody(props: {
           />
         </div>
       ) : null}
-      <CollapsibleSection
-        className="jp-Launcher-openByType"
-        title={trans.__('Create Empty')}
-        icon={fileIcon}
-        open={startCollapsed['create-empty'] !== 'collapsed'}
-      >
-        {typeItems
-          .filter(
-            item =>
-              !query ||
-              item.label.toLowerCase().indexOf(query.toLowerCase()) !== -1
-          )
-          .map(item => (
-            <TypeCard item={item} trans={trans} />
-          ))}
-      </CollapsibleSection>
-      {showStarred ? (
-        <CollapsibleSection
-          className="jp-Launcher-openByKernel"
-          title={trans.__('Starred')}
-          icon={starIcon}
-          open={startCollapsed['starred'] !== 'collapsed'}
-        >
-          {starred.length > 0 ? (
-            <KernelTable
-              items={starred}
-              commands={props.commands}
-              showSearchBox={!searchAll}
-              showWidgetType={true}
-              query={query}
-              settings={props.settings}
-              trans={trans}
-              onClick={item => item.execute()}
-              favouritesChanged={props.favouritesChanged}
-              lastUsedChanged={props.lastUsedChanged}
-            />
-          ) : (
-            'No starred items'
-          )}
-        </CollapsibleSection>
-      ) : null}
-      <CollapsibleSection
-        className="jp-Launcher-openByKernel jp-Launcher-launchNotebook"
-        title={trans.__('Launch New Notebook')}
-        icon={notebookIcon}
-        open={startCollapsed['launch-notebook'] !== 'collapsed'}
-      >
-        <KernelTable
-          items={props.notebookItems}
-          commands={props.commands}
-          showSearchBox={!searchAll}
-          query={query}
-          settings={props.settings}
-          trans={trans}
-          onClick={item => item.execute()}
-          favouritesChanged={props.favouritesChanged}
-          lastUsedChanged={props.lastUsedChanged}
-        />
-      </CollapsibleSection>
-      <CollapsibleSection
-        className="jp-Launcher-openByKernel jp-Launcher-launchConsole"
-        title={trans.__('Launch New Console')}
-        icon={consoleIcon}
-        open={startCollapsed['launch-console'] !== 'collapsed'}
-      >
-        <KernelTable
-          items={props.consoleItems}
-          commands={props.commands}
-          showSearchBox={!searchAll}
-          query={query}
-          settings={props.settings}
-          trans={trans}
-          onClick={item => item.execute()}
-          favouritesChanged={props.favouritesChanged}
-          lastUsedChanged={props.lastUsedChanged}
-        />
-      </CollapsibleSection>
+      {allSections
+        .sort((a, b) => a.rank - b.rank)
+        .map(section => (
+          <CollapsibleSection
+            className={section.className}
+            title={section.title}
+            icon={section.icon}
+            open={startCollapsed[section.id] !== 'collapsed'}
+          >
+            {section.render()}
+          </CollapsibleSection>
+        ))}
     </div>
   );
 }
@@ -216,6 +239,7 @@ export namespace NewLauncher {
     lastUsedDatabase: ILastUsedDatabase;
     favoritesDatabase: IFavoritesDatabase;
     settings: ISettingRegistry.ISettings;
+    model: NewModel;
   }
 }
 
@@ -229,9 +253,15 @@ export class NewLauncher extends Launcher {
     this._lastUsedDatabase = options.lastUsedDatabase;
     this._favoritesDatabase = options.favoritesDatabase;
     this._settings = options.settings;
+    this._newModel = options.model;
+    this._newModel.sectionAdded.connect(() => {
+      this.update();
+    });
   }
   private _lastUsedDatabase: ILastUsedDatabase;
   private _favoritesDatabase: IFavoritesDatabase;
+  private _newModel: NewModel;
+
   trans: TranslationBundle;
 
   renderCommand = (item: ILauncher.IItemOptions): IItem => {
@@ -334,6 +364,7 @@ export class NewLauncher extends Launcher {
         settings={this._settings}
         favouritesChanged={this._favoritesDatabase.changed}
         lastUsedChanged={this._lastUsedDatabase.changed}
+        sections={this._newModel.sections}
       />
     );
   }

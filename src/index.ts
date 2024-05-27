@@ -7,7 +7,7 @@ import {
 } from '@jupyterlab/application';
 import { ICommandPalette, MainAreaWidget } from '@jupyterlab/apputils';
 import { FileBrowserModel, IDefaultFileBrowser } from '@jupyterlab/filebrowser';
-import { ILauncher, LauncherModel } from '@jupyterlab/launcher';
+import { ILauncher } from '@jupyterlab/launcher';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator } from '@jupyterlab/translation';
 import { addIcon, launcherIcon } from '@jupyterlab/ui-components';
@@ -15,7 +15,13 @@ import { find } from '@lumino/algorithm';
 import { ReadonlyPartialJSONObject } from '@lumino/coreutils';
 import { DockPanel, TabBar, Widget } from '@lumino/widgets';
 import { NewLauncher as Launcher } from './launcher';
-import { CommandIDs, ILauncherDatabase, MAIN_PLUGIN_ID } from './types';
+import { NewModel as Model } from './model';
+import {
+  CommandIDs,
+  ILauncherDatabase,
+  INewLauncher,
+  MAIN_PLUGIN_ID
+} from './types';
 import { addCommands } from './commands';
 import { sessionDialogsPlugin } from './dialogs';
 import { databasePlugin } from './database';
@@ -54,10 +60,10 @@ function activate(
   labShell: ILabShell | null,
   palette: ICommandPalette | null,
   defaultBrowser: IDefaultFileBrowser | null
-): ILauncher {
+): INewLauncher {
   const { commands, shell } = app;
   const trans = translator.load('jupyterlab-new-launcher');
-  const model = new LauncherModel();
+  const model = new Model();
 
   if (
     navigator.userAgent.indexOf('AppleWebKit') !== -1 &&
