@@ -76,4 +76,18 @@ export function addCommands(
       await settings.set('columnOrder', order);
     }
   });
+  app.commands.addCommand(CommandIDs.showStarred, {
+    label:"Show starred section",
+    execute: async args => {
+      const starredSection = args.starredSection as ISettingsLayout['starredSection'];
+      await settings.set('starredSection', !starredSection)
+     }
+   });
+   app.commands.addCommand(CommandIDs.searchAllSections, {
+    label:"Search in all sections",
+    execute: async args => {
+      const searchAllSections = args.searchAllSections as ISettingsLayout['searchAllSections'];
+      await settings.set('searchAllSections', !searchAllSections)
+     }
+   });
 }

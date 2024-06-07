@@ -8,15 +8,21 @@ import { TranslationBundle } from '@jupyterlab/translation';
 import {
   FilterBox,
   notebookIcon,
-  consoleIcon
+  consoleIcon,
+  ToolbarButton,
+  settingsIcon
 } from '@jupyterlab/ui-components';
+import { JSONObject } from '@lumino/coreutils';
+import { Menu } from '@lumino/widgets';
+
 import * as React from 'react';
 import {
+  CommandIDs,
   IItem,
   IKernelItem,
   ILastUsedDatabase,
   IFavoritesDatabase,
-  ISettingsLayout
+  ISettingsLayout,
 } from './types';
 import { fileIcon, starIcon } from './icons';
 import { Item } from './item';
@@ -104,6 +110,29 @@ function LauncherBody(props: {
   const startCollapsed = props.settings.composite
     .collapsedSections as ISettingsLayout['collapsedSections'];
 
+  const menu = new Menu({commands: props.commands})
+  console.log(menu)
+  console.log(menu.items)
+  const command = CommandIDs.showStarred
+  const args: JSONObject = {}
+  menu.addItem({ command, args })
+  menu.addItem({ command: CommandIDs.searchAllSections, args: {}} )
+  menu.addItem({ command: 'settingeditor:open', args: { query: 'New Launcher' }})
+
+  const settingsButton = new ToolbarButton( {
+    icon: settingsIcon,
+    onClick: () => {
+      // const bbox = settingsButton.node.getBoundingClientRect();
+      // menu.open(bbox.x, bbox.y)}
+      menu.open(0, 0)}
+  } )
+
+  const menu_div = (
+    <div
+    >
+    {settingsButton.render()}
+    </div>
+  )
   return (
     <div className="jp-LauncherBody">
       <div className="jp-NewLauncher-TopBar">
@@ -116,6 +145,7 @@ function LauncherBody(props: {
           {otherItems.map(item => (
             <TypeCard item={item} trans={trans} />
           ))}
+          {menu_div}
         </div>
       </div>
       {searchAll ? (
