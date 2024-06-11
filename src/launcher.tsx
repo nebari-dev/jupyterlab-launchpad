@@ -9,15 +9,12 @@ import {
   FilterBox,
   notebookIcon,
   consoleIcon,
-  ToolbarButton,
-  settingsIcon
+  // ToolbarButton,
 } from '@jupyterlab/ui-components';
-import { JSONObject } from '@lumino/coreutils';
-import { Menu } from '@lumino/widgets';
+
 
 import * as React from 'react';
 import {
-  CommandIDs,
   IItem,
   IKernelItem,
   ILastUsedDatabase,
@@ -29,6 +26,7 @@ import { Item } from './item';
 import { KernelTable } from './components/table';
 import { CollapsibleSection } from './components/section';
 import { TypeCard } from './components/card';
+import { QuickSettings } from './components/quick-settings'
 
 function LauncherBody(props: {
   trans: TranslationBundle;
@@ -42,7 +40,7 @@ function LauncherBody(props: {
   favouritesChanged: ISignal<IFavoritesDatabase, void>;
   lastUsedChanged: ISignal<ILastUsedDatabase, void>;
 }): React.ReactElement {
-  const { trans, cwd, typeItems, otherItems, favouritesChanged } = props;
+  const { trans, cwd, typeItems, commands, otherItems, favouritesChanged } = props;
   const [query, updateQuery] = React.useState<string>('');
   const [, forceUpdate] = React.useReducer(x => x + 1, 0);
   const [showStarred, updateShowStarred] = React.useState<
@@ -109,30 +107,9 @@ function LauncherBody(props: {
 
   const startCollapsed = props.settings.composite
     .collapsedSections as ISettingsLayout['collapsedSections'];
+  
+  
 
-  const menu = new Menu({commands: props.commands})
-  console.log(menu)
-  console.log(menu.items)
-  const command = CommandIDs.showStarred
-  const args: JSONObject = {}
-  menu.addItem({ command, args })
-  menu.addItem({ command: CommandIDs.searchAllSections, args: {}} )
-  menu.addItem({ command: 'settingeditor:open', args: { query: 'New Launcher' }})
-
-  const settingsButton = new ToolbarButton( {
-    icon: settingsIcon,
-    onClick: () => {
-      // const bbox = settingsButton.node.getBoundingClientRect();
-      // menu.open(bbox.x, bbox.y)}
-      menu.open(0, 0)}
-  } )
-
-  const menu_div = (
-    <div
-    >
-    {settingsButton.render()}
-    </div>
-  )
   return (
     <div className="jp-LauncherBody">
       <div className="jp-NewLauncher-TopBar">
@@ -145,7 +122,7 @@ function LauncherBody(props: {
           {otherItems.map(item => (
             <TypeCard item={item} trans={trans} />
           ))}
-          {menu_div}
+          <QuickSettings commands={commands} trans={trans} />
         </div>
       </div>
       {searchAll ? (
