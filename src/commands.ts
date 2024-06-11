@@ -1,5 +1,6 @@
 import { JupyterFrontEnd } from '@jupyterlab/application';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
+import { checkIcon } from '@jupyterlab/ui-components'
 import { TranslationBundle } from '@jupyterlab/translation';
 import { CommandIDs } from './types';
 import { ISettingsLayout } from './types';
@@ -77,17 +78,41 @@ export function addCommands(
     }
   });
   app.commands.addCommand(CommandIDs.showStarred, {
+    isToggleable: true,
+    isToggled: () => {
+        return settings.composite.starredSection as ISettingsLayout['starredSection'];
+     },
     label:"Show starred section",
-    execute: async args => {
-      const starredSection = args.starredSection as ISettingsLayout['starredSection'];
+    execute: async () => {
+      const starredSection = settings.composite.starredSection as ISettingsLayout['starredSection'];
       await settings.set('starredSection', !starredSection)
-     }
+    },
+    icon: () => {
+      const starredSection = settings.composite.starredSection as ISettingsLayout['starredSection']
+      if (starredSection) {
+        return checkIcon
+      } else {
+        return undefined
+      }
+    }
    });
    app.commands.addCommand(CommandIDs.searchAllSections, {
+    isToggleable: true,
+    isToggled: () => {
+        return settings.composite.searchAllSections as ISettingsLayout['searchAllSections'];
+     },
     label:"Search in all sections",
-    execute: async args => {
-      const searchAllSections = args.searchAllSections as ISettingsLayout['searchAllSections'];
+    execute: async () => {
+      const searchAllSections = settings.composite.searchAllSections as ISettingsLayout['searchAllSections'];
       await settings.set('searchAllSections', !searchAllSections)
-     }
+    },
+    icon: () => {
+      const starredSection = settings.composite.searchAllSections as ISettingsLayout['searchAllSections']
+      if (starredSection) {
+        return checkIcon
+      } else {
+        return undefined
+      }
+    }
    });
 }

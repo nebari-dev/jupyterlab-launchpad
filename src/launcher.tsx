@@ -56,6 +56,8 @@ function LauncherBody(props: {
       .searchAllSections as ISettingsLayout['searchAllSections']
   );
 
+  
+
   const syncSettings = () => {
     const newStarred = props.settings.composite
       .starredSection as ISettingsLayout['starredSection'];

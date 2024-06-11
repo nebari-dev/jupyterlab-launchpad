@@ -6,6 +6,7 @@ import { Menu } from '@lumino/widgets';
 
 import { CommandIDs } from '../types'
 
+
 export function QuickSettings(props: {
   trans: TranslationBundle;
   commands: CommandRegistry;
