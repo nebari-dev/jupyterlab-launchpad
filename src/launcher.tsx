@@ -8,10 +8,9 @@ import { TranslationBundle } from '@jupyterlab/translation';
 import {
   FilterBox,
   notebookIcon,
-  consoleIcon,
+  consoleIcon
   // ToolbarButton,
 } from '@jupyterlab/ui-components';
-
 
 import * as React from 'react';
 import {
@@ -19,14 +18,14 @@ import {
   IKernelItem,
   ILastUsedDatabase,
   IFavoritesDatabase,
-  ISettingsLayout,
+  ISettingsLayout
 } from './types';
 import { fileIcon, starIcon } from './icons';
 import { Item } from './item';
 import { KernelTable } from './components/table';
 import { CollapsibleSection } from './components/section';
 import { TypeCard } from './components/card';
-import { QuickSettings } from './components/quick-settings'
+import { QuickSettings } from './components/quick-settings';
 
 function LauncherBody(props: {
   trans: TranslationBundle;
@@ -40,7 +39,8 @@ function LauncherBody(props: {
   favouritesChanged: ISignal<IFavoritesDatabase, void>;
   lastUsedChanged: ISignal<ILastUsedDatabase, void>;
 }): React.ReactElement {
-  const { trans, cwd, typeItems, commands, otherItems, favouritesChanged } = props;
+  const { trans, cwd, typeItems, commands, otherItems, favouritesChanged } =
+    props;
   const [query, updateQuery] = React.useState<string>('');
   const [, forceUpdate] = React.useReducer(x => x + 1, 0);
   const [showStarred, updateShowStarred] = React.useState<
@@ -55,8 +55,6 @@ function LauncherBody(props: {
     props.settings.composite
       .searchAllSections as ISettingsLayout['searchAllSections']
   );
-
-  
 
   const syncSettings = () => {
     const newStarred = props.settings.composite
@@ -109,8 +107,6 @@ function LauncherBody(props: {
 
   const startCollapsed = props.settings.composite
     .collapsedSections as ISettingsLayout['collapsedSections'];
-  
-  
 
   return (
     <div className="jp-LauncherBody">
