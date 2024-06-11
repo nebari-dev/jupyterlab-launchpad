@@ -12,7 +12,6 @@ export function QuickSettings(props: {
   commands: CommandRegistry;
 }): React.ReactElement {
   const { commands } = props;
-  console.log()
 
   const menu = new Menu({commands: commands})
   menu.addItem({ command: CommandIDs.showStarred, args: {} })
