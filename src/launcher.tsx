@@ -9,7 +9,6 @@ import {
   FilterBox,
   notebookIcon,
   consoleIcon
-  // ToolbarButton,
 } from '@jupyterlab/ui-components';
 
 import * as React from 'react';
