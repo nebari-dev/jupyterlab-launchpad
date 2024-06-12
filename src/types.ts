@@ -16,6 +16,7 @@ export namespace CommandIDs {
   export const toggleColumn = 'new-launcher:table-toggle-column';
   export const showStarred = 'new-launcher:show-starred';
   export const searchAllSections = 'new-launcher:search-all-sections';
+  export const openSettings = 'new-launcher:open-settings';
 }
 
 export interface ISettingsLayout {

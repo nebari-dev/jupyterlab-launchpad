@@ -14,10 +14,7 @@ export function QuickSettings(props: {
   const menu = new MenuSvg({ commands: commands });
   menu.addItem({ command: CommandIDs.showStarred, args: {} });
   menu.addItem({ command: CommandIDs.searchAllSections, args: {} });
-  menu.addItem({
-    command: 'settingeditor:open',
-    args: { query: 'New Launcher' }
-  });
+  menu.addItem({ command: CommandIDs.openSettings, args: {} });
 
   const iconRef = React.useRef<HTMLDivElement>(null);
 
