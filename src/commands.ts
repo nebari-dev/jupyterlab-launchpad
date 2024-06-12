@@ -87,7 +87,7 @@ export function addCommands(
       const starredSection = settings.composite
         .starredSection as ISettingsLayout['starredSection'];
       await settings.set('starredSection', !starredSection);
-    },
+    }
   });
   app.commands.addCommand(CommandIDs.searchAllSections, {
     isToggleable: true,
@@ -100,6 +100,6 @@ export function addCommands(
       const searchAllSections = settings.composite
         .searchAllSections as ISettingsLayout['searchAllSections'];
       await settings.set('searchAllSections', !searchAllSections);
-    },
+    }
   });
 }
