@@ -1,8 +1,7 @@
 import { TranslationBundle } from '@jupyterlab/translation';
 import type { CommandRegistry } from '@lumino/commands';
-import { settingsIcon } from '@jupyterlab/ui-components';
+import { MenuSvg, settingsIcon } from '@jupyterlab/ui-components';
 import * as React from 'react';
-import { Menu } from '@lumino/widgets';
 
 import { CommandIDs } from '../types';
 
@@ -12,7 +11,7 @@ export function QuickSettings(props: {
 }): React.ReactElement {
   const { commands } = props;
 
-  const menu = new Menu({ commands: commands });
+  const menu = new MenuSvg({ commands: commands });
   menu.addItem({ command: CommandIDs.showStarred, args: {} });
   menu.addItem({ command: CommandIDs.searchAllSections, args: {} });
   menu.addItem({
