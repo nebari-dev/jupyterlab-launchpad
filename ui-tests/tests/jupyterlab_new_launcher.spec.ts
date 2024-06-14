@@ -97,7 +97,9 @@ test.describe('Quick Settings', () => {
     await page
       .locator('.lm-Menu-itemLabel:text("Show Starred Section")')
       .click();
-    const starredSection = page.locator('.jp-CollapsibleSection-Title:has-text("starred")')
-    await expect(starredSection).toBeVisible()
+    const starredSection = page.locator(
+      '.jp-CollapsibleSection-Title:has-text("starred")'
+    );
+    await expect(starredSection).toBeVisible();
   });
 });
