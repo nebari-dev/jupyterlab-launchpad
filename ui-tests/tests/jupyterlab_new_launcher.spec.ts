@@ -1,5 +1,5 @@
 import { expect, test, galata } from '@jupyterlab/galata';
-import { Launcher } from '@jupyterlab/launcher';
+import { Page } from '@playwright/test';
 
 const SETTINGS_ID = 'jupyterlab-new-launcher:plugin';
 
