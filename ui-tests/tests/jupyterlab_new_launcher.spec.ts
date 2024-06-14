@@ -94,11 +94,11 @@ test.describe('Quick Settings', () => {
   test('show starred from quick settings', async ({ page }) => {
     const launcher = page.locator('.jp-LauncherBody');
     await page.locator('.jp-Launcher-QuickSettings').click();
-    await page.locator('.lm-Menu-itemLabel:text("Show Starred Section")').click()
-    expect (await launcher.screenshot()).toMatchSnapshot(
+    await page
+      .locator('.lm-Menu-itemLabel:text("Show Starred Section")')
+      .click();
+    expect(await launcher.screenshot()).toMatchSnapshot(
       'launcher_show_starred_from_quicksettings.png'
-    )
-
+    );
   });
-
 });
