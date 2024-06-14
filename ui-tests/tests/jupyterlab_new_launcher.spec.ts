@@ -1,4 +1,5 @@
 import { expect, test, galata } from '@jupyterlab/galata';
+import { Launcher } from '@jupyterlab/launcher';
 
 const SETTINGS_ID = 'jupyterlab-new-launcher:plugin';
 
@@ -79,4 +80,16 @@ test.describe('Filter individual', () => {
       'launcher-search-in-individual.png'
     );
   });
+});
+
+test.describe('Quick Settings', () => {
+  test('open quick settings menu', async ({ page }) => {
+    const launcher = page.locator('.jp-LauncherBody');
+    await page.locator('.jp-Launcher-QuickSettings').click();
+    await page.waitForTimeout(400);
+    expect(await launcher.screenshot()).toMatchSnapshot(
+      'launcher_open_quicksettings.png'
+    );
+  });
+
 });

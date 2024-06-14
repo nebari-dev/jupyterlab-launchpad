@@ -34,7 +34,7 @@ export function QuickSettings(props: {
 
   return (
     <div
-      className="jp-Launcher-TypeCard jp-LauncherCard"
+      className="jp-Launcher-TypeCard jp-LauncherCard jp-Launcher-QuickSettings"
       ref={iconRef}
       onClick={event => {
         onClickHandler(event);
