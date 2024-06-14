@@ -10,6 +10,7 @@ import {
   notebookIcon,
   consoleIcon
 } from '@jupyterlab/ui-components';
+
 import * as React from 'react';
 import { NewModel } from './model';
 import {
@@ -25,6 +26,7 @@ import { Item } from './item';
 import { KernelTable } from './components/table';
 import { CollapsibleSection } from './components/section';
 import { TypeCard } from './components/card';
+import { QuickSettings } from './components/quick-settings';
 
 function LauncherBody(props: {
   trans: TranslationBundle;
@@ -39,7 +41,8 @@ function LauncherBody(props: {
   lastUsedChanged: ISignal<ILastUsedDatabase, void>;
   sections: ISectionOptions[];
 }): React.ReactElement {
-  const { trans, cwd, typeItems, otherItems, favouritesChanged } = props;
+  const { trans, cwd, typeItems, commands, otherItems, favouritesChanged } =
+    props;
   const [query, updateQuery] = React.useState<string>('');
   const [, forceUpdate] = React.useReducer(x => x + 1, 0);
   const [showStarred, updateShowStarred] = React.useState<
@@ -204,6 +207,7 @@ function LauncherBody(props: {
           {otherItems.map(item => (
             <TypeCard item={item} trans={trans} />
           ))}
+          <QuickSettings commands={commands} trans={trans} />
         </div>
       </div>
       {searchAll ? (

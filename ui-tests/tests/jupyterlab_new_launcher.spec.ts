@@ -87,3 +87,25 @@ test.describe('Filter individual', () => {
     );
   });
 });
+
+test.describe('Quick Settings', () => {
+  test('open quick settings menu', async ({ page }) => {
+    const launcher = page.locator('.jp-LauncherBody');
+    await page.locator('.jp-Launcher-QuickSettings').click();
+    expect(await launcher.screenshot()).toMatchSnapshot(
+      'launcher_open_quicksettings.png'
+    );
+  });
+
+  test('show starred from quick settings', async ({ page }) => {
+    const launcher = page.locator('.jp-LauncherBody');
+    await page.locator('.jp-Launcher-QuickSettings').click();
+    await page
+      .locator('.lm-Menu-itemLabel:text("Show Starred Section")')
+      .click();
+    const starredSection = page.locator(
+      '.jp-CollapsibleSection-Title:has-text("starred")'
+    );
+    await expect(starredSection).toBeVisible();
+  });
+});

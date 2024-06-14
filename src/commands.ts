@@ -76,4 +76,38 @@ export function addCommands(
       await settings.set('columnOrder', order);
     }
   });
+  app.commands.addCommand(CommandIDs.showStarred, {
+    isToggleable: true,
+    isToggled: () => {
+      return settings.composite
+        .starredSection as ISettingsLayout['starredSection'];
+    },
+    label: trans.__('Show Starred Section'),
+    execute: async () => {
+      const starredSection = settings.composite
+        .starredSection as ISettingsLayout['starredSection'];
+      await settings.set('starredSection', !starredSection);
+    }
+  });
+  app.commands.addCommand(CommandIDs.searchAllSections, {
+    isToggleable: true,
+    isToggled: () => {
+      return settings.composite
+        .searchAllSections as ISettingsLayout['searchAllSections'];
+    },
+    label: trans.__('Search in All Sections'),
+    execute: async () => {
+      const searchAllSections = settings.composite
+        .searchAllSections as ISettingsLayout['searchAllSections'];
+      await settings.set('searchAllSections', !searchAllSections);
+    }
+  });
+  app.commands.addCommand(CommandIDs.openSettings, {
+    label: trans.__('Open Settings Editor'),
+    execute: () => {
+      app.commands.execute('settingeditor:open', {
+        query: 'New Launcher'
+      });
+    }
+  });
 }
