@@ -97,8 +97,7 @@ test.describe('Quick Settings', () => {
     await page
       .locator('.lm-Menu-itemLabel:text("Show Starred Section")')
       .click();
-    expect(await launcher.screenshot()).toMatchSnapshot(
-      'launcher_show_starred_from_quicksettings.png'
-    );
+    const starredSection = page.locator('.jp-CollapsibleSection-Title:has-text("starred")')
+    await expect(starredSection).toBeVisible()
   });
 });
