@@ -74,6 +74,11 @@
   min-width: 185px;
 }
 
+.jp-CollapsibleSection > summary::-webkit-details-marker {
+  /* Safari/GNOME Web/Opera */
+  display: none;
+}
+
 .jp-CollapsibleSection > summary:hover {
   background-color: var(--jp-layout-color2);
 }
