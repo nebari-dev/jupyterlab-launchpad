@@ -266,7 +266,7 @@ export function KernelTable(props: {
         if (!b.lastUsed) {
           return -1;
         }
-        return a.lastUsed > b.lastUsed ? 1 : -1;
+        return a.lastUsed > b.lastUsed ? -1 : 1;
       }
     },
     {
