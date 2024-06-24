@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import shutil
 
 from jupyter_server.base.handlers import APIHandler
 from jupyter_server.utils import url_path_join
@@ -10,6 +11,11 @@ class DatabaseHandler(APIHandler):
 
     def initialize(self, name: str, settings_dir: str):
         self.path = Path(settings_dir) / "jupyterlab-launchpad" / f"{name}.json"
+        old_path = Path(settings_dir) / "jupyterlab-new-launcher" / f"{name}.json"
+        if not self.path.exists() and old_path.exists():
+            # migrate database from prior to rename
+            shutil.copy(old_path, self.path)
+            old_path.unlink()
 
     # The following decorator should be present on all verb methods (head, get, post,
     # patch, put, delete, options) to ensure only authorized user can request the
