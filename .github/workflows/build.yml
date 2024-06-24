@@ -41,7 +41,7 @@ jobs:
         python -m pip install .[test]
 
         jupyter labextension list
-        jupyter labextension list 2>&1 | grep -ie "jupyterlab-new-launcher.*OK"
+        jupyter labextension list 2>&1 | grep -ie "jupyterlab-launchpad.*OK"
         python -m jupyterlab.browser_check
 
     - name: Package the extension
@@ -83,7 +83,7 @@ jobs:
 
 
         jupyter labextension list
-        jupyter labextension list 2>&1 | grep -ie "jupyterlab-new-launcher.*OK"
+        jupyter labextension list 2>&1 | grep -ie "jupyterlab-launchpad.*OK"
         python -m jupyterlab.browser_check --no-browser-test
 
   integration-tests:
