@@ -1,10 +1,10 @@
 {
   "jupyter.lab.setting-icon": "ui-components:launcher",
-  "jupyter.lab.setting-icon-label": "New Launcher",
+  "jupyter.lab.setting-icon-label": "Launchpad",
   "jupyter.lab.toolbars": {
     "FileBrowser": [
       {
-        "name": "new-launcher",
+        "name": "launchpad",
         "command": "launcher:create",
         "rank": 1
       }
@@ -30,8 +30,8 @@
       "selector": "body"
     }
   ],
-  "title": "New Launcher",
-  "description": "jupyterlab-new-launcher settings.",
+  "title": "Launchpad",
+  "description": "jupyterlab-launchpad settings.",
   "type": "object",
   "properties": {
     "hiddenColumns": {

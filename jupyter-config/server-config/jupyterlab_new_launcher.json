@@ -1,7 +1,7 @@
 {
   "ServerApp": {
     "jpserver_extensions": {
-      "jupyterlab_new_launcher": true
+      "jupyterlab_launchpad": true
     }
   }
 }

@@ -253,7 +253,7 @@ export class NewLauncher extends Launcher {
   constructor(options: NewLauncher.IOptions) {
     super(options);
     this.commands = options.commands;
-    this.trans = this.translator.load('jupyterlab-new-launcher');
+    this.trans = this.translator.load('jupyterlab-launchpad');
     this._lastUsedDatabase = options.lastUsedDatabase;
     this._favoritesDatabase = options.favoritesDatabase;
     this._settings = options.settings;

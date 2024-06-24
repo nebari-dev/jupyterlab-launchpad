@@ -3,7 +3,7 @@ requires = ["hatchling>=1.5.0", "jupyterlab>=4.0.0,<5", "hatch-nodejs-version>=0
 build-backend = "hatchling.build"
 
 [project]
-name = "jupyterlab-new-launcher"
+name = "jupyterlab-launchpad"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.8"
@@ -34,25 +34,25 @@ source = "nodejs"
 fields = ["description", "authors", "urls"]
 
 [tool.hatch.build.targets.sdist]
-artifacts = ["jupyterlab_new_launcher/labextension"]
+artifacts = ["jupyterlab_launchpad/labextension"]
 exclude = [".github", "binder"]
 
 [tool.hatch.build.targets.wheel.shared-data]
-"jupyterlab_new_launcher/labextension" = "share/jupyter/labextensions/jupyterlab-new-launcher"
-"install.json" = "share/jupyter/labextensions/jupyterlab-new-launcher/install.json"
+"jupyterlab_launchpad/labextension" = "share/jupyter/labextensions/jupyterlab-launchpad"
+"install.json" = "share/jupyter/labextensions/jupyterlab-launchpad/install.json"
 "jupyter-config/server-config" = "etc/jupyter/jupyter_server_config.d"
 
 [tool.hatch.build.hooks.version]
-path = "jupyterlab_new_launcher/_version.py"
+path = "jupyterlab_launchpad/_version.py"
 
 [tool.hatch.build.hooks.jupyter-builder]
 dependencies = ["hatch-jupyter-builder>=0.5"]
 build-function = "hatch_jupyter_builder.npm_builder"
 ensured-targets = [
-    "jupyterlab_new_launcher/labextension/static/style.js",
-    "jupyterlab_new_launcher/labextension/package.json",
+    "jupyterlab_launchpad/labextension/static/style.js",
+    "jupyterlab_launchpad/labextension/package.json",
 ]
-skip-if-exists = ["jupyterlab_new_launcher/labextension/static/style.js"]
+skip-if-exists = ["jupyterlab_launchpad/labextension/static/style.js"]
 
 [tool.hatch.build.hooks.jupyter-builder.build-kwargs]
 build_cmd = "build:prod"
@@ -62,7 +62,7 @@ npm = ["jlpm"]
 build_cmd = "install:extension"
 npm = ["jlpm"]
 source_dir = "src"
-build_dir = "jupyterlab_new_launcher/labextension"
+build_dir = "jupyterlab_launchpad/labextension"
 
 [tool.jupyter-releaser.options]
 version_cmd = "hatch version"

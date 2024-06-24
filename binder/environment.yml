@@ -1,10 +1,10 @@
-# a mybinder.org-ready environment for demoing jupyterlab_new_launcher
+# a mybinder.org-ready environment for demoing jupyterlab_launchpad
 # this environment may also be used locally on Linux/MacOS/Windows, e.g.
 #
 #   conda env update --file binder/environment.yml
-#   conda activate jupyterlab-new-launcher-demo
+#   conda activate jupyterlab-launchpad-demo
 #
-name: jupyterlab-new-launcher-demo
+name: jupyterlab-launchpad-demo
 
 channels:
   - conda-forge

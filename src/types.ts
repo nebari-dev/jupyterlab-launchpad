@@ -6,7 +6,7 @@ import type { ISignal } from '@lumino/signaling';
 import { Token } from '@lumino/coreutils';
 import type { LabIcon } from '@jupyterlab/ui-components';
 
-export const MAIN_PLUGIN_ID = 'jupyterlab-new-launcher:plugin';
+export const MAIN_PLUGIN_ID = 'jupyterlab-launchpad:plugin';
 
 export interface INewLauncher extends ILauncher {
   addSection(options: ISectionOptions): void;
@@ -26,11 +26,11 @@ export interface ISectionOptions {
  */
 export namespace CommandIDs {
   export const create = 'launcher:create';
-  export const moveColumn = 'new-launcher:table-move-column';
-  export const toggleColumn = 'new-launcher:table-toggle-column';
-  export const showStarred = 'new-launcher:show-starred';
-  export const searchAllSections = 'new-launcher:search-all-sections';
-  export const openSettings = 'new-launcher:open-settings';
+  export const moveColumn = 'launchpad:table-move-column';
+  export const toggleColumn = 'launchpad:table-toggle-column';
+  export const showStarred = 'launchpad:show-starred';
+  export const searchAllSections = 'launchpad:search-all-sections';
+  export const openSettings = 'launchpad:open-settings';
 }
 
 export interface ISettingsLayout {
@@ -75,15 +75,15 @@ export interface IFavoritesDatabase {
 }
 
 /**
- * Databases for new launcher.
+ * Databases for launchpad.
  */
 export const ILauncherDatabase = new Token<ILauncherDatabase>(
-  'jupyterlab-new-launcher:ILauncherDatabase',
-  'Databases for new launcher.'
+  'jupyterlab-launchpad:ILauncherDatabase',
+  'Databases for launchpad.'
 );
 
 /**
- *Databases for new launcher
+ * Databases for launchpad.
  */
 export interface ILauncherDatabase {
   lastUsed: ILastUsedDatabase;

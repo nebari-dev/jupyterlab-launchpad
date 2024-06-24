@@ -1,7 +1,7 @@
 {
-  "name": "jupyterlab-new-launcher-ui-tests",
+  "name": "jupyterlab-launchpad-ui-tests",
   "version": "1.0.0",
-  "description": "JupyterLab jupyterlab-new-launcher Integration Tests",
+  "description": "JupyterLab jupyterlab-launchpad Integration Tests",
   "private": true,
   "scripts": {
     "start": "jupyter lab --config jupyter_server_test_config.py",

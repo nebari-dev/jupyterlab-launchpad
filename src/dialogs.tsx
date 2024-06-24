@@ -135,11 +135,11 @@ export namespace CustomSessionContextDialogs {
 }
 
 /**
- * Initialization data for the jupyterlab-new-launcher session dialogs.
+ * Initialization data for the jupyterlab-launchpad session dialogs.
  */
 export const sessionDialogsPlugin: JupyterFrontEndPlugin<ISessionContextDialogs> =
   {
-    id: 'jupyterlab-new-launcher:dialogs',
+    id: 'jupyterlab-launchpad:dialogs',
     description: 'Session dialogs for redesigned JupyterLab launcher',
     provides: ISessionContextDialogs,
     autoStart: true,

@@ -28,7 +28,7 @@ import { databasePlugin } from './database';
 import webkitCSSPatch from '../style/webkit.raw.css';
 
 /**
- * Initialization data for the jupyterlab-new-launcher extension.
+ * Initialization data for the jupyterlab-launchpad extension.
  */
 const launcherPlugin: JupyterFrontEndPlugin<ILauncher> = {
   id: MAIN_PLUGIN_ID,
@@ -62,7 +62,7 @@ function activate(
   defaultBrowser: IDefaultFileBrowser | null
 ): INewLauncher {
   const { commands, shell } = app;
-  const trans = translator.load('jupyterlab-new-launcher');
+  const trans = translator.load('jupyterlab-launchpad');
   const model = new Model();
 
   if (
