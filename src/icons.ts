@@ -4,16 +4,16 @@ import fileSvgstr from '../style/icons/md/file.svg';
 import codeServerSvgstr from '../style/icons/code-server.svg';
 
 export const starIcon = new LabIcon({
-  name: 'jupyterlab-new-launcher:star',
+  name: 'jupyterlab-launchpad:star',
   svgstr: starSvgstr
 });
 
 export const fileIcon = new LabIcon({
-  name: 'jupyterlab-new-launcher:file',
+  name: 'jupyterlab-launchpad:file',
   svgstr: fileSvgstr
 });
 
 export const codeServerIcon = new LabIcon({
-  name: 'jupyterlab-new-launcher:code-server',
+  name: 'jupyterlab-launchpad:code-server',
   svgstr: codeServerSvgstr
 });

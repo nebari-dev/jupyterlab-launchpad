@@ -1,7 +1,7 @@
 import { expect, test, galata } from '@jupyterlab/galata';
 import { Page } from '@playwright/test';
 
-const SETTINGS_ID = 'jupyterlab-new-launcher:plugin';
+const SETTINGS_ID = 'jupyterlab-launchpad:plugin';
 
 test.describe('Default settings', () => {
   test('should render new launcher', async ({ page }) => {

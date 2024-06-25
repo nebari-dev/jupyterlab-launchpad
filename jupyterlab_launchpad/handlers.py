@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import shutil
 
 from jupyter_server.base.handlers import APIHandler
 from jupyter_server.utils import url_path_join
@@ -9,7 +10,12 @@ import tornado
 class DatabaseHandler(APIHandler):
 
     def initialize(self, name: str, settings_dir: str):
-        self.path = Path(settings_dir) / "jupyterlab-new-launcher" / f"{name}.json"
+        self.path = Path(settings_dir) / "jupyterlab-launchpad" / f"{name}.json"
+        old_path = Path(settings_dir) / "jupyterlab-new-launcher" / f"{name}.json"
+        if not self.path.exists() and old_path.exists():
+            # migrate database from prior to rename
+            shutil.copy(old_path, self.path)
+            old_path.unlink()
 
     # The following decorator should be present on all verb methods (head, get, post,
     # patch, put, delete, options) to ensure only authorized user can request the
@@ -38,7 +44,7 @@ def setup_handlers(web_app, server_app):
     host_pattern = ".*$"
 
     base_url = web_app.settings["base_url"]
-    api_url = url_path_join(base_url, "jupyterlab-new-launcher");
+    api_url = url_path_join(base_url, "jupyterlab-launchpad");
     db_url = url_path_join(api_url, "database")
     kwargs = {"settings_dir": web_app.settings["lab_config"]["user_settings_dir"]}
     handlers = [

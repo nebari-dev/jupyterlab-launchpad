@@ -7276,9 +7276,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jupyterlab-new-launcher@workspace:.":
+"jupyterlab-launchpad@workspace:.":
   version: 0.0.0-use.local
-  resolution: "jupyterlab-new-launcher@workspace:."
+  resolution: "jupyterlab-launchpad@workspace:."
   dependencies:
     "@jupyterlab/application": ^4.0.0
     "@jupyterlab/builder": ^4.0.0

@@ -1,15 +1,15 @@
 {
-    "name": "jupyterlab-new-launcher",
-    "version": "0.5.1",
+    "name": "jupyterlab-launchpad",
+    "version": "1.0.0",
     "description": "A redesigned JupyterLab launcher",
     "keywords": [
         "jupyter",
         "jupyterlab",
         "jupyterlab-extension"
     ],
-    "homepage": "https://github.com/nebari-dev/jupyterlab-new-launcher",
+    "homepage": "https://github.com/nebari-dev/jupyterlab-launchpad",
     "bugs": {
-        "url": "https://github.com/nebari-dev/jupyterlab-new-launcher/issues"
+        "url": "https://github.com/nebari-dev/jupyterlab-launchpad/issues"
     },
     "license": "BSD-3-Clause",
     "author": {
@@ -28,7 +28,7 @@
     "style": "style/index.css",
     "repository": {
         "type": "git",
-        "url": "https://github.com/nebari-dev/jupyterlab-new-launcher.git"
+        "url": "https://github.com/nebari-dev/jupyterlab-launchpad.git"
     },
     "scripts": {
         "build": "jlpm build:lib && jlpm build:labextension:dev",
@@ -40,7 +40,7 @@
         "clean": "jlpm clean:lib",
         "clean:lib": "rimraf lib tsconfig.tsbuildinfo",
         "clean:lintcache": "rimraf .eslintcache .stylelintcache",
-        "clean:labextension": "rimraf jupyterlab_new_launcher/labextension jupyterlab_new_launcher/_version.py",
+        "clean:labextension": "rimraf jupyterlab_launchpad/labextension jupyterlab_launchpad/_version.py",
         "clean:all": "jlpm clean:lib && jlpm clean:labextension && jlpm clean:lintcache",
         "eslint": "jlpm eslint:check --fix",
         "eslint:check": "eslint . --cache --ext .ts,.tsx",
@@ -99,7 +99,7 @@
     },
     "jupyterlab": {
         "extension": true,
-        "outputDir": "jupyterlab_new_launcher/labextension",
+        "outputDir": "jupyterlab_launchpad/labextension",
         "schemaDir": "schema",
         "disabledExtensions": [
             "@jupyterlab/launcher-extension",

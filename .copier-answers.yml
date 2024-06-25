@@ -8,12 +8,12 @@ file_extension: ''
 has_binder: true
 has_settings: true
 kind: frontend
-labextension_name: jupyterlab-new-launcher
+labextension_name: jupyterlab-launchpad
 mimetype: ''
 mimetype_name: ''
 project_short_description: A redesigned JupyterLab launcher
-python_name: jupyterlab_new_launcher
-repository: https://github.com/nebari-dev/jupyterlab-new-launcher
+python_name: jupyterlab_launchpad
+repository: https://github.com/nebari-dev/jupyterlab-launchpad
 test: true
 viewer_name: ''
 

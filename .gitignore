@@ -7,9 +7,9 @@ node_modules/
 *.egg-info/
 .ipynb_checkpoints
 *.tsbuildinfo
-jupyterlab_new_launcher/labextension
+jupyterlab_launchpad/labextension
 # Version file is handled by hatchling
-jupyterlab_new_launcher/_version.py
+jupyterlab_launchpad/_version.py
 .jupyter
 
 # Integration tests

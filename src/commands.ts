@@ -106,7 +106,7 @@ export function addCommands(
     label: trans.__('Open Settings Editor'),
     execute: () => {
       app.commands.execute('settingeditor:open', {
-        query: 'New Launcher'
+        query: 'Launchpad'
       });
     }
   });

@@ -17,7 +17,7 @@ export async function requestAPI<T>(
   const settings = ServerConnection.makeSettings();
   const requestUrl = URLExt.join(
     settings.baseUrl,
-    'jupyterlab-new-launcher', // API Namespace
+    'jupyterlab-launchpad', // API Namespace
     endPoint
   );
 

@@ -75,7 +75,7 @@ export class LastUsedDatabase
   extends ItemDatabase<string>
   implements ILastUsedDatabase
 {
-  protected readonly _stateDBKey = 'new-launcher:last-used';
+  protected readonly _stateDBKey = 'launchpad:last-used';
 
   get(item: ILauncher.IItemOptions) {
     const date = super._get(item);
@@ -102,7 +102,7 @@ export class FavoritesDatabase
   extends ItemDatabase<boolean>
   implements IFavoritesDatabase
 {
-  protected readonly _stateDBKey = 'new-launcher:favorites';
+  protected readonly _stateDBKey = 'launchpad:favorites';
 
   get(item: ILauncher.IItemOptions) {
     return super._get(item) ?? null;
@@ -120,7 +120,7 @@ export class FavoritesDatabase
   private _changed = new Signal<FavoritesDatabase, void>(this);
 }
 
-type DatabaseId = 'new-launcher:favorites' | 'new-launcher:last-used';
+type DatabaseId = 'launchpad:favorites' | 'launchpad:last-used';
 
 class SingletonStateDB<
   T extends ReadonlyPartialJSONValue = ReadonlyPartialJSONValue
@@ -138,16 +138,16 @@ class SingletonStateDB<
   }
 
   private _endpointsMap = {
-    'new-launcher:favorites': 'database/favorites',
-    'new-launcher:last-used': 'database/last-used'
+    'launchpad:favorites': 'database/favorites',
+    'launchpad:last-used': 'database/last-used'
   };
 }
 
 /**
- * Initialization data for the jupyterlab-new-launcher extension.
+ * Initialization data for the jupyterlab-launchpad extension.
  */
 export const databasePlugin: JupyterFrontEndPlugin<ILauncherDatabase> = {
-  id: 'jupyterlab-new-launcher:database',
+  id: 'jupyterlab-launchpad:database',
   description: 'A redesigned JupyterLab launcher databases',
   provides: ILauncherDatabase,
   autoStart: true,

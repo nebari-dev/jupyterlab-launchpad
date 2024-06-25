@@ -1,7 +1,7 @@
-# jupyterlab-new-launcher
+# jupyterlab-launchpad
 
-[![Github Actions Status](https://github.com/nebari-dev/jupyterlab-new-launcher/workflows/Build/badge.svg)](https://github.com/nebari-dev/jupyterlab-new-launcher/actions/workflows/build.yml)
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/nebari-dev/jupyterlab-new-launcher/main?urlpath=lab)
+[![Github Actions Status](https://github.com/nebari-dev/jupyterlab-launchpad/workflows/Build/badge.svg)](https://github.com/nebari-dev/jupyterlab-launchpad/actions/workflows/build.yml)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/nebari-dev/jupyterlab-launchpad/main?urlpath=lab)
 
 A redesigned JupyterLab launcher
 
@@ -11,8 +11,8 @@ Kernel selection dialog:
 
 ![new dialog][dialog]
 
-[launcher]: https://raw.githubusercontent.com/nebari-dev/jupyterlab-new-launcher/main/docs/images/launcher.png
-[dialog]: https://raw.githubusercontent.com/nebari-dev/jupyterlab-new-launcher/main/docs/images/dialog.png
+[launcher]: https://raw.githubusercontent.com/nebari-dev/jupyterlab-launchpad/main/docs/images/launcher.png
+[dialog]: https://raw.githubusercontent.com/nebari-dev/jupyterlab-launchpad/main/docs/images/dialog.png
 
 ## Requirements
 
@@ -23,7 +23,7 @@ Kernel selection dialog:
 To install the extension, execute:
 
 ```bash
-pip install jupyterlab-new-launcher
+pip install jupyterlab-launchpad
 ```
 
 ## Uninstall
@@ -31,7 +31,7 @@ pip install jupyterlab-new-launcher
 To remove the extension, execute:
 
 ```bash
-pip uninstall jupyterlab-new-launcher
+pip uninstall jupyterlab-launchpad
 ```
 
 ## Contributing
@@ -46,7 +46,7 @@ The `jlpm` command is JupyterLab's pinned version of
 
 ```bash
 # Clone the repo to your local environment
-# Change directory to the jupyterlab_new_launcher directory
+# Change directory to the jupyterlab_launchpad directory
 # Install package in development mode
 pip install -e "."
 # Link your development version of the extension with JupyterLab
@@ -75,12 +75,12 @@ jupyter lab build --minimize=False
 ### Development uninstall
 
 ```bash
-pip uninstall jupyterlab_new_launcher
+pip uninstall jupyterlab_launchpad
 ```
 
 In development mode, you will also need to remove the symlink created by `jupyter labextension develop`
 command. To find its location, you can run `jupyter labextension list` to figure out where the `labextensions`
-folder is located. Then you can remove the symlink named `jupyterlab-new-launcher` within that folder.
+folder is located. Then you can remove the symlink named `jupyterlab-launchpad` within that folder.
 
 ### Testing the extension
 
