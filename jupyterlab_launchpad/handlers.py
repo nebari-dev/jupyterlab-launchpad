@@ -14,6 +14,7 @@ class DatabaseHandler(APIHandler):
         old_path = Path(settings_dir) / "jupyterlab-new-launcher" / f"{name}.json"
         if not self.path.exists() and old_path.exists():
             # migrate database from prior to rename
+            self.path.parent.mkdir(exist_ok=True, parents=True)
             shutil.copy(old_path, self.path)
             old_path.unlink()
 
