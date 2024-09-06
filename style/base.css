@@ -228,6 +228,11 @@
   display: none;
 }
 
+.jp-KernelSelector-Dialog > .jp-Dialog-content > .jp-Dialog-body {
+  /* overwrite the default column flex layout to make sure that both tables are visible */
+  display: grid;
+}
+
 .jp-KernelSelector-SelectButton {
   display: none;
 }
