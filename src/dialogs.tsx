@@ -4,6 +4,7 @@ import {
 } from '@jupyterlab/application';
 import type { CommandRegistry } from '@lumino/commands';
 import type { Message } from '@lumino/messaging';
+import { Signal, ISignal } from '@lumino/signaling';
 import {
   SessionContextDialogs,
   ISessionContextDialogs,
@@ -70,14 +71,24 @@ class CustomSessionContextDialogs extends SessionContextDialogs {
     const hasCheckbox = typeof autoStartDefault === 'boolean';
     const settings = await this.options.settingRegistry.load(MAIN_PLUGIN_ID);
 
+    const dataChanged = new Signal<CustomSessionContextDialogs, void>(this);
+    sessionContext.sessionManager.runningChanged.connect(() => {
+      dataChanged.emit();
+    });
+    this.options.kernelManager.runningChanged.connect(() => {
+      dataChanged.emit();
+    });
+
     const dialog = new Dialog<Partial<Kernel.IModel> | null>({
       title: trans.__('Select Kernel'),
       body: new KernelSelector({
-        data: {
+        data: () => ({
           specs: sessionContext.specsManager.specs,
           sessions: sessionContext.sessionManager.running(),
+          kernels: this.options.kernelManager.running(),
           preference: sessionContext.kernelPreference
-        },
+        }),
+        dataChanged,
         name: sessionContext.name,
         commands: this.options.commands,
         favoritesDatabase: this.options.database.favorites,
@@ -131,6 +142,7 @@ export namespace CustomSessionContextDialogs {
     database: ILauncherDatabase;
     commands: CommandRegistry;
     settingRegistry: ISettingRegistry;
+    kernelManager: Kernel.IManager;
   }
 }
 
@@ -154,7 +166,8 @@ export const sessionDialogsPlugin: JupyterFrontEndPlugin<ISessionContextDialogs>
         translator: translator,
         database: database,
         commands: app.commands,
-        settingRegistry: settingRegistry
+        settingRegistry: settingRegistry,
+        kernelManager: app.serviceManager.kernels
       });
     }
   };
@@ -190,6 +203,7 @@ export class KernelSelector extends ReactWidget {
 
   onAfterAttach(msg: Message) {
     super.onAfterAttach(msg);
+    this.options.dataChanged.connect(this.update.bind(this));
     requestAnimationFrame(() => {
       // Set minimum dimensions so that when user starts typing to filter
       // the kernels the dialog does not start jumping around.
@@ -199,12 +213,18 @@ export class KernelSelector extends ReactWidget {
     });
   }
 
+  onAfterDetach(msg: Message) {
+    super.onAfterDetach(msg);
+    this.options.dataChanged.disconnect(this.update);
+  }
+
   /**
    * Render the launcher to virtual DOM nodes.
    */
   protected render(): React.ReactElement<any> | null {
     const items: ILauncher.IItemOptions[] = [];
-    const specs = this.options.data.specs!.kernelspecs!;
+    const data = this.options.data();
+    const specs = data.specs!.kernelspecs!;
     // Note: this command is not executed, but it is only used to match favourite/last used metadata
     const command =
       this.options.type === 'console'
@@ -236,8 +256,14 @@ export class KernelSelector extends ReactWidget {
       });
     }
     const runningItems: ILauncher.IItemOptions[] = [];
-    for (const model of this.options.data.sessions!) {
-      const kernel = model.kernel;
+    const kernels = new Map([...data.kernels].map(k => [k.id, k]));
+    for (const model of data.sessions!) {
+      // session models may be outdated, use the more frequently
+      // updated instance from the kernels manager
+      if (!model.kernel) {
+        continue;
+      }
+      const kernel = kernels.get(model.kernel?.id);
       if (!kernel) {
         continue;
       }
@@ -344,7 +370,10 @@ export namespace KernelSelector {
     settings: ISettingRegistry.ISettings;
     commands: CommandRegistry;
     trans: TranslationBundle;
-    data: SessionContext.IKernelSearch;
+    data: () => SessionContext.IKernelSearch & {
+      kernels: IterableIterator<Kernel.IModel>;
+    };
+    dataChanged: ISignal<CustomSessionContextDialogs, void>;
     acceptDialog: () => void;
     name: string;
     // known values are "notebook" and "console"
