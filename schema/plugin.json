@@ -56,9 +56,23 @@
         "type": "string"
       }
     },
+    "createEmptySection": {
+      "type": "boolean",
+      "title": "Show create empty section",
+      "default": true
+    },
     "starredSection": {
       "type": "boolean",
       "title": "Show starred section"
+    },
+    "launchNotebookSection": {
+      "type": "boolean",
+      "title": "Show new notebook section",
+      "default": true
+    },
+    "launchConsoleSection": {
+      "type": "boolean",
+      "title": "Show launch console section"
     },
     "searchAllSections": {
       "type": "boolean",

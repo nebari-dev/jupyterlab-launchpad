@@ -28,7 +28,10 @@ export namespace CommandIDs {
   export const create = 'launcher:create';
   export const moveColumn = 'launchpad:table-move-column';
   export const toggleColumn = 'launchpad:table-toggle-column';
+  export const showCreateEmpty = 'launchpad:show-create-empty';
   export const showStarred = 'launchpad:show-starred';
+  export const showNotebookLauncher = 'launchpad:show-notebook-launcher';
+  export const showConsoleLauncher = 'launchpad:show-console-launcher';
   export const searchAllSections = 'launchpad:search-all-sections';
   export const openSettings = 'launchpad:open-settings';
 }
@@ -36,7 +39,10 @@ export namespace CommandIDs {
 export interface ISettingsLayout {
   hiddenColumns: Record<string, 'visible' | 'hidden'>;
   columnOrder: string[];
+  createEmptySection: boolean;
   starredSection: boolean;
+  launchNotebookSection: boolean;
+  launchConsoleSection: boolean;
   collapsedSections: Record<string, 'collapsed' | 'expanded'>;
   searchAllSections: boolean;
   utilityCommands: string[];

@@ -45,12 +45,27 @@ function LauncherBody(props: {
     props;
   const [query, updateQuery] = React.useState<string>('');
   const [, forceUpdate] = React.useReducer(x => x + 1, 0);
+  const [showCreateEmpty, updateCreateEmpty] = React.useState<
+    ISettingsLayout['createEmptySection']
+  >(
+    props.settings.composite.createEmptySection as ISettingsLayout['createEmptySection']
+  );
   const [showStarred, updateShowStarred] = React.useState<
     ISettingsLayout['starredSection']
   >(
     props.settings.composite.starredSection as ISettingsLayout['starredSection']
   );
-
+  const [showNotebookLauncher, updateShowNotebookLauncher] = React.useState<
+    ISettingsLayout['launchNotebookSection']
+  >(
+    props.settings.composite.launchNotebookSection as ISettingsLayout['launchNotebookSection']
+  );
+  const [showConsole, updateShowConsole] = React.useState<
+    ISettingsLayout['launchConsoleSection']
+  >(
+    props.settings.composite.launchConsoleSection as ISettingsLayout['launchConsoleSection']
+  );
+  
   const [searchAll, updateSearchAll] = React.useState<
     ISettingsLayout['searchAllSections']
   >(
@@ -59,11 +74,27 @@ function LauncherBody(props: {
   );
 
   const syncSettings = () => {
+    const newShowCreateEmpty = props.settings.composite
+      .createEmptySection as ISettingsLayout['createEmptySection'];
+    if (showCreateEmpty !== newShowCreateEmpty) {
+      updateCreateEmpty(newShowCreateEmpty);
+    }
     const newStarred = props.settings.composite
       .starredSection as ISettingsLayout['starredSection'];
     if (showStarred !== newStarred) {
       updateShowStarred(newStarred);
     }
+    const newShowConsole = props.settings.composite
+      .launchConsoleSection as ISettingsLayout['launchConsoleSection'];
+    if (showConsole !== newShowConsole) {
+      updateShowConsole(newShowConsole);
+    }
+    const newShowNotebook = props.settings.composite
+      .launchNotebookSection as ISettingsLayout['launchNotebookSection'];
+    if (showNotebookLauncher !== newShowNotebook) {
+      updateShowNotebookLauncher(newShowNotebook);
+    }
+    
     const newSearchAll = props.settings.composite
       .searchAllSections as ISettingsLayout['searchAllSections'];
     if (searchAll !== newSearchAll) {
@@ -80,7 +111,16 @@ function LauncherBody(props: {
 
   if (favouritesChanged) {
     const updateIfNeeded = () => {
+      if (showCreateEmpty) {
+        forceUpdate();
+      }
       if (showStarred) {
+        forceUpdate();
+      }
+      if (showNotebookLauncher) {
+        forceUpdate();
+      }
+      if (showConsole) {
         forceUpdate();
       }
     };
@@ -110,8 +150,9 @@ function LauncherBody(props: {
   const startCollapsed = props.settings.composite
     .collapsedSections as ISettingsLayout['collapsedSections'];
 
-  const builtinSections: ISectionOptions[] = [
-    {
+  const builtinSections: ISectionOptions[] = [];
+  if (showCreateEmpty) {
+    builtinSections.push({
       className: 'jp-Launcher-openByType',
       title: trans.__('Create Empty'),
       icon: fileIcon,
@@ -125,48 +166,8 @@ function LauncherBody(props: {
               item.label.toLowerCase().indexOf(query.toLowerCase()) !== -1
           )
           .map(item => <TypeCard item={item} trans={trans} />)
-    },
-    {
-      className: 'jp-Launcher-openByKernel jp-Launcher-launchNotebook',
-      title: trans.__('Launch New Notebook'),
-      icon: notebookIcon,
-      id: 'launch-notebook',
-      rank: 3,
-      render: () => (
-        <KernelTable
-          items={props.notebookItems}
-          commands={props.commands}
-          showSearchBox={!searchAll}
-          query={query}
-          settings={props.settings}
-          trans={trans}
-          onClick={item => item.execute()}
-          favouritesChanged={props.favouritesChanged}
-          lastUsedChanged={props.lastUsedChanged}
-        />
-      )
-    },
-    {
-      className: 'jp-Launcher-openByKernel jp-Launcher-launchConsole',
-      title: trans.__('Launch New Console'),
-      icon: consoleIcon,
-      id: 'launch-console',
-      rank: 5,
-      render: () => (
-        <KernelTable
-          items={props.consoleItems}
-          commands={props.commands}
-          showSearchBox={!searchAll}
-          query={query}
-          settings={props.settings}
-          trans={trans}
-          onClick={item => item.execute()}
-          favouritesChanged={props.favouritesChanged}
-          lastUsedChanged={props.lastUsedChanged}
-        />
-      )
-    }
-  ];
+    });
+  }
   if (showStarred) {
     builtinSections.push({
       className: 'jp-Launcher-openByKernel',
@@ -192,6 +193,50 @@ function LauncherBody(props: {
           'No starred items'
         )
     });
+  }
+  if (showNotebookLauncher) {
+    builtinSections.push({
+      className: 'jp-Launcher-openByKernel jp-Launcher-launchNotebook',
+      title: trans.__('Launch New Notebook'),
+      icon: notebookIcon,
+      id: 'launch-notebook',
+      rank: 3,
+      render: () => (
+        <KernelTable
+          items={props.notebookItems}
+          commands={props.commands}
+          showSearchBox={!searchAll}
+          query={query}
+          settings={props.settings}
+          trans={trans}
+          onClick={item => item.execute()}
+          favouritesChanged={props.favouritesChanged}
+          lastUsedChanged={props.lastUsedChanged}
+        />
+      )
+    });
+  }
+  if (showConsole) {
+    builtinSections.push({
+        className: 'jp-Launcher-openByKernel jp-Launcher-launchConsole',
+        title: trans.__('Launch New Console'),
+        icon: consoleIcon,
+        id: 'launch-console',
+        rank: 5,
+        render: () => (
+          <KernelTable
+            items={props.consoleItems}
+            commands={props.commands}
+            showSearchBox={!searchAll}
+            query={query}
+            settings={props.settings}
+            trans={trans}
+            onClick={item => item.execute()}
+            favouritesChanged={props.favouritesChanged}
+            lastUsedChanged={props.lastUsedChanged}
+          />
+        )
+      });
   }
   const allSections = [...builtinSections, ...props.sections];
 
