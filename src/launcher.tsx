@@ -48,7 +48,8 @@ function LauncherBody(props: {
   const [showCreateEmpty, updateCreateEmpty] = React.useState<
     ISettingsLayout['createEmptySection']
   >(
-    props.settings.composite.createEmptySection as ISettingsLayout['createEmptySection']
+    props.settings.composite
+      .createEmptySection as ISettingsLayout['createEmptySection']
   );
   const [showStarred, updateShowStarred] = React.useState<
     ISettingsLayout['starredSection']
@@ -58,14 +59,16 @@ function LauncherBody(props: {
   const [showNotebookLauncher, updateShowNotebookLauncher] = React.useState<
     ISettingsLayout['launchNotebookSection']
   >(
-    props.settings.composite.launchNotebookSection as ISettingsLayout['launchNotebookSection']
+    props.settings.composite
+      .launchNotebookSection as ISettingsLayout['launchNotebookSection']
   );
   const [showConsole, updateShowConsole] = React.useState<
     ISettingsLayout['launchConsoleSection']
   >(
-    props.settings.composite.launchConsoleSection as ISettingsLayout['launchConsoleSection']
+    props.settings.composite
+      .launchConsoleSection as ISettingsLayout['launchConsoleSection']
   );
-  
+
   const [searchAll, updateSearchAll] = React.useState<
     ISettingsLayout['searchAllSections']
   >(
@@ -94,7 +97,7 @@ function LauncherBody(props: {
     if (showNotebookLauncher !== newShowNotebook) {
       updateShowNotebookLauncher(newShowNotebook);
     }
-    
+
     const newSearchAll = props.settings.composite
       .searchAllSections as ISettingsLayout['searchAllSections'];
     if (searchAll !== newSearchAll) {
@@ -218,25 +221,25 @@ function LauncherBody(props: {
   }
   if (showConsole) {
     builtinSections.push({
-        className: 'jp-Launcher-openByKernel jp-Launcher-launchConsole',
-        title: trans.__('Launch New Console'),
-        icon: consoleIcon,
-        id: 'launch-console',
-        rank: 5,
-        render: () => (
-          <KernelTable
-            items={props.consoleItems}
-            commands={props.commands}
-            showSearchBox={!searchAll}
-            query={query}
-            settings={props.settings}
-            trans={trans}
-            onClick={item => item.execute()}
-            favouritesChanged={props.favouritesChanged}
-            lastUsedChanged={props.lastUsedChanged}
-          />
-        )
-      });
+      className: 'jp-Launcher-openByKernel jp-Launcher-launchConsole',
+      title: trans.__('Launch New Console'),
+      icon: consoleIcon,
+      id: 'launch-console',
+      rank: 5,
+      render: () => (
+        <KernelTable
+          items={props.consoleItems}
+          commands={props.commands}
+          showSearchBox={!searchAll}
+          query={query}
+          settings={props.settings}
+          trans={trans}
+          onClick={item => item.execute()}
+          favouritesChanged={props.favouritesChanged}
+          lastUsedChanged={props.lastUsedChanged}
+        />
+      )
+    });
   }
   const allSections = [...builtinSections, ...props.sections];
 
