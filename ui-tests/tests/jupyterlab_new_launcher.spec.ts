@@ -108,4 +108,16 @@ test.describe('Quick Settings', () => {
     );
     await expect(starredSection).toBeVisible();
   });
+
+  test('hide console from quick settings', async ({ page }) => {
+    const launcher = page.locator('.jp-LauncherBody');
+    await page.locator('.jp-Launcher-QuickSettings').click();
+    await page
+      .locator('.lm-Menu-itemLabel:text("Show Console Launcher Section")')
+      .click();
+    const starredSection = page.locator(
+      '.jp-CollapsibleSection-Title:has-text("Launch New Console")'
+    );
+    await expect(starredSection).toHaveCount(0);
+  });
 });

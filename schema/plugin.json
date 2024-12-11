@@ -72,7 +72,8 @@
     },
     "launchConsoleSection": {
       "type": "boolean",
-      "title": "Show launch console section"
+      "title": "Show launch console section",
+      "default": true
     },
     "searchAllSections": {
       "type": "boolean",
