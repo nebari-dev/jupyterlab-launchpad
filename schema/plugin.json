@@ -58,7 +58,7 @@
     },
     "createEmptySection": {
       "type": "boolean",
-      "title": "Show create empty section",
+      "title": "Show \"Create Empty\" section",
       "default": true
     },
     "starredSection": {
