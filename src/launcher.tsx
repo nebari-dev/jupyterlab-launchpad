@@ -193,7 +193,7 @@ function LauncherBody(props: {
             lastUsedChanged={props.lastUsedChanged}
           />
         ) : (
-          'No starred items'
+          trans.__('No starred items')
         )
     });
   }
