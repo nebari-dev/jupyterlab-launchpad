@@ -63,16 +63,16 @@
     },
     "starredSection": {
       "type": "boolean",
-      "title": "Show starred section"
+      "title": "Show \"Starred\" section"
     },
     "launchNotebookSection": {
       "type": "boolean",
-      "title": "Show new notebook section",
+      "title": "Show \"Launch New Notebook\" section",
       "default": true
     },
     "launchConsoleSection": {
       "type": "boolean",
-      "title": "Show launch console section",
+      "title": "Show \"Launch New Console\" section",
       "default": true
     },
     "searchAllSections": {
