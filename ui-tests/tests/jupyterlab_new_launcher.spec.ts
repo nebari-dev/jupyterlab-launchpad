@@ -101,7 +101,7 @@ test.describe('Quick Settings', () => {
     const launcher = page.locator('.jp-LauncherBody');
     await page.locator('.jp-Launcher-QuickSettings').click();
     await page
-      .locator('.lm-Menu-itemLabel:text("Show Starred Section")')
+      .locator('.lm-Menu-itemLabel:text(\'Show "Starred" Section\')')
       .click();
     const starredSection = page.locator(
       '.jp-CollapsibleSection-Title:has-text("starred")'
