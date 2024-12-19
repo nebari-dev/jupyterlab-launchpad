@@ -12,7 +12,10 @@ export function QuickSettings(props: {
   const { commands } = props;
 
   const menu = new MenuSvg({ commands: commands });
+  menu.addItem({ command: CommandIDs.showCreateEmpty });
   menu.addItem({ command: CommandIDs.showStarred });
+  menu.addItem({ command: CommandIDs.showNotebookLauncher });
+  menu.addItem({ command: CommandIDs.showConsoleLauncher });
   menu.addItem({ command: CommandIDs.searchAllSections });
   menu.addItem({ command: CommandIDs.openSettings });
 

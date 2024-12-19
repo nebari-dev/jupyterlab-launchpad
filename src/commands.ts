@@ -76,17 +76,56 @@ export function addCommands(
       await settings.set('columnOrder', order);
     }
   });
+  app.commands.addCommand(CommandIDs.showCreateEmpty, {
+    isToggleable: true,
+    isToggled: () => {
+      return settings.composite
+        .createEmptySection as ISettingsLayout['createEmptySection'];
+    },
+    label: trans.__('Show "Create Empty" Section'),
+    execute: async () => {
+      const createEmptySection = settings.composite
+        .createEmptySection as ISettingsLayout['createEmptySection'];
+      await settings.set('createEmptySection', !createEmptySection);
+    }
+  });
   app.commands.addCommand(CommandIDs.showStarred, {
     isToggleable: true,
     isToggled: () => {
       return settings.composite
         .starredSection as ISettingsLayout['starredSection'];
     },
-    label: trans.__('Show Starred Section'),
+    label: trans.__('Show "Starred" Section'),
     execute: async () => {
       const starredSection = settings.composite
         .starredSection as ISettingsLayout['starredSection'];
       await settings.set('starredSection', !starredSection);
+    }
+  });
+  app.commands.addCommand(CommandIDs.showNotebookLauncher, {
+    isToggleable: true,
+    isToggled: () => {
+      return settings.composite
+        .launchNotebookSection as ISettingsLayout['launchNotebookSection'];
+    },
+    label: trans.__('Show "Launch New Notebook" Section'),
+    execute: async () => {
+      const launchNotebookSection = settings.composite
+        .launchNotebookSection as ISettingsLayout['launchNotebookSection'];
+      await settings.set('launchNotebookSection', !launchNotebookSection);
+    }
+  });
+  app.commands.addCommand(CommandIDs.showConsoleLauncher, {
+    isToggleable: true,
+    isToggled: () => {
+      return settings.composite
+        .launchConsoleSection as ISettingsLayout['launchConsoleSection'];
+    },
+    label: trans.__('Show "Launch New Console" Section'),
+    execute: async () => {
+      const launchConsoleSection = settings.composite
+        .launchConsoleSection as ISettingsLayout['launchConsoleSection'];
+      await settings.set('launchConsoleSection', !launchConsoleSection);
     }
   });
   app.commands.addCommand(CommandIDs.searchAllSections, {

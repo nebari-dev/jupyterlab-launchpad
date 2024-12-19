@@ -101,11 +101,23 @@ test.describe('Quick Settings', () => {
     const launcher = page.locator('.jp-LauncherBody');
     await page.locator('.jp-Launcher-QuickSettings').click();
     await page
-      .locator('.lm-Menu-itemLabel:text("Show Starred Section")')
+      .locator('.lm-Menu-itemLabel:text(\'Show "Starred" Section\')')
       .click();
     const starredSection = page.locator(
       '.jp-CollapsibleSection-Title:has-text("starred")'
     );
     await expect(starredSection).toBeVisible();
+  });
+
+  test('hide console from quick settings', async ({ page }) => {
+    const launcher = page.locator('.jp-LauncherBody');
+    await page.locator('.jp-Launcher-QuickSettings').click();
+    await page
+      .locator('.lm-Menu-itemLabel:text(\'Show "Launch New Console" Section\')')
+      .click();
+    const starredSection = page.locator(
+      '.jp-CollapsibleSection-Title:has-text("Launch New Console")'
+    );
+    await expect(starredSection).toHaveCount(0);
   });
 });
