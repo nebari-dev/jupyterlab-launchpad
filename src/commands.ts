@@ -108,7 +108,7 @@ export function addCommands(
       return settings.composite
         .launchNotebookSection as ISettingsLayout['launchNotebookSection'];
     },
-    label: trans.__('Show "Launch New Notebook" section'),
+    label: trans.__('Show "Launch New Notebook" Section'),
     execute: async () => {
       const launchNotebookSection = settings.composite
         .launchNotebookSection as ISettingsLayout['launchNotebookSection'];
