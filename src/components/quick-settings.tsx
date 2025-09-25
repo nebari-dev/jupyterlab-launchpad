@@ -32,7 +32,7 @@ export function QuickSettings(props: {
       x = event.clientX;
       y = event.clientY;
     }
-    menu.open(x, y);
+    menu.open(x, y, {horizontalAlignment: 'right'});
   };
 
   return (
