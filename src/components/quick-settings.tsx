@@ -26,13 +26,13 @@ export function QuickSettings(props: {
     let x, y;
     if (current) {
       const position = current.getBoundingClientRect();
-      x = position.left;
+      x = position.right;
       y = position.bottom;
     } else {
       x = event.clientX;
       y = event.clientY;
     }
-    menu.open(x, y);
+    menu.open(x, y, { horizontalAlignment: 'right' });
   };
 
   return (

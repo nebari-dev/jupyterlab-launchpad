@@ -334,7 +334,7 @@ __metadata:
     "@jupyterlab/services": ^7.1.6
     "@jupyterlab/statedb": ^4.1.6
     "@jupyterlab/translation": ^4.1.6
-    "@jupyterlab/ui-components": ^4.1.6
+    "@jupyterlab/ui-components": ^4.4.0
     "@lumino/algorithm": ^2.0.1
     "@lumino/application": ^2.3.0
     "@lumino/commands": ^2.2.0
@@ -361,7 +361,7 @@ __metadata:
     "@jupyterlab/statedb": ^4.1.6
     "@jupyterlab/statusbar": ^4.1.6
     "@jupyterlab/translation": ^4.1.6
-    "@jupyterlab/ui-components": ^4.1.6
+    "@jupyterlab/ui-components": ^4.4.0
     "@lumino/algorithm": ^2.0.1
     "@lumino/commands": ^2.2.0
     "@lumino/coreutils": ^2.1.2
@@ -413,7 +413,7 @@ __metadata:
     "@jupyterlab/services": ^7.1.6
     "@jupyterlab/toc": ^6.1.6
     "@jupyterlab/translation": ^4.1.6
-    "@jupyterlab/ui-components": ^4.1.6
+    "@jupyterlab/ui-components": ^4.4.0
     "@lumino/algorithm": ^2.0.1
     "@lumino/coreutils": ^2.1.2
     "@lumino/domutils": ^2.0.1
@@ -440,7 +440,7 @@ __metadata:
     "@jupyterlab/observables": ^5.1.6
     "@jupyterlab/statusbar": ^4.1.6
     "@jupyterlab/translation": ^4.1.6
-    "@jupyterlab/ui-components": ^4.1.6
+    "@jupyterlab/ui-components": ^4.4.0
     "@lumino/coreutils": ^2.1.2
     "@lumino/disposable": ^2.1.2
     "@lumino/dragdrop": ^2.1.4
@@ -510,7 +510,7 @@ __metadata:
     "@jupyterlab/rendermime": ^4.1.6
     "@jupyterlab/services": ^7.1.6
     "@jupyterlab/translation": ^4.1.6
-    "@jupyterlab/ui-components": ^4.1.6
+    "@jupyterlab/ui-components": ^4.4.0
     "@lumino/coreutils": ^2.1.2
     "@lumino/disposable": ^2.1.2
     "@lumino/dragdrop": ^2.1.4
@@ -556,7 +556,7 @@ __metadata:
     "@jupyterlab/rendermime": ^4.1.6
     "@jupyterlab/services": ^7.1.6
     "@jupyterlab/translation": ^4.1.6
-    "@jupyterlab/ui-components": ^4.1.6
+    "@jupyterlab/ui-components": ^4.4.0
     "@lumino/algorithm": ^2.0.1
     "@lumino/commands": ^2.2.0
     "@lumino/coreutils": ^2.1.2
@@ -582,7 +582,7 @@ __metadata:
     "@jupyterlab/services": ^7.1.6
     "@jupyterlab/statusbar": ^4.1.6
     "@jupyterlab/translation": ^4.1.6
-    "@jupyterlab/ui-components": ^4.1.6
+    "@jupyterlab/ui-components": ^4.4.0
     "@lumino/algorithm": ^2.0.1
     "@lumino/coreutils": ^2.1.2
     "@lumino/disposable": ^2.1.2
@@ -608,7 +608,7 @@ __metadata:
     "@jupyterlab/rendermime-interfaces": ^3.9.6
     "@jupyterlab/services": ^7.1.6
     "@jupyterlab/translation": ^4.1.6
-    "@jupyterlab/ui-components": ^4.1.6
+    "@jupyterlab/ui-components": ^4.4.0
     "@lumino/algorithm": ^2.0.1
     "@lumino/coreutils": ^2.1.2
     "@lumino/disposable": ^2.1.2
@@ -627,7 +627,7 @@ __metadata:
   dependencies:
     "@jupyterlab/apputils": ^4.2.6
     "@jupyterlab/translation": ^4.1.6
-    "@jupyterlab/ui-components": ^4.1.6
+    "@jupyterlab/ui-components": ^4.4.0
     "@lumino/commands": ^2.2.0
     "@lumino/coreutils": ^2.1.2
     "@lumino/disposable": ^2.1.2
@@ -652,7 +652,7 @@ __metadata:
     "@jupyterlab/statedb": ^4.1.6
     "@jupyterlab/statusbar": ^4.1.6
     "@jupyterlab/translation": ^4.1.6
-    "@jupyterlab/ui-components": ^4.1.6
+    "@jupyterlab/ui-components": ^4.4.0
     "@lumino/algorithm": ^2.0.1
     "@lumino/coreutils": ^2.1.2
     "@lumino/disposable": ^2.1.2
@@ -683,7 +683,7 @@ __metadata:
     "@jupyterlab/statusbar": ^4.1.6
     "@jupyterlab/toc": ^6.1.6
     "@jupyterlab/translation": ^4.1.6
-    "@jupyterlab/ui-components": ^4.1.6
+    "@jupyterlab/ui-components": ^4.4.0
     "@lumino/commands": ^2.2.0
     "@lumino/coreutils": ^2.1.2
     "@lumino/messaging": ^2.0.1
@@ -774,7 +774,7 @@ __metadata:
     "@jupyterlab/statusbar": ^4.1.6
     "@jupyterlab/toc": ^6.1.6
     "@jupyterlab/translation": ^4.1.6
-    "@jupyterlab/ui-components": ^4.1.6
+    "@jupyterlab/ui-components": ^4.4.0
     "@lumino/algorithm": ^2.0.1
     "@lumino/coreutils": ^2.1.2
     "@lumino/disposable": ^2.1.2
@@ -910,7 +910,7 @@ __metadata:
   version: 4.1.6
   resolution: "@jupyterlab/statusbar@npm:4.1.6"
   dependencies:
-    "@jupyterlab/ui-components": ^4.1.6
+    "@jupyterlab/ui-components": ^4.4.0
     "@lumino/algorithm": ^2.0.1
     "@lumino/coreutils": ^2.1.2
     "@lumino/disposable": ^2.1.2
@@ -933,7 +933,7 @@ __metadata:
     "@jupyterlab/rendermime": ^4.1.6
     "@jupyterlab/rendermime-interfaces": ^3.9.6
     "@jupyterlab/translation": ^4.1.6
-    "@jupyterlab/ui-components": ^4.1.6
+    "@jupyterlab/ui-components": ^4.4.0
     "@lumino/coreutils": ^2.1.2
     "@lumino/disposable": ^2.1.2
     "@lumino/messaging": ^2.0.1
