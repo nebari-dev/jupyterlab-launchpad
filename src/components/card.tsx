@@ -18,10 +18,18 @@ export function TypeCard(props: {
       tabIndex={0}
     >
       <div className="jp-LauncherCard-icon">
-        <LabIcon.resolveReact
-          icon={item.icon}
-          iconClass={classes(item.iconClass, 'jp-Icon-cover')}
-        />
+        {!item.icon && item.kernelIconUrl ? (
+          <img
+            src={item.kernelIconUrl}
+            className="jp-Launcher-kernelIcon"
+            alt={item.label}
+          />
+        ) : (
+          <LabIcon.resolveReact
+            icon={item.icon}
+            iconClass={classes(item.iconClass, 'jp-Icon-cover')}
+          />
+        )}
       </div>
       <div className="jp-LauncherCard-label">
         <p>{item.label}</p>
