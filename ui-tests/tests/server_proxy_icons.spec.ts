@@ -3,63 +3,19 @@ import { expect, test } from '@jupyterlab/galata';
 /**
  * Tests for server-proxy launcher icons.
  *
- * These tests mock the server-proxy API to simulate having a configured
- * server-proxy entry with an icon, then verify the launcher renders
- * the icon as an <img> element with the correct class.
+ * These tests rely on jupyter-server-proxy being installed and configured
+ * with a test entry in jupyter_server_test_config.py. The server-proxy
+ * extension registers a "Test App" launcher item with an icon URL, and
+ * the launcher should render it as an <img> element.
  */
 
-const TEST_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
-  <circle cx="12" cy="12" r="10" fill="#4a90d9"/>
-  <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-family="sans-serif">T</text>
-</svg>`;
-
 test.describe('Server proxy icons', () => {
-  // Prevent automatic navigation so we can set up route mocks first
-  test.use({ autoGoto: false });
-
-  test('should render server-proxy icon in launcher card', async ({
-    page,
-    baseURL
-  }) => {
-    // Mock the server-proxy servers-info endpoint
-    await page.route('**/server-proxy/servers-info', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          server_processes: [
-            {
-              name: 'test-app',
-              new_browser_tab: false,
-              launcher_entry: {
-                enabled: true,
-                title: 'Test App',
-                path_info: 'test-app',
-                icon_url: '/server-proxy/icon/test-app'
-              }
-            }
-          ]
-        })
-      });
-    });
-
-    // Mock the icon URL to return a deterministic SVG
-    await page.route('**/server-proxy/icon/test-app', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'image/svg+xml',
-        body: TEST_SVG
-      });
-    });
-
-    // Navigate to JupyterLab
-    await page.goto(baseURL ?? 'http://localhost:8888');
-
-    // Wait for the launcher to be ready
+  test('should render server-proxy icon in launcher card', async ({ page }) => {
     const launcher = page.locator('.jp-LauncherBody');
-    await expect(launcher).toBeVisible({ timeout: 30000 });
+    await expect(launcher).toBeVisible();
 
-    // Wait for the server-proxy card to appear
+    // The server-proxy "Test App" card should appear in the "Create Empty" section
+    // with an <img> tag (not a LabIcon) because it uses kernelIconUrl
     const serverProxyCard = launcher.locator(
       '.jp-Launcher-TypeCard:has(img.jp-Launcher-kernelIcon)'
     );
@@ -67,13 +23,13 @@ test.describe('Server proxy icons', () => {
 
     // Verify the img element has the correct attributes
     const img = serverProxyCard.locator('img.jp-Launcher-kernelIcon');
-    await expect(img).toHaveAttribute('src', /server-proxy\/icon\/test-app/);
+    await expect(img).toHaveAttribute('src', /server-proxy\/icon\//);
 
     // Verify the card label
     const label = serverProxyCard.locator('.jp-LauncherCard-label');
     await expect(label).toContainText('Test App');
 
-    // Screenshot just the "Create Empty" section containing the server-proxy card
+    // Screenshot the "Create Empty" section for visual regression
     const createEmptySection = launcher.locator(
       '.jp-CollapsibleSection:has(.jp-Launcher-TypeCard)'
     );
