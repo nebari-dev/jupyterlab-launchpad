@@ -27,6 +27,9 @@ dependencies = [
 ]
 dynamic = ["version", "description", "authors", "urls", "keywords"]
 
+[project.optional-dependencies]
+test = ["jupyter-server-proxy"]
+
 [tool.hatch.version]
 source = "nodejs"
 
