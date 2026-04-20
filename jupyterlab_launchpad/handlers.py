@@ -8,6 +8,9 @@ import tornado
 
 
 class DatabaseHandler(APIHandler):
+    # Polling this handler every 10s resets jupyter_server's api_last_activity,
+    # preventing shutdown_no_activity_timeout from ever firing.
+    _track_activity = False
 
     def initialize(self, name: str, settings_dir: str):
         self.path = Path(settings_dir) / "jupyterlab-launchpad" / f"{name}.json"
