@@ -8,6 +8,7 @@ import tornado
 
 
 class DatabaseHandler(APIHandler):
+    _track_activity = False
 
     def initialize(self, name: str, settings_dir: str):
         self.path = Path(settings_dir) / "jupyterlab-launchpad" / f"{name}.json"
