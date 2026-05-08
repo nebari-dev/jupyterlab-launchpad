@@ -166,6 +166,34 @@
   vertical-align: top;
 }
 
+.jp-NebiStateBadge {
+  display: inline-block;
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 11px;
+  line-height: 16px;
+  border: 1px solid var(--jp-border-color2);
+  color: var(--jp-ui-font-color1);
+  background: var(--jp-layout-color1);
+}
+
+.jp-NebiState-ready {
+  color: var(--jp-success-color1);
+  border-color: var(--jp-success-color1);
+}
+
+.jp-NebiState-outdated {
+  color: var(--jp-warn-color1);
+  border-color: var(--jp-warn-color1);
+}
+
+.jp-NebiState-remote-not-pulled,
+.jp-NebiState-local-not-installed,
+.jp-NebiState-local-missing-deps {
+  color: var(--jp-error-color1);
+  border-color: var(--jp-error-color1);
+}
+
 .jp-NewLauncher-table th[data-id='icon'],
 .jp-NewLauncher-table th[data-id='star'] {
   width: var(--jp-icon-size);

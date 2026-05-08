@@ -5,7 +5,11 @@ import {
   JupyterFrontEnd,
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
-import { ICommandPalette, MainAreaWidget } from '@jupyterlab/apputils';
+import {
+  ICommandPalette,
+  MainAreaWidget,
+  showErrorMessage
+} from '@jupyterlab/apputils';
 import { FileBrowserModel, IDefaultFileBrowser } from '@jupyterlab/filebrowser';
 import { ILauncher } from '@jupyterlab/launcher';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
@@ -175,6 +179,23 @@ function activate(
     }
   });
 
+  commands.addCommand(CommandIDs.refreshKernels, {
+    label: trans.__('Refresh Kernels'),
+    execute: async () => {
+      try {
+        await app.serviceManager.kernelspecs.refreshSpecs();
+      } catch (error) {
+        console.error(error);
+        await showErrorMessage(
+          trans.__('Could not refresh kernels'),
+          trans.__(
+            'Kernel specs refresh failed. Check server logs and try again.'
+          )
+        );
+      }
+    }
+  });
+
   if (labShell) {
     void Promise.all([app.restored, defaultBrowser?.model.restored]).then(
       () => {
@@ -195,6 +216,10 @@ function activate(
   if (palette) {
     palette.addItem({
       command: CommandIDs.create,
+      category: trans.__('Launcher')
+    });
+    palette.addItem({
+      command: CommandIDs.refreshKernels,
       category: trans.__('Launcher')
     });
   }

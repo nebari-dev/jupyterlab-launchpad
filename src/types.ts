@@ -26,6 +26,7 @@ export interface ISectionOptions {
  */
 export namespace CommandIDs {
   export const create = 'launcher:create';
+  export const refreshKernels = 'launchpad:refresh-kernels';
   export const moveColumn = 'launchpad:table-move-column';
   export const toggleColumn = 'launchpad:table-toggle-column';
   export const showCreateEmpty = 'launchpad:show-create-empty';

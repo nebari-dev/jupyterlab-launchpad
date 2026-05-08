@@ -42,7 +42,14 @@
         "conda_raw_kernel_name": "hidden",
         "conda_language": "hidden",
         "conda_is_base_environment": "hidden",
-        "conda_is_currently_running": "hidden"
+        "conda_is_currently_running": "hidden",
+        "nebi": "hidden",
+        "nebi_workspace_path": "hidden",
+        "nebi_source": "hidden",
+        "nebi_not_ready_reason": "hidden",
+        "nebi_logo_reason": "hidden",
+        "nebi_discovery_hash": "hidden",
+        "nebi_discovered_at": "hidden"
       },
       "additionalProperties": {
         "type": "string",

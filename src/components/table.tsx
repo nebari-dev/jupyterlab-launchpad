@@ -20,6 +20,20 @@ import { starIcon } from '../icons';
 
 const STAR_BUTTON_CLASS = 'jp-starIconButton';
 const KERNEL_ITEM_CLASS = 'jp-TableKernelItem';
+const NEBI_STATE_LABELS: Record<string, string> = {
+  'remote-not-pulled': 'Remote (not pulled)',
+  'local-not-installed': 'Local (not installed)',
+  'local-missing-deps': 'Local (missing deps)',
+  outdated: 'Outdated',
+  ready: 'Ready'
+};
+const NEBI_STATE_SORT_RANK: Record<string, number> = {
+  'remote-not-pulled': 0,
+  'local-not-installed': 1,
+  'local-missing-deps': 2,
+  outdated: 3,
+  ready: 4
+};
 
 function columnLabelFromKey(key: string): string {
   if (key.length === 0) {
@@ -40,8 +54,119 @@ function columnLabelFromKey(key: string): string {
       return 'Base?';
     case 'conda_is_currently_running':
       return 'Running?';
+    // Added by nb-nebi-kernels
+    case 'nebi_state':
+      return 'State';
+    case 'nebi_missing_dependencies':
+      return 'Missing dependencies';
+    case 'nebi_local_version':
+      return 'Local version';
+    case 'nebi_remote_version':
+      return 'Remote version';
+    case 'nebi_outdated':
+      return 'Outdated?';
+    case 'nebi_not_ready_reason':
+      return 'Not ready reason';
+    case 'nebi_logo_reason':
+      return 'Logo reason';
+    case 'nebi_discovery_hash':
+      return 'Discovery hash';
+    case 'nebi_discovered_at':
+      return 'Discovered at';
+    case 'nebi_workspace':
+      return 'Workspace';
+    case 'nebi_workspace_path':
+      return 'Workspace path';
+    case 'nebi_source':
+      return 'Source';
   }
   return key[0].toUpperCase() + key.substring(1);
+}
+
+function metadataValueToString(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return String(value);
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false';
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map(item => metadataValueToString(item))
+      .filter(Boolean)
+      .join(', ');
+  }
+  return JSON.stringify(value);
+}
+
+function renderMetadataValue(
+  metadataKey: string,
+  value: unknown
+): React.ReactNode {
+  if (metadataKey === 'nebi_state') {
+    const state = typeof value === 'string' ? value : '';
+    const label = NEBI_STATE_LABELS[state] ?? state;
+    return state ? (
+      <span className={`jp-NebiStateBadge jp-NebiState-${state}`}>{label}</span>
+    ) : (
+      '-'
+    );
+  }
+  if (metadataKey === 'nebi_outdated' && typeof value === 'boolean') {
+    return value ? 'Yes' : 'No';
+  }
+  const text = metadataValueToString(value);
+  return text || '-';
+}
+
+function compareMetadataValues(
+  metadataKey: string,
+  aValue: unknown,
+  bValue: unknown
+): number {
+  if (aValue === bValue) {
+    return 0;
+  }
+  if (aValue === null || aValue === undefined || aValue === '') {
+    return 1;
+  }
+  if (bValue === null || bValue === undefined || bValue === '') {
+    return -1;
+  }
+  if (
+    metadataKey === 'nebi_state' &&
+    typeof aValue === 'string' &&
+    typeof bValue === 'string'
+  ) {
+    return (
+      (NEBI_STATE_SORT_RANK[aValue] ?? Number.MAX_SAFE_INTEGER) -
+      (NEBI_STATE_SORT_RANK[bValue] ?? Number.MAX_SAFE_INTEGER)
+    );
+  }
+  if (typeof aValue === 'number' && typeof bValue === 'number') {
+    return aValue - bValue;
+  }
+  if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
+    return Number(aValue) - Number(bValue);
+  }
+  return metadataValueToString(aValue).localeCompare(
+    metadataValueToString(bValue)
+  );
+}
+
+function kernelLogoReason(item: IKernelItem): string | undefined {
+  const kernelMeta = item.metadata?.kernel as ReadonlyJSONObject | undefined;
+  const reason = kernelMeta?.['nebi_logo_reason'];
+  if (typeof reason === 'string' && reason.length > 0) {
+    return reason;
+  }
+  return undefined;
 }
 
 function EllipsedCell(props: React.PropsWithChildren<{ title?: string }>) {
@@ -136,17 +261,12 @@ export function KernelTable(props: {
           const kernelMeta = item.metadata?.kernel as
             | ReadonlyJSONObject
             | undefined;
-          const render = () => {
-            if (!kernelMeta) {
-              return '-';
-            }
-            const value = kernelMeta[metadataKey];
-            if (typeof value === 'string') {
-              return value;
-            }
-            return JSON.stringify(value);
-          };
-          return <EllipsedCell>{render()}</EllipsedCell>;
+          const value = kernelMeta ? kernelMeta[metadataKey] : undefined;
+          return (
+            <EllipsedCell title={metadataValueToString(value)}>
+              {renderMetadataValue(metadataKey, value)}
+            </EllipsedCell>
+          );
         },
         sort: (a: IKernelItem, b: IKernelItem) => {
           const aKernelMeta = a.metadata?.kernel as
@@ -157,19 +277,7 @@ export function KernelTable(props: {
             | undefined;
           const aValue = aKernelMeta ? aKernelMeta[metadataKey] : undefined;
           const bValue = bKernelMeta ? bKernelMeta[metadataKey] : undefined;
-          if (aValue === bValue) {
-            return 0;
-          }
-          if (!aValue) {
-            return 1;
-          }
-          if (!bValue) {
-            return -1;
-          }
-          if (typeof aValue === 'string' && typeof bValue === 'string') {
-            return aValue.localeCompare(bValue);
-          }
-          return aValue > bValue ? 1 : -1;
+          return compareMetadataValues(metadataKey, aValue, bValue);
         }
       };
     }
@@ -218,7 +326,10 @@ export function KernelTable(props: {
                   alt={row.label}
                 />
               ) : (
-                <div className="jp-LauncherCard-noKernelIcon">
+                <div
+                  className="jp-LauncherCard-noKernelIcon"
+                  title={kernelLogoReason(row)}
+                >
                   {row.label[0].toUpperCase()}
                 </div>
               )}
@@ -406,10 +517,9 @@ export function KernelTable(props: {
               }
               for (const metadataKey of metadataAvailable) {
                 const value = kernelMeta[metadataKey];
-                if (typeof value === 'string') {
-                  if (value.toLowerCase().includes(lowerCaseQuery)) {
-                    return true;
-                  }
+                const text = metadataValueToString(value);
+                if (text && text.toLowerCase().includes(lowerCaseQuery)) {
+                  return true;
                 }
               }
               return false;
