@@ -8,6 +8,12 @@ import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { TranslationBundle } from '@jupyterlab/translation';
 import { FilterBox, UseSignal, MenuSvg } from '@jupyterlab/ui-components';
 import { Table } from './base-table';
+import {
+  compareNebiMetadataValues,
+  nebiColumnLabelFromKey,
+  nebiLogoReason,
+  renderNebiMetadataValue
+} from './nebi';
 import * as React from 'react';
 import {
   ISettingsLayout,
@@ -20,24 +26,14 @@ import { starIcon } from '../icons';
 
 const STAR_BUTTON_CLASS = 'jp-starIconButton';
 const KERNEL_ITEM_CLASS = 'jp-TableKernelItem';
-const NEBI_STATE_LABELS: Record<string, string> = {
-  'remote-not-pulled': 'Remote (not pulled)',
-  'local-not-installed': 'Local (not installed)',
-  'local-missing-deps': 'Local (missing deps)',
-  outdated: 'Outdated',
-  ready: 'Ready'
-};
-const NEBI_STATE_SORT_RANK: Record<string, number> = {
-  'remote-not-pulled': 0,
-  'local-not-installed': 1,
-  'local-missing-deps': 2,
-  outdated: 3,
-  ready: 4
-};
 
 function columnLabelFromKey(key: string): string {
   if (key.length === 0) {
     return '(empty)';
+  }
+  const nebiLabel = nebiColumnLabelFromKey(key);
+  if (nebiLabel) {
+    return nebiLabel;
   }
   switch (key) {
     // Added by nb_conda_kernels
@@ -54,31 +50,6 @@ function columnLabelFromKey(key: string): string {
       return 'Base?';
     case 'conda_is_currently_running':
       return 'Running?';
-    // Added by nb-nebi-kernels
-    case 'nebi_state':
-      return 'State';
-    case 'nebi_missing_dependencies':
-      return 'Missing dependencies';
-    case 'nebi_local_version':
-      return 'Local version';
-    case 'nebi_remote_version':
-      return 'Remote version';
-    case 'nebi_outdated':
-      return 'Outdated?';
-    case 'nebi_not_ready_reason':
-      return 'Not ready reason';
-    case 'nebi_logo_reason':
-      return 'Logo reason';
-    case 'nebi_discovery_hash':
-      return 'Discovery hash';
-    case 'nebi_discovered_at':
-      return 'Discovered at';
-    case 'nebi_workspace':
-      return 'Workspace';
-    case 'nebi_workspace_path':
-      return 'Workspace path';
-    case 'nebi_source':
-      return 'Source';
   }
   return key[0].toUpperCase() + key.substring(1);
 }
@@ -109,17 +80,9 @@ function renderMetadataValue(
   metadataKey: string,
   value: unknown
 ): React.ReactNode {
-  if (metadataKey === 'nebi_state') {
-    const state = typeof value === 'string' ? value : '';
-    const label = NEBI_STATE_LABELS[state] ?? state;
-    return state ? (
-      <span className={`jp-NebiStateBadge jp-NebiState-${state}`}>{label}</span>
-    ) : (
-      '-'
-    );
-  }
-  if (metadataKey === 'nebi_outdated' && typeof value === 'boolean') {
-    return value ? 'Yes' : 'No';
+  const nebiValue = renderNebiMetadataValue(metadataKey, value);
+  if (nebiValue !== undefined) {
+    return nebiValue;
   }
   const text = metadataValueToString(value);
   return text || '-';
@@ -139,15 +102,9 @@ function compareMetadataValues(
   if (bValue === null || bValue === undefined || bValue === '') {
     return -1;
   }
-  if (
-    metadataKey === 'nebi_state' &&
-    typeof aValue === 'string' &&
-    typeof bValue === 'string'
-  ) {
-    return (
-      (NEBI_STATE_SORT_RANK[aValue] ?? Number.MAX_SAFE_INTEGER) -
-      (NEBI_STATE_SORT_RANK[bValue] ?? Number.MAX_SAFE_INTEGER)
-    );
+  const nebiComparison = compareNebiMetadataValues(metadataKey, aValue, bValue);
+  if (nebiComparison !== undefined) {
+    return nebiComparison;
   }
   if (typeof aValue === 'number' && typeof bValue === 'number') {
     return aValue - bValue;
@@ -158,15 +115,6 @@ function compareMetadataValues(
   return metadataValueToString(aValue).localeCompare(
     metadataValueToString(bValue)
   );
-}
-
-function kernelLogoReason(item: IKernelItem): string | undefined {
-  const kernelMeta = item.metadata?.kernel as ReadonlyJSONObject | undefined;
-  const reason = kernelMeta?.['nebi_logo_reason'];
-  if (typeof reason === 'string' && reason.length > 0) {
-    return reason;
-  }
-  return undefined;
 }
 
 function EllipsedCell(props: React.PropsWithChildren<{ title?: string }>) {
@@ -328,7 +276,9 @@ export function KernelTable(props: {
               ) : (
                 <div
                   className="jp-LauncherCard-noKernelIcon"
-                  title={kernelLogoReason(row)}
+                  title={nebiLogoReason(
+                    row.metadata?.kernel as ReadonlyJSONObject | undefined
+                  )}
                 >
                   {row.label[0].toUpperCase()}
                 </div>
