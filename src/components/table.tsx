@@ -8,6 +8,12 @@ import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { TranslationBundle } from '@jupyterlab/translation';
 import { FilterBox, UseSignal, MenuSvg } from '@jupyterlab/ui-components';
 import { Table } from './base-table';
+import {
+  compareNebiMetadataValues,
+  nebiColumnLabelFromKey,
+  nebiLogoReason,
+  renderNebiMetadataValue
+} from './nebi';
 import * as React from 'react';
 import {
   ISettingsLayout,
@@ -24,6 +30,10 @@ const KERNEL_ITEM_CLASS = 'jp-TableKernelItem';
 function columnLabelFromKey(key: string): string {
   if (key.length === 0) {
     return '(empty)';
+  }
+  const nebiLabel = nebiColumnLabelFromKey(key);
+  if (nebiLabel) {
+    return nebiLabel;
   }
   switch (key) {
     // Added by nb_conda_kernels
@@ -42,6 +52,69 @@ function columnLabelFromKey(key: string): string {
       return 'Running?';
   }
   return key[0].toUpperCase() + key.substring(1);
+}
+
+function metadataValueToString(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return String(value);
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false';
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map(item => metadataValueToString(item))
+      .filter(Boolean)
+      .join(', ');
+  }
+  return JSON.stringify(value);
+}
+
+function renderMetadataValue(
+  metadataKey: string,
+  value: unknown
+): React.ReactNode {
+  const nebiValue = renderNebiMetadataValue(metadataKey, value);
+  if (nebiValue !== undefined) {
+    return nebiValue;
+  }
+  const text = metadataValueToString(value);
+  return text || '-';
+}
+
+function compareMetadataValues(
+  metadataKey: string,
+  aValue: unknown,
+  bValue: unknown
+): number {
+  if (aValue === bValue) {
+    return 0;
+  }
+  if (aValue === null || aValue === undefined || aValue === '') {
+    return 1;
+  }
+  if (bValue === null || bValue === undefined || bValue === '') {
+    return -1;
+  }
+  const nebiComparison = compareNebiMetadataValues(metadataKey, aValue, bValue);
+  if (nebiComparison !== undefined) {
+    return nebiComparison;
+  }
+  if (typeof aValue === 'number' && typeof bValue === 'number') {
+    return aValue - bValue;
+  }
+  if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
+    return Number(aValue) - Number(bValue);
+  }
+  return metadataValueToString(aValue).localeCompare(
+    metadataValueToString(bValue)
+  );
 }
 
 function EllipsedCell(props: React.PropsWithChildren<{ title?: string }>) {
@@ -136,17 +209,12 @@ export function KernelTable(props: {
           const kernelMeta = item.metadata?.kernel as
             | ReadonlyJSONObject
             | undefined;
-          const render = () => {
-            if (!kernelMeta) {
-              return '-';
-            }
-            const value = kernelMeta[metadataKey];
-            if (typeof value === 'string') {
-              return value;
-            }
-            return JSON.stringify(value);
-          };
-          return <EllipsedCell>{render()}</EllipsedCell>;
+          const value = kernelMeta ? kernelMeta[metadataKey] : undefined;
+          return (
+            <EllipsedCell title={metadataValueToString(value)}>
+              {renderMetadataValue(metadataKey, value)}
+            </EllipsedCell>
+          );
         },
         sort: (a: IKernelItem, b: IKernelItem) => {
           const aKernelMeta = a.metadata?.kernel as
@@ -157,19 +225,7 @@ export function KernelTable(props: {
             | undefined;
           const aValue = aKernelMeta ? aKernelMeta[metadataKey] : undefined;
           const bValue = bKernelMeta ? bKernelMeta[metadataKey] : undefined;
-          if (aValue === bValue) {
-            return 0;
-          }
-          if (!aValue) {
-            return 1;
-          }
-          if (!bValue) {
-            return -1;
-          }
-          if (typeof aValue === 'string' && typeof bValue === 'string') {
-            return aValue.localeCompare(bValue);
-          }
-          return aValue > bValue ? 1 : -1;
+          return compareMetadataValues(metadataKey, aValue, bValue);
         }
       };
     }
@@ -218,7 +274,12 @@ export function KernelTable(props: {
                   alt={row.label}
                 />
               ) : (
-                <div className="jp-LauncherCard-noKernelIcon">
+                <div
+                  className="jp-LauncherCard-noKernelIcon"
+                  title={nebiLogoReason(
+                    row.metadata?.kernel as ReadonlyJSONObject | undefined
+                  )}
+                >
                   {row.label[0].toUpperCase()}
                 </div>
               )}
@@ -406,10 +467,9 @@ export function KernelTable(props: {
               }
               for (const metadataKey of metadataAvailable) {
                 const value = kernelMeta[metadataKey];
-                if (typeof value === 'string') {
-                  if (value.toLowerCase().includes(lowerCaseQuery)) {
-                    return true;
-                  }
+                const text = metadataValueToString(value);
+                if (text && text.toLowerCase().includes(lowerCaseQuery)) {
+                  return true;
                 }
               }
               return false;
