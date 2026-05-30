@@ -44,3 +44,18 @@ export async function requestAPI<T>(
 
   return data;
 }
+
+export interface IKernelRefreshResponse {
+  invalidated: boolean;
+}
+
+export async function refreshKernelsWithInvalidation(): Promise<void> {
+  const response = await requestAPI<IKernelRefreshResponse>('kernels/refresh', {
+    method: 'POST'
+  });
+  if (!response.invalidated) {
+    throw new Error(
+      'Kernel discovery cache invalidation is not available on this server.'
+    );
+  }
+}

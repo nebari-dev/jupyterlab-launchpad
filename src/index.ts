@@ -20,6 +20,7 @@ import { ReadonlyPartialJSONObject } from '@lumino/coreutils';
 import { DockPanel, TabBar, Widget } from '@lumino/widgets';
 import { NewLauncher as Launcher } from './launcher';
 import { NewModel as Model } from './model';
+import { refreshKernelsWithInvalidation } from './handler';
 import {
   CommandIDs,
   ILauncherDatabase,
@@ -183,6 +184,7 @@ function activate(
     label: trans.__('Refresh Kernels'),
     execute: async () => {
       try {
+        await refreshKernelsWithInvalidation();
         await app.serviceManager.kernelspecs.refreshSpecs();
       } catch (error) {
         console.error(error);

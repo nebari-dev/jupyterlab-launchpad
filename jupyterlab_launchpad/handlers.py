@@ -44,15 +44,38 @@ class DatabaseHandler(APIHandler):
         self.set_status(204)
 
 
+class KernelDiscoveryRefreshHandler(APIHandler):
+    def initialize(self, server_app):
+        self.server_app = server_app
+
+    @tornado.web.authenticated
+    def post(self):
+        manager = getattr(self.server_app, "kernel_spec_manager", None)
+        invalidate = getattr(manager, "invalidate_discovery_cache", None)
+        invalidated = False
+
+        if callable(invalidate):
+            invalidate()
+            invalidated = True
+
+        self.finish(json.dumps({"invalidated": invalidated}))
+
+
 def setup_handlers(web_app, server_app):
     host_pattern = ".*$"
 
     base_url = web_app.settings["base_url"]
-    api_url = url_path_join(base_url, "jupyterlab-launchpad");
+    api_url = url_path_join(base_url, "jupyterlab-launchpad")
     db_url = url_path_join(api_url, "database")
+    kernels_url = url_path_join(api_url, "kernels")
     kwargs = {"settings_dir": web_app.settings["lab_config"]["user_settings_dir"]}
     handlers = [
         (url_path_join(db_url, "last-used"), DatabaseHandler, {"name": "last-used", **kwargs}),
         (url_path_join(db_url, "favorites"), DatabaseHandler, {"name": "favorites", **kwargs}),
+        (
+            url_path_join(kernels_url, "refresh"),
+            KernelDiscoveryRefreshHandler,
+            {"server_app": server_app},
+        ),
     ]
     web_app.add_handlers(host_pattern, handlers)

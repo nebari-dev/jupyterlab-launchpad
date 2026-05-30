@@ -26,7 +26,6 @@ const NEBI_METADATA_LABELS: Record<string, string> = {
   nebi_remote_version: 'Remote version',
   nebi_outdated: 'Outdated?',
   nebi_not_ready_reason: 'Not ready reason',
-  nebi_logo_reason: 'Logo reason',
   nebi_discovery_hash: 'Discovery hash',
   nebi_discovered_at: 'Discovered at',
   nebi_workspace: 'Workspace',
@@ -78,9 +77,19 @@ export function compareNebiMetadataValues(
 export function nebiLogoReason(
   kernelMeta: ReadonlyJSONObject | undefined
 ): string | undefined {
-  const reason = kernelMeta?.['nebi_logo_reason'];
-  if (typeof reason === 'string' && reason.length > 0) {
-    return reason;
+  if (!kernelMeta) {
+    return undefined;
   }
+
+  const state = kernelMeta['nebi_state'];
+  if (state === 'ready' || state === 'outdated') {
+    return undefined;
+  }
+
+  const notReadyReason = kernelMeta['nebi_not_ready_reason'];
+  if (typeof notReadyReason === 'string' && notReadyReason.length > 0) {
+    return notReadyReason;
+  }
+
   return undefined;
 }
