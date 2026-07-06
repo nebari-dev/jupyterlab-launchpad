@@ -20,17 +20,29 @@ import { ReadonlyPartialJSONObject } from '@lumino/coreutils';
 import { DockPanel, TabBar, Widget } from '@lumino/widgets';
 import { NewLauncher as Launcher } from './launcher';
 import { NewModel as Model } from './model';
-import { refreshKernelsWithInvalidation } from './handler';
+import { refreshKernelsWithInvalidation, requestAPI } from './handler';
 import {
   CommandIDs,
   ILauncherDatabase,
+  ILaunchpadKernelTable,
   INewLauncher,
   MAIN_PLUGIN_ID
 } from './types';
 import { addCommands } from './commands';
 import { sessionDialogsPlugin } from './dialogs';
 import { databasePlugin } from './database';
+import { kernelTablePlugin } from './kernel-table';
+import { nebiKernelTablePlugin } from './components/nebi';
 import webkitCSSPatch from '../style/webkit.raw.css';
+
+export { CommandIDs, ILaunchpadKernelTable } from './types';
+export type {
+  IKernelAction,
+  IKernelActionOptions,
+  IKernelItem,
+  IKernelMetadataColumn,
+  IKernelMetadataRenderOptions
+} from './types';
 
 /**
  * Initialization data for the jupyterlab-launchpad extension.
@@ -40,18 +52,169 @@ const launcherPlugin: JupyterFrontEndPlugin<ILauncher> = {
   description: 'A redesigned JupyterLab launcher',
   provides: ILauncher,
   autoStart: true,
-  requires: [ITranslator, ISettingRegistry, ILauncherDatabase],
+  requires: [
+    ITranslator,
+    ISettingRegistry,
+    ILauncherDatabase,
+    ILaunchpadKernelTable
+  ],
   optional: [ILabShell, ICommandPalette, IDefaultFileBrowser],
   activate
 };
 
-export default [launcherPlugin, sessionDialogsPlugin, databasePlugin];
+export default [
+  kernelTablePlugin,
+  nebiKernelTablePlugin,
+  databasePlugin,
+  launcherPlugin,
+  sessionDialogsPlugin
+];
 
 function createStyleSheet(text: string): HTMLStyleElement {
   const style = document.createElement('style');
   style.setAttribute('type', 'text/css');
   style.appendChild(document.createTextNode(text));
   return style;
+}
+
+function stringArg(args: ReadonlyPartialJSONObject, key: string): string {
+  const value = args[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function commandBody(args: ReadonlyPartialJSONObject): RequestInit {
+  return {
+    method: 'POST',
+    body: JSON.stringify(args),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  };
+}
+
+interface INebiActionCapabilities {
+  nebi: boolean;
+  pixi: boolean;
+}
+
+interface INebiConfigPathResponse {
+  path: string;
+}
+
+async function refreshKernelSpecs(app: JupyterFrontEnd): Promise<void> {
+  await refreshKernelsWithInvalidation();
+  await app.serviceManager.kernelspecs.refreshSpecs();
+}
+
+function registerNebiActionCommands(
+  app: JupyterFrontEnd,
+  trans: ReturnType<ITranslator['load']>
+): void {
+  const { commands } = app;
+  let capabilities: INebiActionCapabilities = {
+    nebi: false,
+    pixi: false
+  };
+  const refreshActionCommands = () => {
+    commands.notifyCommandChanged(CommandIDs.nebiPull);
+    commands.notifyCommandChanged(CommandIDs.nebiInstallDependencies);
+  };
+
+  void requestAPI<INebiActionCapabilities>('nebi/capabilities')
+    .then(value => {
+      capabilities = value;
+      refreshActionCommands();
+    })
+    .catch(error => {
+      console.warn('Could not load Nebi action capabilities', error);
+      refreshActionCommands();
+    });
+
+  const canPull = (args: ReadonlyPartialJSONObject) =>
+    capabilities.nebi && stringArg(args, 'workspace').length > 0;
+  const canInstallDependencies = (args: ReadonlyPartialJSONObject) =>
+    capabilities.pixi && stringArg(args, 'workspacePath').length > 0;
+  const canEditConfig = (args: ReadonlyPartialJSONObject) =>
+    stringArg(args, 'workspacePath').length > 0;
+
+  commands.addCommand(CommandIDs.nebiPull, {
+    label: trans.__('Pull'),
+    caption: () =>
+      capabilities.nebi
+        ? trans.__('Pull this Nebi workspace')
+        : trans.__('Nebi CLI is not available on this Jupyter server'),
+    isVisible: canPull,
+    isEnabled: canPull,
+    execute: async args => {
+      if (!capabilities.nebi) {
+        return;
+      }
+      try {
+        await requestAPI('nebi/pull', commandBody(args));
+        await refreshKernelSpecs(app);
+      } catch (error) {
+        console.error(error);
+        await showErrorMessage(
+          trans.__('Could not pull Nebi workspace'),
+          error as Error
+        );
+      }
+    }
+  });
+
+  commands.addCommand(CommandIDs.nebiInstallDependencies, {
+    label: trans.__('Install deps'),
+    caption: () =>
+      capabilities.pixi
+        ? trans.__('Install missing dependencies')
+        : trans.__('Pixi is not available on this Jupyter server'),
+    isVisible: canInstallDependencies,
+    isEnabled: canInstallDependencies,
+    execute: async args => {
+      if (!capabilities.pixi) {
+        return;
+      }
+      try {
+        await requestAPI('nebi/install-dependencies', commandBody(args));
+        await refreshKernelSpecs(app);
+      } catch (error) {
+        console.error(error);
+        await showErrorMessage(
+          trans.__('Could not install Nebi dependencies'),
+          error as Error
+        );
+      }
+    }
+  });
+
+  commands.addCommand(CommandIDs.nebiEditConfig, {
+    label: trans.__('Edit config'),
+    caption: trans.__('Edit Nebi workspace configuration'),
+    isVisible: canEditConfig,
+    isEnabled: canEditConfig,
+    execute: async args => {
+      const workspacePath = stringArg(args, 'workspacePath');
+      if (!workspacePath) {
+        return;
+      }
+
+      try {
+        const response = await requestAPI<INebiConfigPathResponse>(
+          'nebi/config-path',
+          commandBody(args)
+        );
+        await commands.execute('docmanager:open', {
+          path: response.path
+        });
+      } catch (error) {
+        console.error(error);
+        await showErrorMessage(
+          trans.__('Could not open Nebi config'),
+          error as Error
+        );
+      }
+    }
+  });
 }
 
 /**
@@ -62,6 +225,7 @@ function activate(
   translator: ITranslator,
   settingRegistry: ISettingRegistry,
   database: ILauncherDatabase,
+  kernelTable: ILaunchpadKernelTable,
   labShell: ILabShell | null,
   palette: ICommandPalette | null,
   defaultBrowser: IDefaultFileBrowser | null
@@ -141,6 +305,7 @@ function activate(
         translator,
         lastUsedDatabase: database.lastUsed,
         favoritesDatabase: database.favorites,
+        kernelTable,
         settings
       });
 
@@ -184,8 +349,7 @@ function activate(
     label: trans.__('Refresh Kernels'),
     execute: async () => {
       try {
-        await refreshKernelsWithInvalidation();
-        await app.serviceManager.kernelspecs.refreshSpecs();
+        await refreshKernelSpecs(app);
       } catch (error) {
         console.error(error);
         await showErrorMessage(
@@ -197,6 +361,7 @@ function activate(
       }
     }
   });
+  registerNebiActionCommands(app, trans);
 
   if (labShell) {
     void Promise.all([app.restored, defaultBrowser?.model.restored]).then(

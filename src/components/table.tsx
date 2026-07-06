@@ -1,39 +1,47 @@
 // Copyright (c) Nebari Development Team.
 // Distributed under the terms of the Modified BSD License.
 import type { CommandRegistry } from '@lumino/commands';
-import { ReadonlyJSONObject } from '@lumino/coreutils';
+import type {
+  ReadonlyJSONObject,
+  ReadonlyPartialJSONObject
+} from '@lumino/coreutils';
 import type { ISignal } from '@lumino/signaling';
 import { Time } from '@jupyterlab/coreutils';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { TranslationBundle } from '@jupyterlab/translation';
 import { FilterBox, UseSignal, MenuSvg } from '@jupyterlab/ui-components';
 import { Table } from './base-table';
-import {
-  compareNebiMetadataValues,
-  nebiColumnLabelFromKey,
-  nebiLogoReason,
-  renderNebiMetadataValue
-} from './nebi';
 import * as React from 'react';
 import {
   ISettingsLayout,
   IFavoritesDatabase,
   ILastUsedDatabase,
   CommandIDs,
-  IKernelItem
+  IKernelItem,
+  IKernelAction,
+  ILaunchpadKernelTable
 } from '../types';
 import { starIcon } from '../icons';
 
 const STAR_BUTTON_CLASS = 'jp-starIconButton';
 const KERNEL_ITEM_CLASS = 'jp-TableKernelItem';
 
-function columnLabelFromKey(key: string): string {
+interface IVisibleKernelAction {
+  action: IKernelAction;
+  args: ReadonlyPartialJSONObject;
+  caption: string;
+}
+
+function columnLabelFromKey(
+  key: string,
+  kernelTable: ILaunchpadKernelTable
+): string {
   if (key.length === 0) {
     return '(empty)';
   }
-  const nebiLabel = nebiColumnLabelFromKey(key);
-  if (nebiLabel) {
-    return nebiLabel;
+  const metadataColumn = kernelTable.getMetadataColumn(key);
+  if (metadataColumn?.label) {
+    return metadataColumn.label;
   }
   switch (key) {
     // Added by nb_conda_kernels
@@ -78,21 +86,63 @@ function metadataValueToString(value: unknown): string {
 
 function renderMetadataValue(
   metadataKey: string,
-  value: unknown
+  value: unknown,
+  item: IKernelItem,
+  metadata: ReadonlyJSONObject | undefined,
+  trans: TranslationBundle,
+  kernelTable: ILaunchpadKernelTable
 ): React.ReactNode {
-  const nebiValue = renderNebiMetadataValue(metadataKey, value);
-  if (nebiValue !== undefined) {
-    return nebiValue;
+  const metadataColumn = kernelTable.getMetadataColumn(metadataKey);
+  const rendered = metadataColumn?.render?.({
+    item,
+    metadataKey,
+    value,
+    metadata,
+    trans
+  });
+  if (rendered !== undefined) {
+    return rendered;
   }
   const text = metadataValueToString(value);
   return text || '-';
 }
 
-function compareMetadataValues(
+function metadataValueTitle(
   metadataKey: string,
-  aValue: unknown,
-  bValue: unknown
-): number {
+  value: unknown,
+  item: IKernelItem,
+  metadata: ReadonlyJSONObject | undefined,
+  trans: TranslationBundle,
+  kernelTable: ILaunchpadKernelTable
+): string | undefined {
+  const title = kernelTable.getMetadataColumn(metadataKey)?.title?.({
+    item,
+    metadataKey,
+    value,
+    metadata,
+    trans
+  });
+  if (title !== undefined) {
+    return title;
+  }
+
+  return metadataValueToString(value);
+}
+
+function fallbackIconTitle(
+  metadata: ReadonlyJSONObject | undefined
+): string | undefined {
+  if (!metadata) {
+    return undefined;
+  }
+
+  const logoReason = metadata['nebi_logo_reason'];
+  return typeof logoReason === 'string' && logoReason.length > 0
+    ? logoReason
+    : undefined;
+}
+
+function compareMetadataValues(aValue: unknown, bValue: unknown): number {
   if (aValue === bValue) {
     return 0;
   }
@@ -101,10 +151,6 @@ function compareMetadataValues(
   }
   if (bValue === null || bValue === undefined || bValue === '') {
     return -1;
-  }
-  const nebiComparison = compareNebiMetadataValues(metadataKey, aValue, bValue);
-  if (nebiComparison !== undefined) {
-    return nebiComparison;
   }
   if (typeof aValue === 'number' && typeof bValue === 'number') {
     return aValue - bValue;
@@ -115,6 +161,31 @@ function compareMetadataValues(
   return metadataValueToString(aValue).localeCompare(
     metadataValueToString(bValue)
   );
+}
+
+function visibleKernelActions(
+  item: IKernelItem,
+  metadata: ReadonlyJSONObject | undefined,
+  trans: TranslationBundle,
+  kernelTable: ILaunchpadKernelTable,
+  commands: CommandRegistry
+): IVisibleKernelAction[] {
+  const actions: IVisibleKernelAction[] = [];
+  for (const action of kernelTable.getActions({ item, metadata, trans })) {
+    const args = action.args?.({ item, metadata, trans }) ?? {};
+    if (
+      commands.hasCommand(action.command) &&
+      commands.isVisible(action.command, args) &&
+      commands.isEnabled(action.command, args)
+    ) {
+      actions.push({
+        action,
+        args,
+        caption: commands.caption(action.command, args)
+      });
+    }
+  }
+  return actions;
 }
 
 function EllipsedCell(props: React.PropsWithChildren<{ title?: string }>) {
@@ -160,6 +231,7 @@ export function KernelTable(props: {
   showWidgetType?: boolean;
   favouritesChanged: ISignal<IFavoritesDatabase, void>;
   lastUsedChanged: ISignal<ILastUsedDatabase, void>;
+  kernelTable: ILaunchpadKernelTable;
 }) {
   const { trans } = props;
   let query: string;
@@ -188,6 +260,21 @@ export function KernelTable(props: {
       props.lastUsedChanged.disconnect(forceUpdate);
     };
   });
+  React.useEffect(() => {
+    props.kernelTable.changed.connect(forceUpdate);
+    return () => {
+      props.kernelTable.changed.disconnect(forceUpdate);
+    };
+  }, [props.kernelTable]);
+  React.useEffect(() => {
+    const updateCommands = () => {
+      forceUpdate();
+    };
+    props.commands.commandChanged.connect(updateCommands);
+    return () => {
+      props.commands.commandChanged.disconnect(updateCommands);
+    };
+  }, [props.commands]);
 
   const metadataAvailable = new Set<string>();
   for (const item of props.items) {
@@ -204,15 +291,31 @@ export function KernelTable(props: {
     metadataKey => {
       return {
         id: metadataKey,
-        label: columnLabelFromKey(metadataKey),
+        label: columnLabelFromKey(metadataKey, props.kernelTable),
         renderCell: (item: IKernelItem) => {
           const kernelMeta = item.metadata?.kernel as
             | ReadonlyJSONObject
             | undefined;
           const value = kernelMeta ? kernelMeta[metadataKey] : undefined;
           return (
-            <EllipsedCell title={metadataValueToString(value)}>
-              {renderMetadataValue(metadataKey, value)}
+            <EllipsedCell
+              title={metadataValueTitle(
+                metadataKey,
+                value,
+                item,
+                kernelMeta,
+                trans,
+                props.kernelTable
+              )}
+            >
+              {renderMetadataValue(
+                metadataKey,
+                value,
+                item,
+                kernelMeta,
+                trans,
+                props.kernelTable
+              )}
             </EllipsedCell>
           );
         },
@@ -225,7 +328,7 @@ export function KernelTable(props: {
             | undefined;
           const aValue = aKernelMeta ? aKernelMeta[metadataKey] : undefined;
           const bValue = bKernelMeta ? bKernelMeta[metadataKey] : undefined;
-          return compareMetadataValues(metadataKey, aValue, bValue);
+          return compareMetadataValues(aValue, bValue);
         }
       };
     }
@@ -242,6 +345,59 @@ export function KernelTable(props: {
         a.command.localeCompare(b.command)
     });
   }
+
+  const actionColumn: Table.IColumn<IKernelItem> = {
+    id: 'actions',
+    label: trans.__('Actions'),
+    isAvailable: () =>
+      props.items.some(item => {
+        const metadata = item.metadata?.kernel as
+          | ReadonlyJSONObject
+          | undefined;
+        return (
+          visibleKernelActions(
+            item,
+            metadata,
+            trans,
+            props.kernelTable,
+            props.commands
+          ).length > 0
+        );
+      }),
+    renderCell: (row: IKernelItem) => {
+      const metadata = row.metadata?.kernel as ReadonlyJSONObject | undefined;
+      const actions = visibleKernelActions(
+        row,
+        metadata,
+        trans,
+        props.kernelTable,
+        props.commands
+      );
+
+      if (actions.length === 0) {
+        return <EllipsedCell>-</EllipsedCell>;
+      }
+
+      return (
+        <div className="jp-KernelActions">
+          {actions.map(({ action, args, caption }) => (
+            <button
+              key={action.id}
+              className="jp-KernelActionButton"
+              title={action.title ?? (caption || action.label)}
+              onClick={async event => {
+                event.stopPropagation();
+                await props.commands.execute(action.command, args);
+              }}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      );
+    },
+    sort: () => 0
+  };
 
   const availableColumns: Table.IColumn<IKernelItem>[] = [
     {
@@ -276,7 +432,7 @@ export function KernelTable(props: {
               ) : (
                 <div
                   className="jp-LauncherCard-noKernelIcon"
-                  title={nebiLogoReason(
+                  title={fallbackIconTitle(
                     row.metadata?.kernel as ReadonlyJSONObject | undefined
                   )}
                 >
@@ -291,6 +447,7 @@ export function KernelTable(props: {
       sort: (a: IKernelItem, b: IKernelItem) => a.label.localeCompare(b.label)
     },
     ...extraColumns,
+    actionColumn,
     {
       id: 'last-used',
       label: trans.__('Last Used'),

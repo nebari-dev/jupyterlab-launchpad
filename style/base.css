@@ -166,32 +166,65 @@
   vertical-align: top;
 }
 
-.jp-NebiStateBadge {
-  display: inline-block;
-  border-radius: 10px;
-  padding: 1px 8px;
-  font-size: 11px;
-  line-height: 16px;
-  border: 1px solid var(--jp-border-color2);
+.jp-NebiIndicator,
+.jp-NebiVersion {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--jp-ui-font-color1);
+}
+
+.jp-NebiIndicator-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  color: inherit;
+}
+
+.jp-NebiIndicator-icon [fill] {
+  fill: currentcolor;
+}
+
+.jp-NebiIndicator-icon [stroke] {
+  stroke: currentcolor;
+}
+
+.jp-NebiStatus-ready,
+.jp-NebiVersion.jp-mod-latest {
+  color: var(--jp-success-color1);
+  font-weight: 600;
+}
+
+.jp-NebiStatus-outdated {
+  color: var(--jp-warn-color1);
+}
+
+.jp-NebiStatus-not-pulled,
+.jp-NebiStatus-not-installed,
+.jp-NebiStatus-missing-deps {
+  color: var(--jp-error-color1);
+}
+
+.jp-NebiVersionLatest {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--jp-success-color1);
+  text-transform: uppercase;
+}
+
+.jp-KernelActions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.jp-KernelActionButton {
+  font-size: var(--jp-ui-font-size0);
+  line-height: 18px;
+  min-height: 20px;
+  padding: 0 6px;
   color: var(--jp-ui-font-color1);
   background: var(--jp-layout-color1);
-}
-
-.jp-NebiState-ready {
-  color: var(--jp-success-color1);
-  border-color: var(--jp-success-color1);
-}
-
-.jp-NebiState-outdated {
-  color: var(--jp-warn-color1);
-  border-color: var(--jp-warn-color1);
-}
-
-.jp-NebiState-remote-not-pulled,
-.jp-NebiState-local-not-installed,
-.jp-NebiState-local-missing-deps {
-  color: var(--jp-error-color1);
-  border-color: var(--jp-error-color1);
+  border: var(--jp-border-width) solid var(--jp-border-color2);
 }
 
 .jp-NewLauncher-table th[data-id='icon'],

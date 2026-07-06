@@ -28,6 +28,7 @@ import {
   IFavoritesDatabase,
   ILauncherDatabase,
   IKernelItem,
+  ILaunchpadKernelTable,
   MAIN_PLUGIN_ID
 } from './types';
 import { Item } from './item';
@@ -93,6 +94,7 @@ class CustomSessionContextDialogs extends SessionContextDialogs {
         commands: this.options.commands,
         favoritesDatabase: this.options.database.favorites,
         lastUsedDatabase: this.options.database.lastUsed,
+        kernelTable: this.options.kernelTable,
         settings,
         trans,
         acceptDialog: () => {
@@ -143,6 +145,7 @@ export namespace CustomSessionContextDialogs {
     commands: CommandRegistry;
     settingRegistry: ISettingRegistry;
     kernelManager: Kernel.IManager;
+    kernelTable: ILaunchpadKernelTable;
   }
 }
 
@@ -155,19 +158,26 @@ export const sessionDialogsPlugin: JupyterFrontEndPlugin<ISessionContextDialogs>
     description: 'Session dialogs for redesigned JupyterLab launcher',
     provides: ISessionContextDialogs,
     autoStart: true,
-    requires: [ITranslator, ILauncherDatabase, ISettingRegistry],
+    requires: [
+      ITranslator,
+      ILauncherDatabase,
+      ISettingRegistry,
+      ILaunchpadKernelTable
+    ],
     activate: (
       app: JupyterFrontEnd,
       translator: ITranslator,
       database: ILauncherDatabase,
-      settingRegistry: ISettingRegistry
+      settingRegistry: ISettingRegistry,
+      kernelTable: ILaunchpadKernelTable
     ) => {
       return new CustomSessionContextDialogs({
         translator: translator,
         database: database,
         commands: app.commands,
         settingRegistry: settingRegistry,
-        kernelManager: app.serviceManager.kernels
+        kernelManager: app.serviceManager.kernels,
+        kernelTable
       });
     }
   };
@@ -314,6 +324,7 @@ export class KernelSelector extends ReactWidget {
           }}
           favouritesChanged={this._favoritesDatabase.changed}
           lastUsedChanged={this._lastUsedDatabase.changed}
+          kernelTable={this.options.kernelTable}
         />
         {runningKernelsItems.length > 0 ? (
           <>
@@ -334,6 +345,7 @@ export class KernelSelector extends ReactWidget {
               hideColumns={['last-used', 'star']}
               favouritesChanged={this._favoritesDatabase.changed}
               lastUsedChanged={this._lastUsedDatabase.changed}
+              kernelTable={this.options.kernelTable}
             />
           </>
         ) : null}
@@ -369,6 +381,7 @@ export namespace KernelSelector {
     favoritesDatabase: IFavoritesDatabase;
     settings: ISettingRegistry.ISettings;
     commands: CommandRegistry;
+    kernelTable: ILaunchpadKernelTable;
     trans: TranslationBundle;
     data: () => SessionContext.IKernelSearch & {
       kernels: IterableIterator<Kernel.IModel>;

@@ -19,7 +19,8 @@ import {
   ILastUsedDatabase,
   IFavoritesDatabase,
   ISettingsLayout,
-  ISectionOptions
+  ISectionOptions,
+  ILaunchpadKernelTable
 } from './types';
 import { fileIcon, starIcon } from './icons';
 import { Item } from './item';
@@ -39,6 +40,7 @@ function LauncherBody(props: {
   settings: ISettingRegistry.ISettings;
   favouritesChanged: ISignal<IFavoritesDatabase, void>;
   lastUsedChanged: ISignal<ILastUsedDatabase, void>;
+  kernelTable: ILaunchpadKernelTable;
   sections: ISectionOptions[];
 }): React.ReactElement {
   const { trans, cwd, typeItems, commands, otherItems, favouritesChanged } =
@@ -191,6 +193,7 @@ function LauncherBody(props: {
             onClick={item => item.execute()}
             favouritesChanged={props.favouritesChanged}
             lastUsedChanged={props.lastUsedChanged}
+            kernelTable={props.kernelTable}
           />
         ) : (
           trans.__('No starred items')
@@ -215,6 +218,7 @@ function LauncherBody(props: {
           onClick={item => item.execute()}
           favouritesChanged={props.favouritesChanged}
           lastUsedChanged={props.lastUsedChanged}
+          kernelTable={props.kernelTable}
         />
       )
     });
@@ -237,6 +241,7 @@ function LauncherBody(props: {
           onClick={item => item.execute()}
           favouritesChanged={props.favouritesChanged}
           lastUsedChanged={props.lastUsedChanged}
+          kernelTable={props.kernelTable}
         />
       )
     });
@@ -290,6 +295,7 @@ export namespace NewLauncher {
   export interface IOptions extends ILauncher.IOptions {
     lastUsedDatabase: ILastUsedDatabase;
     favoritesDatabase: IFavoritesDatabase;
+    kernelTable: ILaunchpadKernelTable;
     settings: ISettingRegistry.ISettings;
     model: NewModel;
   }
@@ -304,6 +310,7 @@ export class NewLauncher extends Launcher {
     this.trans = this.translator.load('jupyterlab-launchpad');
     this._lastUsedDatabase = options.lastUsedDatabase;
     this._favoritesDatabase = options.favoritesDatabase;
+    this._kernelTable = options.kernelTable;
     this._settings = options.settings;
     this._newModel = options.model;
     this._newModel.sectionAdded.connect(() => {
@@ -312,6 +319,7 @@ export class NewLauncher extends Launcher {
   }
   private _lastUsedDatabase: ILastUsedDatabase;
   private _favoritesDatabase: IFavoritesDatabase;
+  private _kernelTable: ILaunchpadKernelTable;
   private _newModel: NewModel;
 
   trans: TranslationBundle;
@@ -416,6 +424,7 @@ export class NewLauncher extends Launcher {
         settings={this._settings}
         favouritesChanged={this._favoritesDatabase.changed}
         lastUsedChanged={this._lastUsedDatabase.changed}
+        kernelTable={this._kernelTable}
         sections={this._newModel.sections}
       />
     );

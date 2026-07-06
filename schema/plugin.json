@@ -38,17 +38,23 @@
       "title": "Hidden columns",
       "type": "object",
       "default": {
+        "debugger": "hidden",
         "conda_env_path": "hidden",
         "conda_raw_kernel_name": "hidden",
         "conda_language": "hidden",
         "conda_is_base_environment": "hidden",
         "conda_is_currently_running": "hidden",
+        "supported_encryption": "hidden",
         "nebi": "hidden",
-        "nebi_workspace_path": "hidden",
-        "nebi_source": "hidden",
+        "nebi_missing_dependencies": "hidden",
+        "nebi_outdated": "hidden",
         "nebi_not_ready_reason": "hidden",
+        "nebi_logo_reason": "hidden",
         "nebi_discovery_hash": "hidden",
-        "nebi_discovered_at": "hidden"
+        "nebi_discovered_at": "hidden",
+        "nebi_kernel_spec": "hidden",
+        "nebi_kernel_state": "hidden",
+        "nebi_workspace_path": "hidden"
       },
       "additionalProperties": {
         "type": "string",
