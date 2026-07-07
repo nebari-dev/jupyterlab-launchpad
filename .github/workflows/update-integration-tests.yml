@@ -11,7 +11,12 @@ permissions:
 jobs:
   update-snapshots:
     runs-on: ubuntu-22.04
-    if: github.event.issue.pull_request && contains(github.event.comment.body, 'please update snapshots')
+    if: |
+      github.event.issue.pull_request &&
+      (
+        contains(github.event.comment.body, 'please update snapshots') ||
+        contains(github.event.comment.body, 'please update playwright snapshots')
+      )
 
     steps:
       - uses: jupyterlab/maintainer-tools/.github/actions/update-snapshots-checkout@main
@@ -31,6 +36,8 @@ jobs:
           python -m pip install ".[test]"
 
       - uses: jupyterlab/maintainer-tools/.github/actions/update-snapshots@v1
+        env:
+          YARN_ENABLE_IMMUTABLE_INSTALLS: '0'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           # Playwright knows how to start JupyterLab server
