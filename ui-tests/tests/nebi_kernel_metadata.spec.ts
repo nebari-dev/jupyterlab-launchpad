@@ -109,6 +109,7 @@ async function mockNebiEndpoints(page: Page): Promise<void> {
 
 test.describe('Nebi kernel metadata', () => {
   test.use({
+    autoGoto: false,
     viewport: { width: 1440, height: 720 },
     mockSettings: {
       ...galata.DEFAULT_SETTINGS,
@@ -139,9 +140,12 @@ test.describe('Nebi kernel metadata', () => {
     }
   });
 
-  test('should render Nebi metadata columns and actions', async ({ page }) => {
+  test('should render Nebi metadata columns and actions', async ({
+    page,
+    tmpPath
+  }) => {
     await mockNebiEndpoints(page);
-    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.goto(`tree/${tmpPath}?reset`);
 
     const launcher = page.locator('.jp-LauncherBody');
     const notebookSection = launcher.locator('.jp-Launcher-launchNotebook');
