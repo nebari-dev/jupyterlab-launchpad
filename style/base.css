@@ -354,3 +354,59 @@ This will likely be needed upstream when no ellipsis wrapping is used.
   /* fill-available is only needed when heading does not collapse
   /* min-width: -webkit-fill-available; */
 }
+
+/* -------------------------------------------------------------------------
+ * Data-driven columns (see docs/data-driven-columns.md).
+ * Themeable badge tones for `renderType: 'badge'`. Colour is always paired
+ * with an icon in the renderer so it is never the sole signal.
+ * ------------------------------------------------------------------------- */
+.jp-Launchpad-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: var(--jp-ui-font-size0);
+  line-height: 1.6;
+  border: 1px solid var(--jp-border-color1);
+}
+
+.jp-Launchpad-badgeIcon,
+.jp-Launchpad-boolIcon {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+}
+
+.jp-Launchpad-badge-neutral {
+  background: var(--jp-layout-color2);
+  color: var(--jp-ui-font-color1);
+}
+.jp-Launchpad-badge-info {
+  background: var(--jp-info-color3, var(--jp-layout-color2));
+  color: var(--jp-info-color1);
+  border-color: var(--jp-info-color1);
+}
+.jp-Launchpad-badge-success {
+  background: var(--jp-success-color3, var(--jp-layout-color2));
+  color: var(--jp-success-color1);
+  border-color: var(--jp-success-color1);
+}
+.jp-Launchpad-badge-warning {
+  background: var(--jp-warn-color3, var(--jp-layout-color2));
+  color: var(--jp-warn-color1);
+  border-color: var(--jp-warn-color1);
+}
+.jp-Launchpad-badge-danger {
+  background: var(--jp-error-color3, var(--jp-layout-color2));
+  color: var(--jp-error-color1);
+  border-color: var(--jp-error-color1);
+}
+
+.jp-Launchpad-version {
+  font-family: var(--jp-code-font-family);
+}
+
+.jp-Launchpad-rowAction {
+  cursor: pointer;
+}

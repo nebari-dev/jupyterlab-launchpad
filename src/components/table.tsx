@@ -17,6 +17,11 @@ import {
   IKernelItem
 } from '../types';
 import { starIcon } from '../icons';
+import {
+  COLUMN_DESCRIPTORS_KEY,
+  collectColumnDescriptors
+} from '../columns';
+import { renderDescriptorCell } from '../columnRenderer';
 
 const STAR_BUTTON_CLASS = 'jp-starIconButton';
 const KERNEL_ITEM_CLASS = 'jp-TableKernelItem';
@@ -116,6 +121,11 @@ export function KernelTable(props: {
     };
   });
 
+  // Descriptors let a metadata provider describe its own columns as data
+  // (label / render style / actions), so launcher core does not need a
+  // per-provider `switch`. See `../columns.ts`.
+  const columnDescriptors = collectColumnDescriptors(props.items);
+
   const metadataAvailable = new Set<string>();
   for (const item of props.items) {
     const kernelMetadata = item.metadata?.kernel;
@@ -123,15 +133,22 @@ export function KernelTable(props: {
       continue;
     }
     for (const key of Object.keys(kernelMetadata)) {
+      // The reserved descriptor block is configuration, not a column.
+      if (key === COLUMN_DESCRIPTORS_KEY) {
+        continue;
+      }
       metadataAvailable.add(key);
     }
   }
 
   const extraColumns: Table.IColumn<IKernelItem>[] = [...metadataAvailable].map(
     metadataKey => {
+      const descriptor = columnDescriptors.get(metadataKey);
       return {
         id: metadataKey,
-        label: columnLabelFromKey(metadataKey),
+        // Descriptor label wins; otherwise fall back to the built-in heuristics
+        // (which still cover kernels that ship no descriptors).
+        label: descriptor?.label ?? columnLabelFromKey(metadataKey),
         renderCell: (item: IKernelItem) => {
           const kernelMeta = item.metadata?.kernel as
             | ReadonlyJSONObject
@@ -141,6 +158,16 @@ export function KernelTable(props: {
               return '-';
             }
             const value = kernelMeta[metadataKey];
+            // Data-driven path: a provider described how to render this column.
+            if (descriptor) {
+              return renderDescriptorCell({
+                descriptor,
+                value,
+                metadata: kernelMeta,
+                commands: props.commands
+              });
+            }
+            // Legacy path: undescribed metadata renders as plain text.
             if (typeof value === 'string') {
               return value;
             }
