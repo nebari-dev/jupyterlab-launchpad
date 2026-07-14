@@ -1,6 +1,11 @@
 // Copyright (c) Nebari Development Team.
 // Distributed under the terms of the Modified BSD License.
-import { JupyterFrontEndPlugin } from '@jupyterlab/application';
+import {
+  JupyterFrontEnd,
+  JupyterFrontEndPlugin
+} from '@jupyterlab/application';
+import { showErrorMessage } from '@jupyterlab/apputils';
+import { ITranslator } from '@jupyterlab/translation';
 import {
   checkIcon,
   downloadIcon,
@@ -8,15 +13,34 @@ import {
   refreshIcon
 } from '@jupyterlab/ui-components';
 import type { LabIcon } from '@jupyterlab/ui-components';
-import type { ReadonlyJSONObject } from '@lumino/coreutils';
+import type {
+  ReadonlyJSONObject,
+  ReadonlyPartialJSONObject
+} from '@lumino/coreutils';
 import * as React from 'react';
+import { refreshKernelsWithInvalidation, requestAPI } from '../handler';
 import {
-  CommandIDs,
   IKernelAction,
   IKernelActionOptions,
+  IKernelIconFallbackTitleProvider,
   IKernelMetadataColumn,
   ILaunchpadKernelTable
 } from '../types';
+
+export namespace NebiCommandIDs {
+  export const pull = 'launchpad:nebi-pull';
+  export const installDependencies = 'launchpad:nebi-install-dependencies';
+  export const editConfig = 'launchpad:nebi-edit-config';
+}
+
+interface INebiActionCapabilities {
+  nebi: boolean;
+  pixi: boolean;
+}
+
+interface INebiConfigPathResponse {
+  path: string;
+}
 
 const NEBI_STATUS_LABELS: Record<string, string> = {
   'not-pulled': 'Not pulled',
@@ -328,7 +352,7 @@ const nebiActions: IKernelAction[] = [
   {
     id: 'nebi-pull',
     label: 'Pull',
-    command: CommandIDs.nebiPull,
+    command: NebiCommandIDs.pull,
     title: 'Pull this Nebi workspace',
     rank: 0,
     isAvailable: options =>
@@ -341,7 +365,7 @@ const nebiActions: IKernelAction[] = [
   {
     id: 'nebi-install-dependencies',
     label: 'Install deps',
-    command: CommandIDs.nebiInstallDependencies,
+    command: NebiCommandIDs.installDependencies,
     title: 'Install missing dependencies',
     rank: 1,
     isAvailable: options =>
@@ -354,7 +378,7 @@ const nebiActions: IKernelAction[] = [
   {
     id: 'nebi-edit-config',
     label: 'Edit config',
-    command: CommandIDs.nebiEditConfig,
+    command: NebiCommandIDs.editConfig,
     title: 'Edit Nebi workspace configuration',
     rank: 2,
     isAvailable: options =>
@@ -364,12 +388,162 @@ const nebiActions: IKernelAction[] = [
   }
 ];
 
+const nebiIconFallbackTitleProvider: IKernelIconFallbackTitleProvider = {
+  id: 'nebi-logo-reason',
+  title: ({ metadata }) => {
+    const logoReason = metadata?.['nebi_logo_reason'];
+    return typeof logoReason === 'string' && logoReason.length > 0
+      ? logoReason
+      : undefined;
+  }
+};
+
+function stringArg(args: ReadonlyPartialJSONObject, key: string): string {
+  const value = args[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function commandBody(args: ReadonlyPartialJSONObject): RequestInit {
+  return {
+    method: 'POST',
+    body: JSON.stringify(args),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  };
+}
+
+async function refreshKernelSpecs(app: JupyterFrontEnd): Promise<void> {
+  await refreshKernelsWithInvalidation();
+  await app.serviceManager.kernelspecs.refreshSpecs();
+}
+
+function registerNebiActionCommands(
+  app: JupyterFrontEnd,
+  trans: ReturnType<ITranslator['load']>
+): void {
+  const { commands } = app;
+  let capabilities: INebiActionCapabilities = {
+    nebi: false,
+    pixi: false
+  };
+  const refreshActionCommands = () => {
+    commands.notifyCommandChanged(NebiCommandIDs.pull);
+    commands.notifyCommandChanged(NebiCommandIDs.installDependencies);
+  };
+
+  void requestAPI<INebiActionCapabilities>('nebi/capabilities')
+    .then(value => {
+      capabilities = value;
+      refreshActionCommands();
+    })
+    .catch(error => {
+      console.warn('Could not load Nebi action capabilities', error);
+      refreshActionCommands();
+    });
+
+  const canPull = (args: ReadonlyPartialJSONObject) =>
+    capabilities.nebi && stringArg(args, 'workspace').length > 0;
+  const canInstallDependencies = (args: ReadonlyPartialJSONObject) =>
+    capabilities.pixi && stringArg(args, 'workspacePath').length > 0;
+  const canEditConfig = (args: ReadonlyPartialJSONObject) =>
+    stringArg(args, 'workspacePath').length > 0;
+
+  commands.addCommand(NebiCommandIDs.pull, {
+    label: trans.__('Pull'),
+    caption: () =>
+      capabilities.nebi
+        ? trans.__('Pull this Nebi workspace')
+        : trans.__('Nebi CLI is not available on this Jupyter server'),
+    isVisible: canPull,
+    isEnabled: canPull,
+    execute: async args => {
+      if (!capabilities.nebi) {
+        return;
+      }
+      try {
+        await requestAPI('nebi/pull', commandBody(args));
+        await refreshKernelSpecs(app);
+      } catch (error) {
+        console.error(error);
+        await showErrorMessage(
+          trans.__('Could not pull Nebi workspace'),
+          error as Error
+        );
+      }
+    }
+  });
+
+  commands.addCommand(NebiCommandIDs.installDependencies, {
+    label: trans.__('Install deps'),
+    caption: () =>
+      capabilities.pixi
+        ? trans.__('Install missing dependencies')
+        : trans.__('Pixi is not available on this Jupyter server'),
+    isVisible: canInstallDependencies,
+    isEnabled: canInstallDependencies,
+    execute: async args => {
+      if (!capabilities.pixi) {
+        return;
+      }
+      try {
+        await requestAPI('nebi/install-dependencies', commandBody(args));
+        await refreshKernelSpecs(app);
+      } catch (error) {
+        console.error(error);
+        await showErrorMessage(
+          trans.__('Could not install Nebi dependencies'),
+          error as Error
+        );
+      }
+    }
+  });
+
+  commands.addCommand(NebiCommandIDs.editConfig, {
+    label: trans.__('Edit config'),
+    caption: trans.__('Edit Nebi workspace configuration'),
+    isVisible: canEditConfig,
+    isEnabled: canEditConfig,
+    execute: async args => {
+      const workspacePath = stringArg(args, 'workspacePath');
+      if (!workspacePath) {
+        return;
+      }
+
+      try {
+        const response = await requestAPI<INebiConfigPathResponse>(
+          'nebi/config-path',
+          commandBody(args)
+        );
+        await commands.execute('docmanager:open', {
+          path: response.path
+        });
+      } catch (error) {
+        console.error(error);
+        await showErrorMessage(
+          trans.__('Could not open Nebi config'),
+          error as Error
+        );
+      }
+    }
+  });
+}
+
 export const nebiKernelTablePlugin: JupyterFrontEndPlugin<void> = {
   id: 'jupyterlab-launchpad:nebi',
   description: 'Nebi kernel metadata presentation for launchpad',
   autoStart: true,
-  requires: [ILaunchpadKernelTable],
-  activate: (_app, kernelTable: ILaunchpadKernelTable) => {
+  requires: [ITranslator, ILaunchpadKernelTable],
+  activate: (
+    app,
+    translator: ITranslator,
+    kernelTable: ILaunchpadKernelTable
+  ) => {
+    const trans = translator.load('jupyterlab-launchpad');
+    registerNebiActionCommands(app, trans);
+    kernelTable.registerIconFallbackTitleProvider(
+      nebiIconFallbackTitleProvider
+    );
     for (const column of nebiColumns) {
       kernelTable.registerMetadataColumn(column);
     }

@@ -3,6 +3,8 @@ import { ISignal, Signal } from '@lumino/signaling';
 import {
   IKernelAction,
   IKernelActionOptions,
+  IKernelIconFallbackTitleOptions,
+  IKernelIconFallbackTitleProvider,
   IKernelMetadataColumn,
   ILaunchpadKernelTable
 } from './types';
@@ -40,8 +42,35 @@ export class LaunchpadKernelTable implements ILaunchpadKernelTable {
       .sort((a, b) => (a.rank ?? 100) - (b.rank ?? 100));
   }
 
+  registerIconFallbackTitleProvider(
+    provider: IKernelIconFallbackTitleProvider
+  ): void {
+    if (!provider.id) {
+      throw new Error('Kernel icon fallback title provider id is required.');
+    }
+
+    this._iconFallbackTitleProviders.set(provider.id, provider);
+    this._changed.emit();
+  }
+
+  getIconFallbackTitle(
+    options: IKernelIconFallbackTitleOptions
+  ): string | undefined {
+    for (const provider of this._iconFallbackTitleProviders.values()) {
+      const title = provider.title(options);
+      if (title !== undefined) {
+        return title;
+      }
+    }
+    return undefined;
+  }
+
   private _metadataColumns = new Map<string, IKernelMetadataColumn>();
   private _actions = new Map<string, IKernelAction>();
+  private _iconFallbackTitleProviders = new Map<
+    string,
+    IKernelIconFallbackTitleProvider
+  >();
   private _changed = new Signal<ILaunchpadKernelTable, void>(this);
 }
 

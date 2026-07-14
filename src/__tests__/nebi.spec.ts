@@ -10,9 +10,41 @@ jest.mock('@jupyterlab/ui-components', () => {
   };
 });
 
+jest.mock('@jupyterlab/apputils', () => ({
+  showErrorMessage: jest.fn(() => Promise.resolve())
+}));
+
+jest.mock('../handler', () => ({
+  refreshKernelsWithInvalidation: jest.fn(() => Promise.resolve()),
+  requestAPI: jest.fn(() => Promise.resolve({ nebi: true, pixi: true }))
+}));
+
 import { LaunchpadKernelTable } from '../kernel-table';
-import { nebiKernelTablePlugin } from '../components/nebi';
-import { CommandIDs, IKernelItem } from '../types';
+import { NebiCommandIDs, nebiKernelTablePlugin } from '../components/nebi';
+import { IKernelItem } from '../types';
+
+function activateNebiPlugin(registry: LaunchpadKernelTable) {
+  const app = {
+    commands: {
+      addCommand: jest.fn(),
+      execute: jest.fn(),
+      notifyCommandChanged: jest.fn()
+    },
+    serviceManager: {
+      kernelspecs: {
+        refreshSpecs: jest.fn()
+      }
+    }
+  };
+  const translator = {
+    load: () => ({
+      __: (message: string) => message
+    })
+  };
+
+  nebiKernelTablePlugin.activate(app as never, translator as never, registry);
+  return app;
+}
 
 describe('LaunchpadKernelTable', () => {
   it('registers metadata columns', () => {
@@ -45,7 +77,7 @@ describe('LaunchpadKernelTable', () => {
     const registry = new LaunchpadKernelTable();
     const item = {} as IKernelItem;
 
-    nebiKernelTablePlugin.activate({} as never, registry);
+    activateNebiPlugin(registry);
 
     const state = registry.getMetadataColumn('nebi_state');
     const source = registry.getMetadataColumn('nebi_source');
@@ -83,7 +115,7 @@ describe('LaunchpadKernelTable', () => {
   it('supports split Nebi status and location metadata', () => {
     const registry = new LaunchpadKernelTable();
 
-    nebiKernelTablePlugin.activate({} as never, registry);
+    activateNebiPlugin(registry);
 
     const status = registry.getMetadataColumn('nebi_status');
     const location = registry.getMetadataColumn('nebi_location');
@@ -92,11 +124,48 @@ describe('LaunchpadKernelTable', () => {
     expect(location?.label).toBe('Location');
   });
 
+  it('registers Nebi commands from the Nebi plugin', () => {
+    const registry = new LaunchpadKernelTable();
+
+    const app = activateNebiPlugin(registry);
+
+    expect(app.commands.addCommand).toHaveBeenCalledWith(
+      NebiCommandIDs.pull,
+      expect.any(Object)
+    );
+    expect(app.commands.addCommand).toHaveBeenCalledWith(
+      NebiCommandIDs.installDependencies,
+      expect.any(Object)
+    );
+    expect(app.commands.addCommand).toHaveBeenCalledWith(
+      NebiCommandIDs.editConfig,
+      expect.any(Object)
+    );
+  });
+
+  it('keeps Nebi fallback icon titles behind the Nebi plugin', () => {
+    const registry = new LaunchpadKernelTable();
+    const item = {} as IKernelItem;
+    const options = {
+      item,
+      metadata: {
+        nebi_logo_reason: 'Logo is missing'
+      },
+      trans: null as never
+    };
+
+    expect(registry.getIconFallbackTitle(options)).toBeUndefined();
+
+    activateNebiPlugin(registry);
+
+    expect(registry.getIconFallbackTitle(options)).toBe('Logo is missing');
+  });
+
   it('registers context-dependent Nebi actions', () => {
     const registry = new LaunchpadKernelTable();
     const item = {} as IKernelItem;
 
-    nebiKernelTablePlugin.activate({} as never, registry);
+    activateNebiPlugin(registry);
 
     const remoteActions = registry.getActions({
       item,
@@ -107,7 +176,7 @@ describe('LaunchpadKernelTable', () => {
       trans: null as never
     });
     expect(remoteActions.map(action => action.command)).toEqual([
-      CommandIDs.nebiPull
+      NebiCommandIDs.pull
     ]);
     expect(
       remoteActions[0].args?.({
@@ -133,8 +202,8 @@ describe('LaunchpadKernelTable', () => {
       trans: null as never
     });
     expect(missingDependencyActions.map(action => action.command)).toEqual([
-      CommandIDs.nebiInstallDependencies,
-      CommandIDs.nebiEditConfig
+      NebiCommandIDs.installDependencies,
+      NebiCommandIDs.editConfig
     ]);
 
     const readyActions = registry.getActions({
@@ -147,7 +216,7 @@ describe('LaunchpadKernelTable', () => {
       trans: null as never
     });
     expect(readyActions.map(action => action.command)).toEqual([
-      CommandIDs.nebiEditConfig
+      NebiCommandIDs.editConfig
     ]);
   });
 });

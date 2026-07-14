@@ -33,9 +33,6 @@ export interface ISectionOptions {
 export namespace CommandIDs {
   export const create = 'launcher:create';
   export const refreshKernels = 'launchpad:refresh-kernels';
-  export const nebiPull = 'launchpad:nebi-pull';
-  export const nebiInstallDependencies = 'launchpad:nebi-install-dependencies';
-  export const nebiEditConfig = 'launchpad:nebi-edit-config';
   export const moveColumn = 'launchpad:table-move-column';
   export const toggleColumn = 'launchpad:table-toggle-column';
   export const showCreateEmpty = 'launchpad:show-create-empty';
@@ -81,6 +78,12 @@ export interface ILaunchpadKernelTable {
   getMetadataColumn(id: string): IKernelMetadataColumn | undefined;
   registerAction(action: IKernelAction): void;
   getActions(options: IKernelActionOptions): IKernelAction[];
+  registerIconFallbackTitleProvider(
+    provider: IKernelIconFallbackTitleProvider
+  ): void;
+  getIconFallbackTitle(
+    options: IKernelIconFallbackTitleOptions
+  ): string | undefined;
 }
 
 export interface IKernelMetadataColumn {
@@ -109,6 +112,17 @@ export interface IKernelAction {
 }
 
 export interface IKernelActionOptions {
+  item: IKernelItem;
+  metadata: ReadonlyJSONObject | undefined;
+  trans: TranslationBundle;
+}
+
+export interface IKernelIconFallbackTitleProvider {
+  id: string;
+  title(options: IKernelIconFallbackTitleOptions): string | undefined;
+}
+
+export interface IKernelIconFallbackTitleOptions {
   item: IKernelItem;
   metadata: ReadonlyJSONObject | undefined;
   trans: TranslationBundle;

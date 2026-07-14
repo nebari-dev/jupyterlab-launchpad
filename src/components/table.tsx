@@ -129,19 +129,6 @@ function metadataValueTitle(
   return metadataValueToString(value);
 }
 
-function fallbackIconTitle(
-  metadata: ReadonlyJSONObject | undefined
-): string | undefined {
-  if (!metadata) {
-    return undefined;
-  }
-
-  const logoReason = metadata['nebi_logo_reason'];
-  return typeof logoReason === 'string' && logoReason.length > 0
-    ? logoReason
-    : undefined;
-}
-
 function compareMetadataValues(aValue: unknown, bValue: unknown): number {
   if (aValue === bValue) {
     return 0;
@@ -403,47 +390,52 @@ export function KernelTable(props: {
     {
       id: 'kernel',
       label: trans.__('Kernel'),
-      renderCell: (row: IKernelItem) => (
-        <EllipsedCell>
-          <span
-            className={KERNEL_ITEM_CLASS}
-            onClick={event => {
-              props.onClick(row);
-              event.stopPropagation();
-            }}
-            onKeyDown={event => {
-              // TODO memoize func defs for perf
-              if (event.key === 'Enter') {
-                row.execute();
-              }
-            }}
-            tabIndex={0}
-          >
+      renderCell: (row: IKernelItem) => {
+        const metadata = row.metadata?.kernel as ReadonlyJSONObject | undefined;
+        return (
+          <EllipsedCell>
             <span
-              className="jp-LauncherCard-icon"
-              onClick={() => props.onClick(row)}
+              className={KERNEL_ITEM_CLASS}
+              onClick={event => {
+                props.onClick(row);
+                event.stopPropagation();
+              }}
+              onKeyDown={event => {
+                // TODO memoize func defs for perf
+                if (event.key === 'Enter') {
+                  row.execute();
+                }
+              }}
+              tabIndex={0}
             >
-              {row.kernelIconUrl ? (
-                <img
-                  src={row.kernelIconUrl}
-                  className="jp-Launcher-kernelIcon"
-                  alt={row.label}
-                />
-              ) : (
-                <div
-                  className="jp-LauncherCard-noKernelIcon"
-                  title={fallbackIconTitle(
-                    row.metadata?.kernel as ReadonlyJSONObject | undefined
-                  )}
-                >
-                  {row.label[0].toUpperCase()}
-                </div>
-              )}
+              <span
+                className="jp-LauncherCard-icon"
+                onClick={() => props.onClick(row)}
+              >
+                {row.kernelIconUrl ? (
+                  <img
+                    src={row.kernelIconUrl}
+                    className="jp-Launcher-kernelIcon"
+                    alt={row.label}
+                  />
+                ) : (
+                  <div
+                    className="jp-LauncherCard-noKernelIcon"
+                    title={props.kernelTable.getIconFallbackTitle({
+                      item: row,
+                      metadata,
+                      trans
+                    })}
+                  >
+                    {row.label[0].toUpperCase()}
+                  </div>
+                )}
+              </span>
+              <span className="jp-TableKernelItem-label">{row.label}</span>
             </span>
-            <span className="jp-TableKernelItem-label">{row.label}</span>
-          </span>
-        </EllipsedCell>
-      ),
+          </EllipsedCell>
+        );
+      },
       sort: (a: IKernelItem, b: IKernelItem) => a.label.localeCompare(b.label)
     },
     ...extraColumns,
