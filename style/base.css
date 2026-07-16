@@ -181,14 +181,8 @@
   color: inherit;
 }
 
-.jp-NebiIndicator-icon > svg[fill],
-.jp-NebiIndicator-icon > svg [fill] {
+.jp-NebiIndicator-icon > svg > .jp-icon3 {
   fill: currentcolor;
-}
-
-.jp-NebiIndicator-icon > svg[stroke],
-.jp-NebiIndicator-icon > svg [stroke] {
-  stroke: currentcolor;
 }
 
 .jp-NebiStatus-ready,
