@@ -19,6 +19,7 @@ jest.mock('../handler', () => ({
   requestAPI: jest.fn(() => Promise.resolve({ nebi: true, pixi: true }))
 }));
 
+import * as React from 'react';
 import { LaunchpadKernelTable } from '../kernel-table';
 import { NebiCommandIDs, nebiKernelTablePlugin } from '../components/nebi';
 import { IKernelItem } from '../types';
@@ -97,19 +98,31 @@ describe('LaunchpadKernelTable', () => {
         trans: null as never
       })
     ).toBe('Missing: ipykernel');
+    const renderedRemoteVersion = remoteVersion?.render?.({
+      item,
+      metadataKey: 'nebi_remote_version',
+      value: 'v2',
+      metadata: {
+        nebi_local_version: 'v1',
+        nebi_remote_version: 'v2',
+        nebi_outdated: true
+      },
+      trans: null as never
+    });
+    if (
+      !React.isValidElement<{ children: React.ReactNode }>(
+        renderedRemoteVersion
+      )
+    ) {
+      throw new Error('Expected latest version to render as a React element');
+    }
     expect(
-      remoteVersion?.render?.({
-        item,
-        metadataKey: 'nebi_remote_version',
-        value: 'v2',
-        metadata: {
-          nebi_local_version: 'v1',
-          nebi_remote_version: 'v2',
-          nebi_outdated: true
-        },
-        trans: null as never
-      })
-    ).toBeDefined();
+      React.Children.toArray(renderedRemoteVersion.props.children).map(child =>
+        React.isValidElement<{ children: React.ReactNode }>(child)
+          ? child.props.children
+          : child
+      )
+    ).toEqual(['v2', '(Latest)']);
   });
 
   it('supports split Nebi status and location metadata', () => {

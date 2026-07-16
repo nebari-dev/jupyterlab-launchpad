@@ -22,5 +22,6 @@ dependencies:
   # additional packages for demos
   # - ipywidgets
   - pip:
-    - jupyter-server-proxy
-    - jupyter-vscode-proxy
+      - nb-nebi-kernels
+      - jupyter-server-proxy
+      - jupyter-vscode-proxy

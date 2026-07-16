@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 from typing import Any, Dict, List, Optional
@@ -7,6 +8,10 @@ from typing import Any, Dict, List, Optional
 from jupyter_server.base.handlers import APIHandler
 from jupyter_server.utils import url_path_join
 import tornado
+
+
+_NEBI_WORKSPACE_RE = re.compile(r"^(?!-)[A-Za-z0-9._/@:+-]+$")
+_NEBI_VERSION_RE = re.compile(r"^(?!-)[A-Za-z0-9._+-]+$")
 
 
 class DatabaseHandler(APIHandler):
@@ -87,8 +92,13 @@ class NebiActionHandler(APIHandler):
         workspace = _string_field(body, "workspace")
         if not workspace:
             raise tornado.web.HTTPError(400, reason="Missing workspace")
+        _validate_nebi_field(workspace, _NEBI_WORKSPACE_RE, "workspace")
 
         remote_version = _string_field(body, "remoteVersion")
+        if remote_version:
+            _validate_nebi_field(
+                remote_version, _NEBI_VERSION_RE, "remote version"
+            )
         workspace_ref = f"{workspace}:{remote_version}" if remote_version else workspace
         result = _run_command(["nebi", "pull", workspace_ref, "--force"])
         self.finish(json.dumps(result))
@@ -98,9 +108,7 @@ class NebiActionHandler(APIHandler):
         if not workspace_path:
             raise tornado.web.HTTPError(400, reason="Missing workspace path")
 
-        workspace_dir = Path(workspace_path)
-        if not workspace_dir.is_dir():
-            raise tornado.web.HTTPError(400, reason="Workspace path does not exist")
+        workspace_dir = _resolve_workspace_dir(self.server_app, workspace_path)
 
         manifest = _find_manifest(workspace_dir)
         if not manifest.exists():
@@ -129,7 +137,8 @@ class NebiActionHandler(APIHandler):
         if not workspace_path:
             raise tornado.web.HTTPError(400, reason="Missing workspace path")
 
-        manifest = _find_manifest(Path(workspace_path))
+        workspace_dir = _resolve_workspace_dir(self.server_app, workspace_path)
+        manifest = _find_manifest(workspace_dir)
         if not manifest.exists():
             raise tornado.web.HTTPError(400, reason="Workspace manifest does not exist")
 
@@ -168,11 +177,43 @@ def _find_manifest(workspace_dir: Path) -> Path:
     return workspace_dir / "pixi.toml"
 
 
-def _contents_path(server_app, path: Path) -> str:
+def _validate_nebi_field(
+    value: str, pattern: re.Pattern[str], field: str
+) -> None:
+    if not pattern.fullmatch(value):
+        raise tornado.web.HTTPError(400, reason=f"Invalid Nebi {field}")
+
+
+def _server_root(server_app) -> Path:
     root = getattr(server_app, "root_dir", None) or getattr(
         getattr(server_app, "contents_manager", None), "root_dir", ""
     )
-    root_path = Path(root).resolve()
+    return Path(root).resolve()
+
+
+def _resolve_workspace_dir(server_app, workspace_path: str) -> Path:
+    root_path = _server_root(server_app)
+    workspace_dir = Path(workspace_path)
+    if not workspace_dir.is_absolute():
+        workspace_dir = root_path / workspace_dir
+    resolved_dir = workspace_dir.resolve()
+
+    try:
+        resolved_dir.relative_to(root_path)
+    except ValueError:
+        raise tornado.web.HTTPError(
+            400,
+            reason="Workspace path is outside the Jupyter file browser root",
+        )
+
+    if not resolved_dir.is_dir():
+        raise tornado.web.HTTPError(400, reason="Workspace path does not exist")
+
+    return resolved_dir
+
+
+def _contents_path(server_app, path: Path) -> str:
+    root_path = _server_root(server_app)
     resolved_path = path.resolve()
 
     try:

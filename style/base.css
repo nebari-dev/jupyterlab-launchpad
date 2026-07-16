@@ -181,11 +181,13 @@
   color: inherit;
 }
 
-.jp-NebiIndicator-icon [fill] {
+.jp-NebiIndicator-icon > svg[fill],
+.jp-NebiIndicator-icon > svg [fill] {
   fill: currentcolor;
 }
 
-.jp-NebiIndicator-icon [stroke] {
+.jp-NebiIndicator-icon > svg[stroke],
+.jp-NebiIndicator-icon > svg [stroke] {
   stroke: currentcolor;
 }
 
@@ -209,7 +211,6 @@
   font-size: 10px;
   font-weight: 600;
   color: var(--jp-success-color1);
-  text-transform: uppercase;
 }
 
 .jp-KernelActions {

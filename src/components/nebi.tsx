@@ -302,8 +302,8 @@ const nebiColumns: IKernelMetadataColumn[] = Object.entries(
           title="Latest version"
           aria-label={`${version} latest version`}
         >
-          <span className="jp-NebiVersionLatest">latest</span>
           <span>{version}</span>
+          <span className="jp-NebiVersionLatest">(Latest)</span>
         </span>
       );
     }

@@ -31,7 +31,7 @@ import {
 import { addCommands } from './commands';
 import { sessionDialogsPlugin } from './dialogs';
 import { databasePlugin } from './database';
-import { kernelTablePlugin } from './kernel-table';
+import { kernelTablePlugin, LaunchpadKernelTable } from './kernel-table';
 import { nebiKernelTablePlugin } from './components/nebi';
 import webkitCSSPatch from '../style/webkit.raw.css';
 
@@ -52,13 +52,13 @@ const launcherPlugin: JupyterFrontEndPlugin<ILauncher> = {
   description: 'A redesigned JupyterLab launcher',
   provides: ILauncher,
   autoStart: true,
-  requires: [
-    ITranslator,
-    ISettingRegistry,
-    ILauncherDatabase,
-    ILaunchpadKernelTable
+  requires: [ITranslator, ISettingRegistry, ILauncherDatabase],
+  optional: [
+    ILaunchpadKernelTable,
+    ILabShell,
+    ICommandPalette,
+    IDefaultFileBrowser
   ],
-  optional: [ILabShell, ICommandPalette, IDefaultFileBrowser],
   activate
 };
 
@@ -90,7 +90,7 @@ function activate(
   translator: ITranslator,
   settingRegistry: ISettingRegistry,
   database: ILauncherDatabase,
-  kernelTable: ILaunchpadKernelTable,
+  kernelTable: ILaunchpadKernelTable | null,
   labShell: ILabShell | null,
   palette: ICommandPalette | null,
   defaultBrowser: IDefaultFileBrowser | null
@@ -98,6 +98,7 @@ function activate(
   const { commands, shell } = app;
   const trans = translator.load('jupyterlab-launchpad');
   const model = new Model();
+  const launchpadKernelTable = kernelTable ?? new LaunchpadKernelTable();
 
   if (
     navigator.userAgent.indexOf('AppleWebKit') !== -1 &&
@@ -170,7 +171,7 @@ function activate(
         translator,
         lastUsedDatabase: database.lastUsed,
         favoritesDatabase: database.favorites,
-        kernelTable,
+        kernelTable: launchpadKernelTable,
         settings
       });
 
