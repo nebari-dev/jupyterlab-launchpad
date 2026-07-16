@@ -15,13 +15,17 @@ dependencies:
   - jupyterlab >=4.2.0,<5
   - jupyterlab_server >=2.27.1
   # labextension build dependencies
+  - git
   - nodejs >=22.12,<23
+  # additional packages for demos
+  - nebi-cli =0.13
   - nb_conda_kernels
+  - pixi
   - pip
   - wheel
-  # additional packages for demos
   # - ipywidgets
   - pip:
-      - nb-nebi-kernels
+      # we have to switch back to PyPI after nb-nebi-kernels#5 is released - this is just for testing purpose.
+      - nb-nebi-kernels @ git+https://github.com/nebari-dev/nb-nebi-kernels.git@01b69406eddcd09e9d1dd541dc642d6267fbd177
       - jupyter-server-proxy
       - jupyter-vscode-proxy

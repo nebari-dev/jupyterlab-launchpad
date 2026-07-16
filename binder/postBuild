@@ -8,12 +8,15 @@
 
         python3 binder/postBuild
 """
+import json
 import subprocess
 import sys
 from pathlib import Path
 
 
 ROOT = Path.cwd()
+NEBI_DEMO_WORKSPACE = ROOT / "binder" / "nebi-workspaces" / "launchpad-demo"
+
 
 def _(*args, **kwargs):
     """ Run a command, echoing the args
@@ -26,12 +29,53 @@ def _(*args, **kwargs):
         print("\nERROR", return_code, " ".join(args))
         sys.exit(return_code)
 
+
+def _nebi_workspace_tracked(path):
+    """Return whether nebi already tracks the demo workspace."""
+    print("\n\tnebi workspace list --json\n")
+    result = subprocess.run(
+        ["nebi", "workspace", "list", "--json"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print("\nERROR", result.returncode, "nebi workspace list --json")
+        print(result.stderr)
+        sys.exit(result.returncode)
+
+    data = json.loads(result.stdout)
+    for workspace in data if isinstance(data, list) else []:
+        workspace_path = (
+            workspace.get("path") if isinstance(workspace, dict) else None
+        )
+        if (
+            isinstance(workspace_path, str)
+            and Path(workspace_path).resolve() == path
+        ):
+            return True
+    return False
+
+
+def _create_nebi_demo_workspace():
+    """Create a small tracked Nebi/Pixi workspace for Binder previews."""
+    NEBI_DEMO_WORKSPACE.parent.mkdir(exist_ok=True, parents=True)
+    if not (NEBI_DEMO_WORKSPACE / "pixi.toml").exists():
+        _("pixi", "init", "--format", "pixi", str(NEBI_DEMO_WORKSPACE))
+
+    workspace_path = NEBI_DEMO_WORKSPACE.resolve()
+    if not _nebi_workspace_tracked(workspace_path):
+        _("nebi", "init", cwd=workspace_path)
+
+
 # verify the environment is self-consistent before even starting
 _(sys.executable, "-m", "pip", "check")
 
 # install the labextension
 _(sys.executable, "-m", "pip", "install", "-e", ".")
 _(sys.executable, "-m", "jupyter", "labextension", "develop", "--overwrite", ".")
+
+# create a small nebi workspace so Binder previews show nebi kernel metadata
+_create_nebi_demo_workspace()
 
 # verify the environment the extension didn't break anything
 _(sys.executable, "-m", "pip", "check")

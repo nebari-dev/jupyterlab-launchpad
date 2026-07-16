@@ -16,6 +16,9 @@ jupyterlab_launchpad/_version.py
 ui-tests/test-results/
 ui-tests/playwright-report/
 
+# Binder creates this demo workspace during postBuild.
+binder/nebi-workspaces/
+
 # Created by https://www.gitignore.io/api/python
 # Edit at https://www.gitignore.io/?templates=python
 
