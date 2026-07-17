@@ -17,11 +17,11 @@ from pathlib import Path
 
 ROOT = Path.cwd()
 NEBI_DEMO_WORKSPACE = ROOT / "binder" / "nebi-workspaces" / "launchpad-demo"
-JUPYTER_CONFIG_DIR = (
+JUPYTER_CONFIG_PATH = (
     Path(os.environ.get("CONDA_PREFIX", sys.prefix))
     / "etc"
     / "jupyter"
-    / "jupyter_server_config.d"
+    / "jupyter_server_config.json"
 )
 
 
@@ -76,14 +76,19 @@ def _create_nebi_demo_workspace():
 
 def _configure_nebi_kernel_manager():
     """Ensure the Binder preview uses the Nebi kernel provider."""
-    JUPYTER_CONFIG_DIR.mkdir(exist_ok=True, parents=True)
-    (JUPYTER_CONFIG_DIR / "zz_nb_nebi_kernels.json").write_text(
+    JUPYTER_CONFIG_PATH.parent.mkdir(exist_ok=True, parents=True)
+    JUPYTER_CONFIG_PATH.write_text(
         json.dumps(
             {
                 "ServerApp": {
                     "kernel_spec_manager_class": (
                         "nb_nebi_kernels.NebiKernelSpecManager"
                     )
+                },
+                "NebiKernelSpecManager": {
+                    "workspace_discovery_roots": [
+                        str(NEBI_DEMO_WORKSPACE.parent.resolve())
+                    ]
                 }
             },
             indent=2,
