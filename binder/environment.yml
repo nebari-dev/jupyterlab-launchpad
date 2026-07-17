@@ -19,7 +19,6 @@ dependencies:
   - nodejs >=22.12,<23
   # additional packages for demos
   - nebi-cli =0.13
-  - nb_conda_kernels
   - pixi
   - pip
   - wheel

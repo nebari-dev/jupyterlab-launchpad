@@ -9,6 +9,7 @@
         python3 binder/postBuild
 """
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -16,6 +17,12 @@ from pathlib import Path
 
 ROOT = Path.cwd()
 NEBI_DEMO_WORKSPACE = ROOT / "binder" / "nebi-workspaces" / "launchpad-demo"
+JUPYTER_CONFIG_DIR = (
+    Path(os.environ.get("CONDA_PREFIX", sys.prefix))
+    / "etc"
+    / "jupyter"
+    / "jupyter_server_config.d"
+)
 
 
 def _(*args, **kwargs):
@@ -67,6 +74,24 @@ def _create_nebi_demo_workspace():
         _("nebi", "init", cwd=workspace_path)
 
 
+def _configure_nebi_kernel_manager():
+    """Ensure the Binder preview uses the Nebi kernel provider."""
+    JUPYTER_CONFIG_DIR.mkdir(exist_ok=True, parents=True)
+    (JUPYTER_CONFIG_DIR / "zz_nb_nebi_kernels.json").write_text(
+        json.dumps(
+            {
+                "ServerApp": {
+                    "kernel_spec_manager_class": (
+                        "nb_nebi_kernels.NebiKernelSpecManager"
+                    )
+                }
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
 # verify the environment is self-consistent before even starting
 _(sys.executable, "-m", "pip", "check")
 
@@ -76,6 +101,7 @@ _(sys.executable, "-m", "jupyter", "labextension", "develop", "--overwrite", "."
 
 # create a small nebi workspace so Binder previews show nebi kernel metadata
 _create_nebi_demo_workspace()
+_configure_nebi_kernel_manager()
 
 # verify the environment the extension didn't break anything
 _(sys.executable, "-m", "pip", "check")
