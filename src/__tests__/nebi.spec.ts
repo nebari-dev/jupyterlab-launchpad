@@ -187,7 +187,7 @@ describe('LaunchpadKernelTable', () => {
       expect.any(Promise),
       expect.objectContaining({
         pending: expect.objectContaining({
-          message: 'Installing Nebi dependencies...'
+          message: 'Installing dependencies...'
         })
       })
     );
