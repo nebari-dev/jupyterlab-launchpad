@@ -4,7 +4,7 @@ import {
   JupyterFrontEnd,
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
-import { showErrorMessage } from '@jupyterlab/apputils';
+import { Notification, showErrorMessage } from '@jupyterlab/apputils';
 import { ITranslator } from '@jupyterlab/translation';
 import {
   checkIcon,
@@ -418,6 +418,30 @@ async function refreshKernelSpecs(app: JupyterFrontEnd): Promise<void> {
   await app.serviceManager.kernelspecs.refreshSpecs();
 }
 
+function notifyAction<T>(
+  operation: Promise<T>,
+  messages: { pending: string; success: string; error: string }
+): Promise<T> {
+  Notification.promise(
+    operation.then(() => null),
+    {
+      pending: {
+        message: messages.pending,
+        options: { autoClose: false }
+      },
+      success: {
+        message: () => messages.success,
+        options: { autoClose: 3000 }
+      },
+      error: {
+        message: () => messages.error,
+        options: { autoClose: false }
+      }
+    }
+  );
+  return operation;
+}
+
 function registerNebiActionCommands(
   app: JupyterFrontEnd,
   trans: ReturnType<ITranslator['load']>
@@ -462,8 +486,16 @@ function registerNebiActionCommands(
         return;
       }
       try {
-        await requestAPI('nebi/pull', commandBody(args));
-        await refreshKernelSpecs(app);
+        await notifyAction(
+          requestAPI('nebi/pull', commandBody(args)).then(() =>
+            refreshKernelSpecs(app)
+          ),
+          {
+            pending: trans.__('Pulling workspace...'),
+            success: trans.__('Workspace Pulled'),
+            error: trans.__('Could not pull workspace')
+          }
+        );
       } catch (error) {
         console.error(error);
         await showErrorMessage(
@@ -487,8 +519,16 @@ function registerNebiActionCommands(
         return;
       }
       try {
-        await requestAPI('nebi/install-dependencies', commandBody(args));
-        await refreshKernelSpecs(app);
+        await notifyAction(
+          requestAPI('nebi/install-dependencies', commandBody(args)).then(() =>
+            refreshKernelSpecs(app)
+          ),
+          {
+            pending: trans.__('Installing dependencies...'),
+            success: trans.__('Dependencies installed'),
+            error: trans.__('Could not install dependencies')
+          }
+        );
       } catch (error) {
         console.error(error);
         await showErrorMessage(

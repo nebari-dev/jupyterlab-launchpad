@@ -11,6 +11,9 @@ jest.mock('@jupyterlab/ui-components', () => {
 });
 
 jest.mock('@jupyterlab/apputils', () => ({
+  Notification: {
+    promise: jest.fn()
+  },
   showErrorMessage: jest.fn(() => Promise.resolve())
 }));
 
@@ -20,8 +23,10 @@ jest.mock('../handler', () => ({
 }));
 
 import * as React from 'react';
+import { Notification } from '@jupyterlab/apputils';
 import { LaunchpadKernelTable } from '../kernel-table';
 import { NebiCommandIDs, nebiKernelTablePlugin } from '../components/nebi';
+import { requestAPI } from '../handler';
 import { IKernelItem } from '../types';
 
 function activateNebiPlugin(registry: LaunchpadKernelTable) {
@@ -153,6 +158,38 @@ describe('LaunchpadKernelTable', () => {
     expect(app.commands.addCommand).toHaveBeenCalledWith(
       NebiCommandIDs.editConfig,
       expect.any(Object)
+    );
+  });
+
+  it('shows progress notifications for Nebi install actions', async () => {
+    jest.clearAllMocks();
+    const registry = new LaunchpadKernelTable();
+
+    const app = activateNebiPlugin(registry);
+    await Promise.resolve();
+    const installCommand = (
+      app.commands.addCommand as jest.Mock
+    ).mock.calls.find(([id]) => id === NebiCommandIDs.installDependencies)?.[1];
+    if (!installCommand) {
+      throw new Error('Install dependencies command was not registered');
+    }
+
+    await installCommand.execute({
+      workspacePath: '/tmp/demo',
+      missingDependencies: ['ipykernel']
+    });
+
+    expect(requestAPI).toHaveBeenCalledWith(
+      'nebi/install-dependencies',
+      expect.objectContaining({ method: 'POST' })
+    );
+    expect(Notification.promise).toHaveBeenCalledWith(
+      expect.any(Promise),
+      expect.objectContaining({
+        pending: expect.objectContaining({
+          message: 'Installing Nebi dependencies...'
+        })
+      })
     );
   });
 

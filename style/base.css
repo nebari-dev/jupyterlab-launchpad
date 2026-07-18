@@ -220,6 +220,7 @@
   color: var(--jp-ui-font-color1);
   background: var(--jp-layout-color1);
   border: var(--jp-border-width) solid var(--jp-border-color2);
+  cursor: pointer;
 }
 
 .jp-NewLauncher-table th[data-id='icon'],
