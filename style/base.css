@@ -223,6 +223,14 @@
   cursor: pointer;
 }
 
+.jp-KernelActionButton:hover,
+.jp-KernelActionButton:focus-visible {
+  background: var(--jp-layout-color2);
+  border-color: var(--jp-brand-color1);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .jp-NewLauncher-table th[data-id='icon'],
 .jp-NewLauncher-table th[data-id='star'] {
   width: var(--jp-icon-size);
