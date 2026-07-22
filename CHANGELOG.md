@@ -4,6 +4,10 @@
 
 <!-- <END NEW CHANGELOG ENTRY> -->
 
+## `v1.1.0`
+
+- Add support for `nb-nebi-kernels` state metadata and add explicit refresh trigger by @MUFFANUJ in https://github.com/nebari-dev/jupyterlab-launchpad/pull/80
+
 ## `v1.0.5`
 
 - Disable activity tracking on `DatabaseHandler` to allow idle server shutdown by @tylerpotts in https://github.com/nebari-dev/jupyterlab-launchpad/pull/78
