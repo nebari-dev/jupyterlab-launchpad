@@ -20,7 +20,8 @@ import { ReadonlyPartialJSONObject } from '@lumino/coreutils';
 import { DockPanel, TabBar, Widget } from '@lumino/widgets';
 import { NewLauncher as Launcher } from './launcher';
 import { NewModel as Model } from './model';
-import { refreshKernelsWithInvalidation } from './handler';
+import { refreshKernelSpecs } from './kernel-refresh';
+import { addKernelRefreshMessageListener } from './kernel-refresh-messages';
 import {
   CommandIDs,
   ILauncherDatabase,
@@ -77,11 +78,6 @@ function createStyleSheet(text: string): HTMLStyleElement {
   return style;
 }
 
-async function refreshKernelSpecs(app: JupyterFrontEnd): Promise<void> {
-  await refreshKernelsWithInvalidation();
-  await app.serviceManager.kernelspecs.refreshSpecs();
-}
-
 /**
  * Activate the launcher.
  */
@@ -98,6 +94,8 @@ function activate(
   const { commands, shell } = app;
   const trans = translator.load('jupyterlab-launchpad');
   const model = new Model();
+
+  addKernelRefreshMessageListener(app);
 
   if (
     navigator.userAgent.indexOf('AppleWebKit') !== -1 &&

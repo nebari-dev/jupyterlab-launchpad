@@ -18,7 +18,8 @@ import type {
   ReadonlyPartialJSONObject
 } from '@lumino/coreutils';
 import * as React from 'react';
-import { refreshKernelsWithInvalidation, requestAPI } from '../handler';
+import { requestAPI } from '../handler';
+import { refreshKernelSpecs } from '../kernel-refresh';
 import {
   IKernelAction,
   IKernelActionOptions,
@@ -411,11 +412,6 @@ function commandBody(args: ReadonlyPartialJSONObject): RequestInit {
       'Content-Type': 'application/json'
     }
   };
-}
-
-async function refreshKernelSpecs(app: JupyterFrontEnd): Promise<void> {
-  await refreshKernelsWithInvalidation();
-  await app.serviceManager.kernelspecs.refreshSpecs();
 }
 
 function notifyAction<T>(
