@@ -22,11 +22,20 @@ jest.mock('../handler', () => ({
   requestAPI: jest.fn(() => Promise.resolve({ nebi: true, pixi: true }))
 }));
 
+jest.mock('../kernel-refresh-messages', () => ({
+  addKernelRefreshMessageListener: jest.fn()
+}));
+
 import * as React from 'react';
 import { Notification } from '@jupyterlab/apputils';
 import { LaunchpadKernelTable } from '../kernel-table';
-import { NebiCommandIDs, nebiKernelTablePlugin } from '../components/nebi';
+import {
+  NebiCommandIDs,
+  NEBI_JOB_COMPLETED_MESSAGE,
+  nebiKernelTablePlugin
+} from '../components/nebi';
 import { requestAPI } from '../handler';
+import { addKernelRefreshMessageListener } from '../kernel-refresh-messages';
 import { IKernelItem } from '../types';
 
 function activateNebiPlugin(registry: LaunchpadKernelTable) {
@@ -159,6 +168,17 @@ describe('LaunchpadKernelTable', () => {
       NebiCommandIDs.editConfig,
       expect.any(Object)
     );
+  });
+
+  it('registers the Nebi completion listener from the Nebi plugin', () => {
+    jest.clearAllMocks();
+    const registry = new LaunchpadKernelTable();
+
+    const app = activateNebiPlugin(registry);
+
+    expect(addKernelRefreshMessageListener).toHaveBeenCalledWith(app, [
+      NEBI_JOB_COMPLETED_MESSAGE
+    ]);
   });
 
   it('shows progress notifications for Nebi install actions', async () => {

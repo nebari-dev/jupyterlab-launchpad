@@ -19,6 +19,7 @@ import type {
 } from '@lumino/coreutils';
 import * as React from 'react';
 import { requestAPI } from '../handler';
+import { addKernelRefreshMessageListener } from '../kernel-refresh-messages';
 import { refreshKernelSpecs } from '../kernel-refresh';
 import {
   IKernelAction,
@@ -33,6 +34,8 @@ export namespace NebiCommandIDs {
   export const installDependencies = 'launchpad:nebi-install-dependencies';
   export const editConfig = 'launchpad:nebi-edit-config';
 }
+
+export const NEBI_JOB_COMPLETED_MESSAGE = 'nebi:job-completed';
 
 interface INebiActionCapabilities {
   nebi: boolean;
@@ -576,6 +579,8 @@ export const nebiKernelTablePlugin: JupyterFrontEndPlugin<void> = {
     kernelTable: ILaunchpadKernelTable
   ) => {
     const trans = translator.load('jupyterlab-launchpad');
+    // Registered for the lifetime of the Nebi plugin.
+    addKernelRefreshMessageListener(app, [NEBI_JOB_COMPLETED_MESSAGE]);
     registerNebiActionCommands(app, trans);
     kernelTable.registerIconFallbackTitleProvider(
       nebiIconFallbackTitleProvider

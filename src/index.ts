@@ -21,7 +21,6 @@ import { DockPanel, TabBar, Widget } from '@lumino/widgets';
 import { NewLauncher as Launcher } from './launcher';
 import { NewModel as Model } from './model';
 import { refreshKernelSpecs } from './kernel-refresh';
-import { addKernelRefreshMessageListener } from './kernel-refresh-messages';
 import {
   CommandIDs,
   ILauncherDatabase,
@@ -94,8 +93,6 @@ function activate(
   const { commands, shell } = app;
   const trans = translator.load('jupyterlab-launchpad');
   const model = new Model();
-
-  addKernelRefreshMessageListener(app);
 
   if (
     navigator.userAgent.indexOf('AppleWebKit') !== -1 &&
