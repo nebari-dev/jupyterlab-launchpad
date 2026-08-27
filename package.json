@@ -1,6 +1,6 @@
 {
     "name": "jupyterlab-launchpad",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "description": "A redesigned JupyterLab launcher",
     "keywords": [
         "jupyter",
@@ -14,7 +14,7 @@
     "license": "BSD-3-Clause",
     "author": {
         "name": "Nebari development team",
-        "email": "internal-it@quansight.com"
+        "email": "info@openteams.com"
     },
     "files": [
         "lib/**/*.{d.ts,eot,gif,html,jpg,js,js.map,json,png,svg,woff2,ttf}",
