@@ -1,5 +1,6 @@
 jest.mock('../icons', () => ({
-  codeServerIcon: {}
+  codeServerIcon: {},
+  nebiIcon: {}
 }));
 
 import type { CommandRegistry } from '@lumino/commands';

@@ -211,7 +211,7 @@ function LauncherBody(props: {
       className: 'jp-Launcher-openByKernel jp-Launcher-launchConsole',
       title: trans.__('Launch a new Console'),
       description: trans.__(
-        'Some environments only support console sessions, not notebooks'
+        'Start an interactive console session using any available kernel or environment'
       ),
       id: 'launch-console',
       rank: 5,
