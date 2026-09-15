@@ -164,7 +164,7 @@ function LauncherBody(props: {
             commands={props.commands}
             showSearchBox={!searchAll}
             searchPlaceholder={trans.__(
-              'Search starred kernels, environments and applications'
+              'Search starred kernels and environments'
             )}
             showWidgetType={true}
             query={query}
@@ -192,7 +192,7 @@ function LauncherBody(props: {
           commands={props.commands}
           showSearchBox={!searchAll}
           searchPlaceholder={trans.__(
-            'Search notebook kernels, environments and applications'
+            'Search notebook kernels and environments'
           )}
           blankMessage={trans.__('No matching kernels found')}
           query={query}
@@ -221,7 +221,7 @@ function LauncherBody(props: {
           commands={props.commands}
           showSearchBox={!searchAll}
           searchPlaceholder={trans.__(
-            'Search console kernels, environments and applications'
+            'Search console kernels and environments'
           )}
           blankMessage={trans.__('No matching consoles found')}
           query={query}

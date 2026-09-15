@@ -7,13 +7,24 @@ import { IItem } from '../types';
 export function TypeCard(props: { item: IItem }): React.ReactElement {
   const { item } = props;
   const label = item.label;
+  const execute = () => {
+    item.execute();
+  };
+
   return (
     <div
-      onClick={() => item.execute()}
+      onClick={execute}
+      onKeyDown={event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          execute();
+        }
+      }}
       className="jp-Launcher-TypeCard jp-LauncherCard"
       title={item.caption || label}
       data-command={item.command}
       data-label={label}
+      role="button"
       tabIndex={0}
     >
       <div className="jp-LauncherCard-icon">

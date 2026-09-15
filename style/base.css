@@ -2,6 +2,7 @@
 .jp-KernelSelector-Dialog {
   --jp-launchpad-text: #262628;
   --jp-launchpad-muted: #70707a;
+  --jp-launchpad-placeholder: #70707a;
   --jp-launchpad-border: #b7b7bb;
   --jp-launchpad-border-strong: #9d9da6;
   --jp-launchpad-surface: #f8f8f8;
@@ -27,6 +28,7 @@
 [data-jp-theme-light='false'] .jp-KernelSelector-Dialog {
   --jp-launchpad-text: var(--jp-ui-font-color1);
   --jp-launchpad-muted: var(--jp-ui-font-color2);
+  --jp-launchpad-placeholder: var(--jp-ui-font-color1);
   --jp-launchpad-border: var(--jp-border-color1);
   --jp-launchpad-border-strong: var(--jp-border-color2);
   --jp-launchpad-surface: var(--jp-layout-color2);
@@ -215,7 +217,7 @@
 }
 
 .jp-Launcher-searchBox .jp-FilterBox {
-  color: var(--jp-launchpad-muted);
+  color: var(--jp-launchpad-placeholder);
   height: 32px;
   width: 100%;
 }
@@ -253,6 +255,7 @@
 }
 
 .jp-Launcher-searchBox jp-search::part(control) {
+  color: var(--jp-launchpad-text);
   padding: 0;
 }
 
@@ -264,7 +267,13 @@
 }
 
 .jp-Launcher-searchBox input::placeholder {
-  color: var(--jp-launchpad-muted);
+  color: var(--jp-launchpad-placeholder);
+  opacity: 1;
+}
+
+.jp-Launcher-searchBox jp-search::part(control)::placeholder {
+  color: var(--jp-launchpad-placeholder);
+  opacity: 1;
 }
 
 .jp-CollapsibleSection {
@@ -420,21 +429,21 @@
   width: 100px;
 }
 
-.jp-Launcher-TypeCard:hover,
-.jp-Launcher-TypeCard:focus-visible {
+.jp-Launcher-TypeCard:hover {
   background: transparent;
   box-shadow: none;
 }
 
-.jp-Launcher-TypeCard:focus,
-.jp-Launcher-TypeCard:focus:not(:active) {
+.jp-Launcher-openByType .jp-Launcher-TypeCard:focus {
   border: 0;
   box-shadow: none;
   outline: none;
 }
 
-.jp-Launcher-TypeCard:focus-visible {
-  outline: 1px solid var(--jp-launchpad-border-strong);
+.jp-Launcher-openByType
+  .jp-Launcher-TypeCard:focus-visible
+  .jp-LauncherCard-icon {
+  outline: auto;
   outline-offset: 2px;
 }
 
@@ -555,6 +564,7 @@
   border: var(--jp-border-width) solid var(--jp-launchpad-border);
   border-radius: 6px;
   max-width: 100%;
+  overflow: hidden;
   position: relative;
 }
 
@@ -632,7 +642,7 @@
   overflow: hidden;
 }
 
-.jp-NewLauncher-table .jp-sortable-table-tr:not(.jp-mod-empty):hover {
+.jp-NewLauncher-table .jp-sortable-table-tr:not(.jp-mod-empty):hover > td {
   background: var(--jp-launchpad-surface);
 }
 
@@ -764,12 +774,12 @@
 }
 
 .jp-NewLauncher-table .jp-sortable-table-tr.jp-mod-empty {
-  background: var(--jp-launchpad-empty-bg);
   color: var(--jp-launchpad-muted);
   cursor: default;
 }
 
 .jp-NewLauncher-table .jp-sortable-table-tr.jp-mod-empty > td {
+  background: var(--jp-launchpad-empty-bg);
   font-size: 16px;
   text-align: center;
   vertical-align: middle;

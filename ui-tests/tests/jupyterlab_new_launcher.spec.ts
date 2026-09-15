@@ -85,16 +85,12 @@ test.describe('Filter individual', () => {
     await expect(
       launcher
         .locator('.jp-Launcher-launchNotebook .jp-Launcher-searchBox')
-        .getByPlaceholder(
-          'Search notebook kernels, environments and applications'
-        )
+        .getByPlaceholder('Search notebook kernels and environments')
     ).toBeVisible();
     await expect(
       launcher
         .locator('.jp-Launcher-launchConsole .jp-Launcher-searchBox')
-        .getByPlaceholder(
-          'Search console kernels, environments and applications'
-        )
+        .getByPlaceholder('Search console kernels and environments')
     ).toBeVisible();
     expect(await launcher.screenshot()).toMatchSnapshot(
       'launcher-search-in-individual.png'
