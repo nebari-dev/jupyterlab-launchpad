@@ -1,13 +1,14 @@
 """Server-proxy registration for the Nebi UI."""
 
 from pathlib import Path
+import shutil
 
 from jupyter_core.paths import jupyter_runtime_dir
 
 
 def setup_nebi_server_proxy():
     """Return the jupyter-server-proxy process config for Nebi."""
-    return {
+    config = {
         "command": [
             "nebi",
             "serve",
@@ -24,11 +25,13 @@ def setup_nebi_server_proxy():
             "NEBI_MODE": "local",
             "NEBI_SERVER_BASE_PATH": "{base_url}nebi",
         },
-        "launcher_entry": {
-            "title": "Nebi",
-            "path_info": "nebi/workspaces",
-        },
         "absolute_url": True,
         "new_browser_tab": False,
         "timeout": 30,
     }
+    if shutil.which("nebi") is not None:
+        config["launcher_entry"] = {
+            "title": "Nebi",
+            "path_info": "nebi/workspaces",
+        }
+    return config

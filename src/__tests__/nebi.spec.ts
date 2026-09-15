@@ -50,7 +50,7 @@ jest.mock('../kernel-refresh-messages', () => ({
 }));
 
 import * as React from 'react';
-import { Notification } from '@jupyterlab/apputils';
+import { Notification, showErrorMessage } from '@jupyterlab/apputils';
 import { ServerConnection } from '@jupyterlab/services';
 import { LaunchpadKernelTable } from '../kernel-table';
 import {
@@ -219,7 +219,7 @@ describe('LaunchpadKernelTable', () => {
       expect.any(Object)
     );
     expect(app.commands.addCommand).toHaveBeenCalledWith(
-      NebiCommandIDs.editConfig,
+      NebiCommandIDs.openOverview,
       expect.any(Object)
     );
   });
@@ -267,13 +267,48 @@ describe('LaunchpadKernelTable', () => {
     );
   });
 
+  it('does not show an extra error dialog for Nebi action failures', async () => {
+    jest.clearAllMocks();
+    const consoleError = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    (Notification.promise as jest.Mock).mockImplementationOnce(
+      (promise: Promise<unknown>) => promise.catch(() => undefined)
+    );
+    const registry = new LaunchpadKernelTable();
+
+    const app = activateNebiPlugin(registry);
+    await settlePromises();
+    const installCommand = (
+      app.commands.addCommand as jest.Mock
+    ).mock.calls.find(([id]) => id === NebiCommandIDs.installDependencies)?.[1];
+    if (!installCommand) {
+      throw new Error('Install dependencies command was not registered');
+    }
+
+    try {
+      (requestAPI as jest.Mock).mockRejectedValueOnce(new Error('Pixi failed'));
+      await installCommand.execute({
+        workspacePath: '/tmp/demo',
+        missingDependencies: ['ipykernel']
+      });
+
+      expect(Notification.promise).toHaveBeenCalled();
+      const [, messages] = (Notification.promise as jest.Mock).mock.calls[0];
+      expect(messages.error.message()).toBe('Could not install dependencies');
+      expect(showErrorMessage).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it('opens the Nebi overview through server proxy', async () => {
     jest.clearAllMocks();
     const registry = new LaunchpadKernelTable();
 
     const app = activateNebiPlugin(registry);
     const openCommand = (app.commands.addCommand as jest.Mock).mock.calls.find(
-      ([id]) => id === NebiCommandIDs.editConfig
+      ([id]) => id === NebiCommandIDs.openOverview
     )?.[1];
     if (!openCommand) {
       throw new Error('Open in Nebi command was not registered');
@@ -299,7 +334,7 @@ describe('LaunchpadKernelTable', () => {
 
     const app = activateNebiPlugin(registry);
     const openCommand = (app.commands.addCommand as jest.Mock).mock.calls.find(
-      ([id]) => id === NebiCommandIDs.editConfig
+      ([id]) => id === NebiCommandIDs.openOverview
     )?.[1];
     if (!openCommand) {
       throw new Error('Open in Nebi command was not registered');
@@ -319,7 +354,7 @@ describe('LaunchpadKernelTable', () => {
       })
     );
     expect(app.commands.notifyCommandChanged).toHaveBeenCalledWith(
-      NebiCommandIDs.editConfig
+      NebiCommandIDs.openOverview
     );
   });
 
@@ -333,7 +368,7 @@ describe('LaunchpadKernelTable', () => {
 
     const app = activateNebiPlugin(registry);
     const openCommand = (app.commands.addCommand as jest.Mock).mock.calls.find(
-      ([id]) => id === NebiCommandIDs.editConfig
+      ([id]) => id === NebiCommandIDs.openOverview
     )?.[1];
     if (!openCommand) {
       throw new Error('Open in Nebi command was not registered');
@@ -406,7 +441,7 @@ describe('LaunchpadKernelTable', () => {
       'Install'
     );
     expect(notInstalledActions.map(action => action.command)).not.toContain(
-      NebiCommandIDs.editConfig
+      NebiCommandIDs.openOverview
     );
 
     const missingDependencyActions = registry.getActions({
@@ -421,7 +456,7 @@ describe('LaunchpadKernelTable', () => {
     });
     expect(missingDependencyActions.map(action => action.command)).toEqual([
       NebiCommandIDs.installDependencies,
-      NebiCommandIDs.editConfig
+      NebiCommandIDs.openOverview
     ]);
 
     const missingDependencyActionsWithoutPath = registry.getActions({
@@ -435,7 +470,7 @@ describe('LaunchpadKernelTable', () => {
     });
     expect(
       missingDependencyActionsWithoutPath.map(action => action.command)
-    ).toEqual([NebiCommandIDs.editConfig]);
+    ).toEqual([NebiCommandIDs.openOverview]);
 
     const failedActions = registry.getActions({
       item,
@@ -446,7 +481,7 @@ describe('LaunchpadKernelTable', () => {
       trans: null as never
     });
     expect(failedActions.map(action => action.command)).toEqual([
-      NebiCommandIDs.editConfig
+      NebiCommandIDs.openOverview
     ]);
 
     const readyActions = registry.getActions({

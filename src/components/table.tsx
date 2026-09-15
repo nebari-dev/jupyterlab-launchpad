@@ -600,7 +600,7 @@ export function KernelTable(props: {
   const KernelItemTable = Table<IKernelItem>;
 
   // Build the sortable rows from the active search query, matching both labels
-  // and visible metadata values.
+  // and available metadata values.
   const lowerCaseQuery = query.toLowerCase();
   const tableRows = props.items
     .filter(kernel => {
@@ -773,11 +773,20 @@ export function KernelTable(props: {
             blankIndicator={() => {
               return <div>{props.blankMessage ?? trans.__('No entries')}</div>;
             }}
+            sortLabel={(label, nextDirection) =>
+              trans.__(
+                'Sort %1 %2',
+                label,
+                nextDirection === 'ascending'
+                  ? trans.__('ascending')
+                  : trans.__('descending')
+              )
+            }
             sortKey="kernel"
             onRowClick={event => {
               const target = event.target as HTMLElement;
-              const row = target.closest('tr');
-              if (!row) {
+              const element = target.closest('tr');
+              if (!element) {
                 return;
               }
               const cell = target.closest('td');
@@ -785,8 +794,12 @@ export function KernelTable(props: {
               if (starButton) {
                 return (starButton as HTMLElement).click();
               }
-              const element = row.querySelector(`.${KERNEL_ITEM_CLASS}`)!;
-              (element as HTMLElement).click();
+              const row = tableRows.find(
+                row => row.key === element.dataset.key
+              );
+              if (row) {
+                props.onClick(row.data);
+              }
             }}
             columns={visibleColumns}
           />

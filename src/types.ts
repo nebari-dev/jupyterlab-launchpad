@@ -9,7 +9,6 @@ import type {
 import type { VirtualElement } from '@lumino/virtualdom';
 import type { ISignal } from '@lumino/signaling';
 import { Token } from '@lumino/coreutils';
-import type { LabIcon } from '@jupyterlab/ui-components';
 import type * as React from 'react';
 
 export const MAIN_PLUGIN_ID = 'jupyterlab-launchpad:plugin';
@@ -22,7 +21,6 @@ export interface ISectionOptions {
   id: string;
   title: string;
   className: string;
-  icon?: LabIcon;
   description?: string;
   render: () => React.ReactNode;
   rank: number;
@@ -69,9 +67,7 @@ export interface IItem extends ILauncher.IItemOptions {
   markAsUsedNow: () => Promise<void>;
 }
 
-export interface IKernelItem extends IItem {
-  //kernel: string;
-}
+export type IKernelItem = IItem;
 
 export interface ILaunchpadKernelTable {
   readonly changed: ISignal<ILaunchpadKernelTable, void>;

@@ -10,6 +10,7 @@ export function LaunchpadTooltip(
     label: string;
   }>
 ): React.ReactElement {
+  const tooltipId = React.useId();
   const anchorRef = React.useRef<HTMLSpanElement>(null);
   const tooltipRef = React.useRef<HTMLDivElement | null>(null);
   const className = props.className
@@ -60,6 +61,7 @@ export function LaunchpadTooltip(
     let tooltip = tooltipRef.current;
     if (!tooltip) {
       tooltip = document.createElement('div');
+      tooltip.id = tooltipId;
       tooltip.className = 'jp-LaunchpadTooltip';
       tooltip.setAttribute('role', 'tooltip');
       document.body.appendChild(tooltip);
@@ -70,7 +72,7 @@ export function LaunchpadTooltip(
 
     tooltip.textContent = props.label;
     updatePosition();
-  }, [clearNativeTitles, props.label, updatePosition]);
+  }, [clearNativeTitles, props.label, tooltipId, updatePosition]);
 
   React.useEffect(() => {
     return () => {
@@ -82,11 +84,19 @@ export function LaunchpadTooltip(
     <span
       ref={anchorRef}
       className={className}
+      aria-describedby={tooltipId}
       aria-label={props.label}
       onBlur={hideTooltip}
       onFocus={showTooltip}
+      onKeyDown={event => {
+        if (event.key === 'Escape') {
+          hideTooltip();
+          event.stopPropagation();
+        }
+      }}
       onMouseEnter={showTooltip}
       onMouseLeave={hideTooltip}
+      tabIndex={0}
     >
       {props.children}
     </span>

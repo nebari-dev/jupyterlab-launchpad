@@ -28,6 +28,10 @@ export namespace Table {
     columns: IColumn<T>[];
     onRowClick?: React.MouseEventHandler<HTMLTableRowElement>;
     blankIndicator: () => ReactNode;
+    sortLabel?: (
+      label: string,
+      nextDirection: 'ascending' | 'descending'
+    ) => string;
   }
   /**
    * Table row with data to display.
@@ -142,6 +146,7 @@ export function Table<T>(props: Table.IOptions<T>) {
         });
       }}
       minWidth={column.minWidth}
+      sortLabel={props.sortLabel}
     />
   ));
 
@@ -162,6 +167,10 @@ function SortableTH(props: {
   onSort: () => void;
   onResize: () => void;
   minWidth?: number;
+  sortLabel?: (
+    label: string,
+    nextDirection: 'ascending' | 'descending'
+  ) => string;
 }): ReactElement {
   const isSortKey = props.id === props.state.sortKey;
   const sortDirection = isSortKey
@@ -172,6 +181,9 @@ function SortableTH(props: {
   const sortLabel = props.label || props.id;
   const nextSortDirection =
     isSortKey && props.state.sortDirection === 1 ? 'descending' : 'ascending';
+  const sortButtonLabel =
+    props.sortLabel?.(sortLabel, nextSortDirection) ??
+    `Sort ${sortLabel} ${nextSortDirection}`;
   const [columnWidth, setColumnWidth] = React.useState<number | null>(null);
 
   const thRef = React.useRef<HTMLTableCellElement | null>(null);
@@ -267,8 +279,8 @@ function SortableTH(props: {
         <button
           type="button"
           className="jp-sort-iconButton"
-          title={`Sort ${sortLabel} ${nextSortDirection}`}
-          aria-label={`Sort ${sortLabel} ${nextSortDirection}`}
+          title={sortButtonLabel}
+          aria-label={sortButtonLabel}
           data-sort-direction={sortDirection}
           onClick={event => {
             event.stopPropagation();

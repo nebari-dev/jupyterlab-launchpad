@@ -29,7 +29,7 @@ import {
 export namespace NebiCommandIDs {
   export const pull = 'launchpad:nebi-pull';
   export const installDependencies = 'launchpad:nebi-install-dependencies';
-  export const editConfig = 'launchpad:nebi-edit-config';
+  export const openOverview = 'launchpad:nebi-open-overview';
 }
 
 export const NEBI_JOB_COMPLETED_MESSAGE = 'nebi:job-completed';
@@ -220,15 +220,18 @@ function renderNebiIndicator(
 
 function renderStatus(
   value: string,
-  metadata: ReadonlyJSONObject | undefined
+  metadata: ReadonlyJSONObject | undefined,
+  trans: ReturnType<ITranslator['load']>
 ): React.ReactNode {
   const presentation = NEBI_STATUS_PRESENTATION[value] ?? {
     label: value,
     className: 'jp-NebiStatus-unknown'
   };
-  const title = nebiStatusTitle(value, metadata);
+  const title = nebiStatusTitle(value, metadata, trans);
   return renderNebiIndicator(
-    presentation.label,
+    NEBI_STATUS_PRESENTATION[value]
+      ? trans.__(presentation.label)
+      : presentation.label,
     presentation.className,
     value,
     presentation.showInfoIcon,
@@ -236,13 +239,21 @@ function renderStatus(
   );
 }
 
-function renderLocation(value: string): React.ReactNode {
+function renderLocation(
+  value: string,
+  trans: ReturnType<ITranslator['load']>
+): React.ReactNode {
   const label = NEBI_LOCATION_LABELS[value] ?? value;
-  return <span className="jp-NebiLocation">{label}</span>;
+  return (
+    <span className="jp-NebiLocation">
+      {NEBI_LOCATION_LABELS[value] ? trans.__(label) : label}
+    </span>
+  );
 }
 
 function missingDependenciesTitle(
-  metadata: ReadonlyJSONObject | undefined
+  metadata: ReadonlyJSONObject | undefined,
+  trans: ReturnType<ITranslator['load']>
 ): string | undefined {
   const value = metadata?.['nebi_missing_dependencies'];
   if (!Array.isArray(value)) {
@@ -256,7 +267,13 @@ function missingDependenciesTitle(
     return undefined;
   }
 
-  return `This environment is missing ${dependencies.length === 1 ? 'a dependency' : 'dependencies'} required to start. Use Attempt fix to install them.`;
+  return dependencies.length === 1
+    ? trans.__(
+        'This environment is missing a dependency required to start. Use Attempt fix to install it.'
+      )
+    : trans.__(
+        'This environment is missing dependencies required to start. Use Attempt fix to install them.'
+      );
 }
 
 function isLatestVersion(
@@ -306,7 +323,8 @@ function localVersionFromMetadata(
 
 function renderNebiVersion(
   version: string,
-  options: { remoteVersion?: unknown; updateAvailable?: boolean } = {}
+  options: { remoteVersion?: unknown; updateAvailable?: boolean } = {},
+  trans?: ReturnType<ITranslator['load']>
 ): React.ReactNode {
   if (!options.updateAvailable) {
     return (
@@ -321,23 +339,32 @@ function renderNebiVersion(
       className="jp-NebiVersion"
       title={
         typeof options.remoteVersion === 'string'
-          ? `Remote version ${options.remoteVersion} is available`
-          : 'Update available'
+          ? trans?.__(
+              'Remote version %1 is available',
+              options.remoteVersion
+            ) ?? `Remote version ${options.remoteVersion} is available`
+          : trans?.__('Update available') ?? 'Update available'
       }
-      aria-label={`${version} update available`}
+      aria-label={
+        trans?.__('%1 update available', version) ??
+        `${version} update available`
+      }
     >
       <span>{version}</span>
       <span className="jp-NebiVersionSeparator" aria-hidden="true">
         ·
       </span>
-      <span className="jp-NebiVersionUpdate">update available</span>
+      <span className="jp-NebiVersionUpdate">
+        {trans?.__('update available') ?? 'update available'}
+      </span>
     </span>
   );
 }
 
 function nebiStatusTitle(
   value: unknown,
-  metadata: ReadonlyJSONObject | undefined
+  metadata: ReadonlyJSONObject | undefined,
+  trans: ReturnType<ITranslator['load']>
 ): string | undefined {
   if (typeof value !== 'string' || value.length === 0) {
     return undefined;
@@ -345,11 +372,11 @@ function nebiStatusTitle(
 
   switch (value) {
     case 'not-installed':
-      return "Packages haven't been set up yet";
+      return trans.__("Packages haven't been set up yet");
     case 'missing-deps':
-      return 'Can’t launch in Jupyter';
+      return trans.__('Can’t launch in Jupyter');
     case 'failed':
-      return 'This workspace is broken';
+      return trans.__('This workspace is broken');
   }
 
   const reason = metadata?.['nebi_not_ready_reason'];
@@ -361,114 +388,126 @@ function nebiStatusTitle(
 
   switch (value) {
     case 'not-pulled':
-      return 'This workspace has not been pulled locally. Use Pull to download it.';
+      return trans.__(
+        'This workspace has not been pulled locally. Use Pull to download it.'
+      );
     case 'outdated':
-      return 'A newer remote version is available.';
+      return trans.__('A newer remote version is available.');
   }
 
   return '';
 }
 
-const nebiColumns: IKernelMetadataColumn[] = Object.entries(
-  NEBI_METADATA_LABELS
-).map(([id, label]) => ({
-  id,
-  label,
-  isVisibleByDefault: id === 'nebi_version' || id === 'nebi_status',
-  title: ({ value, metadata }) => {
-    if (id === 'nebi_state' || id === 'nebi_status') {
-      return null;
-    }
-
-    if (id === 'nebi_missing_dependencies') {
-      return missingDependenciesTitle(metadata);
-    }
-
-    return undefined;
-  },
-  render: ({ value, metadata }) => {
-    if (id === 'nebi_version') {
-      const version = localVersionFromMetadata(metadata, value);
-      if (!version) {
-        return '-';
+function createNebiColumns(
+  trans: ReturnType<ITranslator['load']>
+): IKernelMetadataColumn[] {
+  return Object.entries(NEBI_METADATA_LABELS).map(([id, label]) => ({
+    id,
+    label: trans.__(label),
+    isVisibleByDefault: id === 'nebi_version' || id === 'nebi_status',
+    title: ({ value, metadata }) => {
+      if (id === 'nebi_state' || id === 'nebi_status') {
+        return null;
       }
 
-      const remoteVersion = metadata?.['nebi_remote_version'];
-      if (metadata?.['nebi_outdated'] === true) {
-        return renderNebiVersion(version, {
-          remoteVersion,
-          updateAvailable: true
-        });
+      if (id === 'nebi_missing_dependencies') {
+        return missingDependenciesTitle(metadata, trans);
       }
 
-      return renderNebiVersion(version);
-    }
+      return undefined;
+    },
+    render: ({ value, metadata }) => {
+      if (id === 'nebi_version') {
+        const version = localVersionFromMetadata(metadata, value);
+        if (!version) {
+          return '-';
+        }
 
-    if (id === 'nebi_state' || id === 'nebi_status') {
-      const status = statusFromMetadata(metadata, value);
-      if (!status) {
-        return '-';
+        const remoteVersion = metadata?.['nebi_remote_version'];
+        if (metadata?.['nebi_outdated'] === true) {
+          return renderNebiVersion(
+            version,
+            {
+              remoteVersion,
+              updateAvailable: true
+            },
+            trans
+          );
+        }
+
+        return renderNebiVersion(version);
       }
 
-      return renderStatus(status, metadata);
-    }
+      if (id === 'nebi_state' || id === 'nebi_status') {
+        const status = statusFromMetadata(metadata, value);
+        if (!status) {
+          return '-';
+        }
 
-    if (id === 'nebi_source' || id === 'nebi_location') {
-      const location = locationFromMetadata(metadata, value);
-      if (!location) {
-        return '-';
+        return renderStatus(status, metadata, trans);
       }
 
-      return renderLocation(location);
-    }
+      if (id === 'nebi_source' || id === 'nebi_location') {
+        const location = locationFromMetadata(metadata, value);
+        if (!location) {
+          return '-';
+        }
 
-    if (
-      id === 'nebi_local_version' &&
-      metadata?.['nebi_outdated'] === true &&
-      typeof value === 'string' &&
-      value.length > 0
-    ) {
-      const version = value;
-      const remoteVersion = metadata?.['nebi_remote_version'];
-      return renderNebiVersion(version, {
-        remoteVersion,
-        updateAvailable: true
-      });
-    }
-
-    if (
-      (id === 'nebi_local_version' || id === 'nebi_remote_version') &&
-      isLatestVersion(id, value, metadata)
-    ) {
-      const version = value;
-      return renderNebiVersion(version);
-    }
-
-    if (
-      (id === 'nebi_local_version' || id === 'nebi_remote_version') &&
-      typeof value === 'string' &&
-      value.length > 0
-    ) {
-      return renderNebiVersion(value);
-    }
-
-    if (id === 'nebi_missing_dependencies' && Array.isArray(value)) {
-      if (value.length === 0) {
-        return '-';
+        return renderLocation(location, trans);
       }
 
-      return value
-        .filter(item => typeof item === 'string' && item.length > 0)
-        .join(', ');
-    }
+      if (
+        id === 'nebi_local_version' &&
+        metadata?.['nebi_outdated'] === true &&
+        typeof value === 'string' &&
+        value.length > 0
+      ) {
+        const version = value;
+        const remoteVersion = metadata?.['nebi_remote_version'];
+        return renderNebiVersion(
+          version,
+          {
+            remoteVersion,
+            updateAvailable: true
+          },
+          trans
+        );
+      }
 
-    if (id === 'nebi_outdated' && typeof value === 'boolean') {
-      return value ? 'Yes' : 'No';
-    }
+      if (
+        (id === 'nebi_local_version' || id === 'nebi_remote_version') &&
+        isLatestVersion(id, value, metadata)
+      ) {
+        const version = value;
+        return renderNebiVersion(version);
+      }
 
-    return undefined;
-  }
-}));
+      if (
+        (id === 'nebi_local_version' || id === 'nebi_remote_version') &&
+        typeof value === 'string' &&
+        value.length > 0
+      ) {
+        return renderNebiVersion(value);
+      }
+
+      if (id === 'nebi_missing_dependencies' && Array.isArray(value)) {
+        if (value.length === 0) {
+          return '-';
+        }
+
+        return value
+          .filter(item => typeof item === 'string' && item.length > 0)
+          .join(', ');
+      }
+
+      if (id === 'nebi_outdated' && typeof value === 'boolean') {
+        return value ? trans.__('Yes') : trans.__('No');
+      }
+
+      return undefined;
+    }
+  }));
+}
 
 function actionArgs({ metadata }: IKernelActionOptions) {
   return {
@@ -480,59 +519,63 @@ function actionArgs({ metadata }: IKernelActionOptions) {
   };
 }
 
-const nebiActions: IKernelAction[] = [
-  {
-    id: 'nebi-pull',
-    label: 'Pull',
-    pendingLabel: 'Pulling',
-    command: NebiCommandIDs.pull,
-    title: 'Pull this Nebi workspace',
-    rank: 0,
-    isAvailable: options =>
-      statusFromMetadata(options.metadata) === 'not-pulled' &&
-      typeof options.metadata?.['nebi_workspace'] === 'string' &&
-      options.metadata['nebi_workspace'].length > 0,
-    args: actionArgs
-  },
-  {
-    id: 'nebi-install-environment',
-    label: 'Install',
-    pendingLabel: 'Installing',
-    command: NebiCommandIDs.installDependencies,
-    title: 'Install environment',
-    rank: 1,
-    isAvailable: options =>
-      statusFromMetadata(options.metadata) === 'not-installed' &&
-      typeof options.metadata?.['nebi_workspace_path'] === 'string' &&
-      options.metadata['nebi_workspace_path'].length > 0,
-    args: actionArgs
-  },
-  {
-    id: 'nebi-install-dependencies',
-    label: 'Attempt fix',
-    pendingLabel: 'Attempting fix',
-    command: NebiCommandIDs.installDependencies,
-    title: 'Install missing dependencies',
-    rank: 1,
-    isAvailable: options =>
-      statusFromMetadata(options.metadata) === 'missing-deps' &&
-      typeof options.metadata?.['nebi_workspace_path'] === 'string' &&
-      options.metadata['nebi_workspace_path'].length > 0,
-    args: actionArgs
-  },
-  {
-    id: 'nebi-edit-config',
-    label: 'Open in Nebi',
-    command: NebiCommandIDs.editConfig,
-    title: 'Open Nebi workspace overview',
-    rank: 2,
-    isAvailable: options => {
-      const status = statusFromMetadata(options.metadata);
-      return status === 'missing-deps' || status === 'failed';
+function createNebiActions(
+  trans: ReturnType<ITranslator['load']>
+): IKernelAction[] {
+  return [
+    {
+      id: 'nebi-pull',
+      label: trans.__('Pull'),
+      pendingLabel: trans.__('Pulling'),
+      command: NebiCommandIDs.pull,
+      title: trans.__('Pull this Nebi workspace'),
+      rank: 0,
+      isAvailable: options =>
+        statusFromMetadata(options.metadata) === 'not-pulled' &&
+        typeof options.metadata?.['nebi_workspace'] === 'string' &&
+        options.metadata['nebi_workspace'].length > 0,
+      args: actionArgs
     },
-    args: actionArgs
-  }
-];
+    {
+      id: 'nebi-install-environment',
+      label: trans.__('Install'),
+      pendingLabel: trans.__('Installing'),
+      command: NebiCommandIDs.installDependencies,
+      title: trans.__('Install environment'),
+      rank: 1,
+      isAvailable: options =>
+        statusFromMetadata(options.metadata) === 'not-installed' &&
+        typeof options.metadata?.['nebi_workspace_path'] === 'string' &&
+        options.metadata['nebi_workspace_path'].length > 0,
+      args: actionArgs
+    },
+    {
+      id: 'nebi-install-dependencies',
+      label: trans.__('Attempt fix'),
+      pendingLabel: trans.__('Attempting fix'),
+      command: NebiCommandIDs.installDependencies,
+      title: trans.__('Install missing dependencies'),
+      rank: 1,
+      isAvailable: options =>
+        statusFromMetadata(options.metadata) === 'missing-deps' &&
+        typeof options.metadata?.['nebi_workspace_path'] === 'string' &&
+        options.metadata['nebi_workspace_path'].length > 0,
+      args: actionArgs
+    },
+    {
+      id: 'nebi-open-overview',
+      label: trans.__('Open in Nebi'),
+      command: NebiCommandIDs.openOverview,
+      title: trans.__('Open Nebi workspace overview'),
+      rank: 2,
+      isAvailable: options => {
+        const status = statusFromMetadata(options.metadata);
+        return status === 'missing-deps' || status === 'failed';
+      },
+      args: actionArgs
+    }
+  ];
+}
 
 const nebiIconFallbackTitleProvider: IKernelIconFallbackTitleProvider = {
   id: 'nebi-logo-reason',
@@ -635,7 +678,7 @@ function registerNebiActionCommands(
   const refreshActionCommands = () => {
     commands.notifyCommandChanged(NebiCommandIDs.pull);
     commands.notifyCommandChanged(NebiCommandIDs.installDependencies);
-    commands.notifyCommandChanged(NebiCommandIDs.editConfig);
+    commands.notifyCommandChanged(NebiCommandIDs.openOverview);
   };
 
   void requestAPI<INebiActionCapabilities>('nebi/capabilities')
@@ -686,10 +729,6 @@ function registerNebiActionCommands(
         );
       } catch (error) {
         console.error(error);
-        await showErrorMessage(
-          trans.__('Could not pull Nebi workspace'),
-          error as Error
-        );
       }
     }
   });
@@ -726,17 +765,11 @@ function registerNebiActionCommands(
         );
       } catch (error) {
         console.error(error);
-        await showErrorMessage(
-          installingDependencies
-            ? trans.__('Could not install Nebi dependencies')
-            : trans.__('Could not install Nebi environment'),
-          error as Error
-        );
       }
     }
   });
 
-  commands.addCommand(NebiCommandIDs.editConfig, {
+  commands.addCommand(NebiCommandIDs.openOverview, {
     label: trans.__('Open in Nebi'),
     caption: trans.__('Open Nebi workspace overview'),
     isVisible: canOpenNebi,
@@ -780,10 +813,10 @@ export const nebiKernelTablePlugin: JupyterFrontEndPlugin<void> = {
     kernelTable.registerIconFallbackTitleProvider(
       nebiIconFallbackTitleProvider
     );
-    for (const column of nebiColumns) {
+    for (const column of createNebiColumns(trans)) {
       kernelTable.registerMetadataColumn(column);
     }
-    for (const action of nebiActions) {
+    for (const action of createNebiActions(trans)) {
       kernelTable.registerAction(action);
     }
   }
