@@ -591,6 +591,8 @@ function hasMissingDependencies(args: ReadonlyPartialJSONObject): boolean {
 async function getNebiServerProxyPath(): Promise<string | null> {
   try {
     const settings = ServerConnection.makeSettings();
+    // Ask Jupyter Server Proxy which Nebi entry is registered so the launcher
+    // only shows Open in Nebi when the proxy exists and uses its configured path.
     const requestUrl = URLExt.join(
       settings.baseUrl,
       'server-proxy',

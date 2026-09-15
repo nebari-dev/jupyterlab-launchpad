@@ -599,6 +599,8 @@ export function KernelTable(props: {
   const [hasMoreRowsBelow, setHasMoreRowsBelow] = React.useState(false);
   const KernelItemTable = Table<IKernelItem>;
 
+  // Build the sortable rows from the active search query, matching both labels
+  // and visible metadata values.
   const lowerCaseQuery = query.toLowerCase();
   const tableRows = props.items
     .filter(kernel => {
@@ -641,6 +643,8 @@ export function KernelTable(props: {
       return a.rank - b.rank;
     });
 
+  // Track whether the table has hidden rows below the viewport so CSS can show
+  // the bottom fade only when more content is available.
   const updateScrollState = React.useCallback(() => {
     const scroller = scrollerRef.current;
     if (!scroller) {
