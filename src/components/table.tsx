@@ -9,7 +9,12 @@ import type { ISignal } from '@lumino/signaling';
 import { Time } from '@jupyterlab/coreutils';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { TranslationBundle } from '@jupyterlab/translation';
-import { FilterBox, UseSignal, MenuSvg } from '@jupyterlab/ui-components';
+import {
+  FilterBox,
+  UseSignal,
+  MenuSvg,
+  searchIcon
+} from '@jupyterlab/ui-components';
 import { Table } from './base-table';
 import * as React from 'react';
 import {
@@ -712,12 +717,18 @@ export function KernelTable(props: {
     <div className="jp-NewLauncher-table">
       {props.showSearchBox ? (
         <div className="jp-Launcher-searchBox">
+          <searchIcon.react
+            className="jp-Launcher-searchIcon"
+            tag="span"
+            aria-hidden="true"
+          />
           <FilterBox
             placeholder={props.searchPlaceholder ?? trans.__('Search kernels')}
             updateFilter={(_, query) => {
               updateQuery(query ?? '');
             }}
             initialQuery={''}
+            showIcon={false}
             useFuzzyFilter={false}
           />
         </div>

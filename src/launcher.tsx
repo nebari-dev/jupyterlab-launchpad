@@ -5,7 +5,7 @@ import type { ISignal } from '@lumino/signaling';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ILauncher, Launcher } from '@jupyterlab/launcher';
 import { TranslationBundle } from '@jupyterlab/translation';
-import { FilterBox } from '@jupyterlab/ui-components';
+import { FilterBox, searchIcon } from '@jupyterlab/ui-components';
 
 import * as React from 'react';
 import { NewModel } from './model';
@@ -257,6 +257,11 @@ function LauncherBody(props: {
         </div>
         {searchAll ? (
           <div className="jp-Launcher-searchBox">
+            <searchIcon.react
+              className="jp-Launcher-searchIcon"
+              tag="span"
+              aria-hidden="true"
+            />
             <FilterBox
               placeholder={trans.__(
                 'Search kernels, environments and applications'
@@ -265,6 +270,7 @@ function LauncherBody(props: {
                 updateQuery(query ?? '');
               }}
               initialQuery={''}
+              showIcon={false}
               useFuzzyFilter={false}
             />
           </div>

@@ -229,6 +229,24 @@
   width: 100%;
 }
 
+.jp-Launcher-searchBox {
+  position: relative;
+}
+
+.jp-Launcher-searchIcon {
+  height: 16px;
+  left: 10px;
+  pointer-events: none;
+  position: absolute;
+  top: 9px;
+  width: 16px;
+  z-index: 1;
+}
+
+.jp-Launcher-searchIcon .jp-icon3[fill] {
+  fill: var(--jp-ui-font-color2);
+}
+
 .jp-Launcher-searchBox jp-search::part(root) {
   align-items: center;
   background: var(--jp-launchpad-neutral-100);
@@ -240,20 +258,12 @@
   display: flex;
   gap: 8px;
   min-height: 32px;
-  padding: 6px 12px;
+  padding: 6px 12px 6px 25px;
 }
 
 [data-jp-theme-light='false'] .jp-Launcher-searchBox jp-search::part(root) {
   background: var(--jp-layout-color2);
   border-color: var(--jp-border-color2);
-}
-
-.jp-Launcher-searchBox jp-search::part(end) {
-  display: inline-flex;
-  flex: 0 0 16px;
-  height: 16px;
-  order: -1;
-  width: 16px;
 }
 
 .jp-Launcher-searchBox jp-search::part(input-wrapper) {
@@ -264,12 +274,6 @@
 .jp-Launcher-searchBox jp-search::part(control) {
   color: var(--jp-ui-font-color1);
   padding: 0;
-}
-
-.jp-Launcher-searchBox .jp-FilterBox > svg[slot='end'] {
-  color: var(--jp-ui-font-color2);
-  height: 16px;
-  width: 16px;
 }
 
 .jp-Launcher-searchBox jp-search::part(control)::placeholder {
