@@ -8,13 +8,15 @@ import { Notification, showErrorMessage } from '@jupyterlab/apputils';
 import { URLExt } from '@jupyterlab/coreutils';
 import { ServerConnection } from '@jupyterlab/services';
 import { ITranslator } from '@jupyterlab/translation';
+import { checkIcon } from '@jupyterlab/ui-components';
+import type { LabIcon } from '@jupyterlab/ui-components';
 import type {
   ReadonlyJSONObject,
   ReadonlyPartialJSONObject
 } from '@lumino/coreutils';
 import * as React from 'react';
 import { requestAPI } from '../handler';
-import { infoCircleIcon } from '../icons';
+import { infoCircleIcon, nebiIcon, updateAvailableIcon } from '../icons';
 import { addKernelRefreshMessageListener } from '../kernel-refresh-messages';
 import { refreshKernelSpecs } from '../kernel-refresh';
 import { LaunchpadTooltip } from './tooltip';
@@ -42,6 +44,7 @@ interface INebiActionCapabilities {
 interface INebiStatusPresentation {
   label: string;
   className: string;
+  compactIcon?: LabIcon;
   showInfoIcon?: boolean;
 }
 
@@ -86,7 +89,8 @@ const NEBI_STATUS_PRESENTATION: Record<string, INebiStatusPresentation> = {
   },
   ready: {
     label: 'Ready',
-    className: 'jp-NebiStatus-ready'
+    className: 'jp-NebiStatus-ready',
+    compactIcon: checkIcon
   }
 };
 
@@ -189,18 +193,33 @@ function renderNebiIndicator(
   className: string,
   status: string,
   showInfoIcon?: boolean,
-  title?: string
+  title?: string,
+  compactIcon = infoCircleIcon
 ): React.ReactNode {
   const tooltip = title || undefined;
+  const CompactIcon = compactIcon.react;
   return (
     <span
       className={`jp-NebiIndicator ${className}`}
       data-status={status}
       aria-label={tooltip ? `${label}: ${tooltip}` : label}
     >
+      <LaunchpadTooltip
+        className="jp-NebiIndicator-compactTooltip"
+        label={label}
+      >
+        <CompactIcon
+          className="jp-NebiIndicator-compactIcon"
+          tag="span"
+          aria-hidden="true"
+        />
+      </LaunchpadTooltip>
       <span className="jp-NebiIndicator-label">{label}</span>
       {showInfoIcon && tooltip ? (
-        <LaunchpadTooltip label={tooltip}>
+        <LaunchpadTooltip
+          className="jp-NebiIndicator-infoTooltip"
+          label={tooltip}
+        >
           <infoCircleIcon.react
             className="jp-NebiIndicator-icon"
             tag="span"
@@ -235,7 +254,8 @@ function renderStatus(
     presentation.className,
     value,
     presentation.showInfoIcon,
-    title
+    title,
+    presentation.compactIcon
   );
 }
 
@@ -323,9 +343,11 @@ function localVersionFromMetadata(
 
 function renderNebiVersion(
   version: string,
-  options: { remoteVersion?: unknown; updateAvailable?: boolean } = {},
+  options: { updateAvailable?: boolean } = {},
   trans?: ReturnType<ITranslator['load']>
 ): React.ReactNode {
+  const updateTitle = trans?.__('Update available') ?? 'Update available';
+
   if (!options.updateAvailable) {
     return (
       <span className="jp-NebiVersion" aria-label={version}>
@@ -337,14 +359,6 @@ function renderNebiVersion(
   return (
     <span
       className="jp-NebiVersion"
-      title={
-        typeof options.remoteVersion === 'string'
-          ? trans?.__(
-              'Remote version %1 is available',
-              options.remoteVersion
-            ) ?? `Remote version ${options.remoteVersion} is available`
-          : trans?.__('Update available') ?? 'Update available'
-      }
       aria-label={
         trans?.__('%1 update available', version) ??
         `${version} update available`
@@ -354,9 +368,24 @@ function renderNebiVersion(
       <span className="jp-NebiVersionSeparator" aria-hidden="true">
         ·
       </span>
-      <span className="jp-NebiVersionUpdate">
-        {trans?.__('update available') ?? 'update available'}
-      </span>
+      <LaunchpadTooltip
+        className="jp-NebiVersionUpdateTextTooltip"
+        label={updateTitle}
+      >
+        <span className="jp-NebiVersionUpdate">
+          {trans?.__('update available') ?? 'update available'}
+        </span>
+      </LaunchpadTooltip>
+      <LaunchpadTooltip
+        className="jp-NebiVersionUpdateIconTooltip"
+        label={updateTitle}
+      >
+        <updateAvailableIcon.react
+          className="jp-NebiVersionUpdateIcon"
+          tag="span"
+          aria-hidden="true"
+        />
+      </LaunchpadTooltip>
     </span>
   );
 }
@@ -423,12 +452,10 @@ function createNebiColumns(
           return '-';
         }
 
-        const remoteVersion = metadata?.['nebi_remote_version'];
         if (metadata?.['nebi_outdated'] === true) {
           return renderNebiVersion(
             version,
             {
-              remoteVersion,
               updateAvailable: true
             },
             trans
@@ -463,11 +490,9 @@ function createNebiColumns(
         value.length > 0
       ) {
         const version = value;
-        const remoteVersion = metadata?.['nebi_remote_version'];
         return renderNebiVersion(
           version,
           {
-            remoteVersion,
             updateAvailable: true
           },
           trans
@@ -565,6 +590,7 @@ function createNebiActions(
     {
       id: 'nebi-open-overview',
       label: trans.__('Open in Nebi'),
+      compactIcon: nebiIcon,
       command: NebiCommandIDs.openOverview,
       title: trans.__('Open Nebi workspace overview'),
       rank: 2,

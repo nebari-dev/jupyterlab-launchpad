@@ -8,6 +8,8 @@ import { moveDownIcon, moveUpIcon } from '@jupyterlab/ui-components';
 import { arrowUpDownIcon } from '../icons';
 
 export const TABLE_CLASS = 'jp-sortable-table';
+const SORT_ICON_BUTTON_WIDTH = 24;
+const SORT_ICON_GAP = 8;
 
 /**
  * A namespace for Table.
@@ -187,7 +189,10 @@ function SortableTH(props: {
   const [columnWidth, setColumnWidth] = React.useState<number | null>(null);
 
   const thRef = React.useRef<HTMLTableCellElement | null>(null);
+  const wrapperRef = React.useRef<HTMLDivElement | null>(null);
+  const labelRef = React.useRef<HTMLLabelElement | null>(null);
   const [resizeOngoing, setResizeOngoing] = React.useState<boolean>(false);
+  const [isSortIconOnly, setSortIconOnly] = React.useState<boolean>(false);
   const [thLeft, setThLeft] = useState<number | null>(null);
 
   requestAnimationFrame(() => {
@@ -230,12 +235,54 @@ function SortableTH(props: {
     };
   });
 
+  const updateSortHeaderLayout = React.useCallback(() => {
+    const wrapper = wrapperRef.current;
+    const label = labelRef.current;
+    if (!wrapper || !label || !props.label || isSortKey) {
+      setSortIconOnly(false);
+      return;
+    }
+
+    const requiredWidth =
+      label.scrollWidth + SORT_ICON_GAP + SORT_ICON_BUTTON_WIDTH;
+    const nextIsSortIconOnly = requiredWidth > wrapper.clientWidth;
+    setSortIconOnly(current =>
+      current === nextIsSortIconOnly ? current : nextIsSortIconOnly
+    );
+  }, [isSortKey, props.label]);
+
+  React.useEffect(() => {
+    updateSortHeaderLayout();
+    const wrapper = wrapperRef.current;
+    const th = thRef.current;
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(updateSortHeaderLayout);
+
+    if (wrapper) {
+      resizeObserver?.observe(wrapper);
+    }
+    if (th) {
+      resizeObserver?.observe(th);
+    }
+    window.addEventListener('resize', updateSortHeaderLayout);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', updateSortHeaderLayout);
+    };
+  }, [updateSortHeaderLayout]);
+
   const classes: string[] = [];
   if (isSortKey) {
     classes.push('jp-sorted-header');
   }
   if (!props.label) {
     classes.push('jp-mod-empty-label');
+  }
+  if (isSortIconOnly) {
+    classes.push('jp-mod-sort-icon-only');
   }
   if (resizeOngoing) {
     classes.push('jp-header-resizing');
@@ -274,8 +321,8 @@ function SortableTH(props: {
         }
       }}
     >
-      <div className="jp-sortable-table-th-wrapper">
-        <label>{props.label}</label>
+      <div className="jp-sortable-table-th-wrapper" ref={wrapperRef}>
+        <label ref={labelRef}>{props.label}</label>
         <button
           type="button"
           className="jp-sort-iconButton"

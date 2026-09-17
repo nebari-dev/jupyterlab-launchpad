@@ -7,7 +7,9 @@ const TOOLTIP_OFFSET = 12;
 export function LaunchpadTooltip(
   props: React.PropsWithChildren<{
     className?: string;
-    label: string;
+    focusable?: boolean;
+    label?: string;
+    resolveLabel?: () => string | undefined;
   }>
 ): React.ReactElement {
   const tooltipId = React.useId();
@@ -52,13 +54,35 @@ export function LaunchpadTooltip(
     window.removeEventListener('scroll', updatePosition, true);
   }, [updatePosition]);
 
+  // Tooltips are mounted into document.body, so remove any stale tooltip left
+  // behind when focus/hover moves quickly or a responsive label swaps state.
+  const hideOtherTooltips = React.useCallback(() => {
+    document.querySelectorAll('.jp-LaunchpadTooltip').forEach(tooltip => {
+      if (tooltip !== tooltipRef.current) {
+        tooltip.remove();
+      }
+    });
+  }, []);
+
   const showTooltip = React.useCallback(() => {
     if (!anchorRef.current) {
       return;
     }
     clearNativeTitles();
+    const label = props.resolveLabel ? props.resolveLabel() : props.label;
+    if (!label) {
+      hideTooltip();
+      return;
+    }
 
     let tooltip = tooltipRef.current;
+    if (tooltip && !tooltip.isConnected) {
+      tooltipRef.current = null;
+      tooltip = null;
+    }
+
+    hideOtherTooltips();
+
     if (!tooltip) {
       tooltip = document.createElement('div');
       tooltip.id = tooltipId;
@@ -70,9 +94,17 @@ export function LaunchpadTooltip(
       window.addEventListener('scroll', updatePosition, true);
     }
 
-    tooltip.textContent = props.label;
+    tooltip.textContent = label;
     updatePosition();
-  }, [clearNativeTitles, props.label, tooltipId, updatePosition]);
+  }, [
+    clearNativeTitles,
+    hideTooltip,
+    hideOtherTooltips,
+    props.label,
+    props.resolveLabel,
+    tooltipId,
+    updatePosition
+  ]);
 
   React.useEffect(() => {
     return () => {
@@ -96,7 +128,7 @@ export function LaunchpadTooltip(
       }}
       onMouseEnter={showTooltip}
       onMouseLeave={hideTooltip}
-      tabIndex={0}
+      tabIndex={props.focusable === false ? undefined : 0}
     >
       {props.children}
     </span>

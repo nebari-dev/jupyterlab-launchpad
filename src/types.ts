@@ -2,6 +2,7 @@
 // Distributed under the terms of the Modified BSD License.
 import type { ILauncher } from '@jupyterlab/launcher';
 import type { TranslationBundle } from '@jupyterlab/translation';
+import type { LabIcon } from '@jupyterlab/ui-components';
 import type {
   ReadonlyJSONObject,
   ReadonlyPartialJSONObject
@@ -108,6 +109,7 @@ export interface IKernelMetadataRenderOptions {
 export interface IKernelAction {
   id: string;
   label: string;
+  compactIcon?: LabIcon;
   pendingLabel?: string;
   command: string;
   title?: string;

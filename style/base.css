@@ -56,6 +56,12 @@
   display: inline-flex;
 }
 
+.jp-LaunchpadTooltipAnchor.jp-ellipsis-tooltip,
+.jp-LaunchpadTooltipAnchor.jp-ellipsis-tooltip > .jp-ellipsis {
+  min-width: 0;
+  width: 100%;
+}
+
 .jp-LaunchpadTooltip {
   background: var(--jp-launchpad-neutral-900);
   border-radius: 8px;
@@ -412,6 +418,8 @@
 }
 
 .jp-Launcher-openByType > .jp-Launcher-cardContainer {
+  display: flex;
+  flex-wrap: wrap;
   gap: 22px;
 }
 
@@ -628,7 +636,7 @@
 .jp-Launcher-launchNotebook .jp-NewLauncher-table-scroller,
 .jp-Launcher-launchConsole .jp-NewLauncher-table-scroller,
 .jp-KernelSelector-Dialog .jp-NewLauncher-table-scroller {
-  max-height: 360px;
+  max-height: 60vh;
 }
 
 .jp-NewLauncher-table .jp-sortable-table {
@@ -732,13 +740,59 @@
 
 .jp-NewLauncher-table .jp-sort-icon {
   height: 24px;
+  opacity: 1;
   width: 24px;
+}
+
+/* Hide inactive sort controls until the header is hovered or focused. */
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th:not(.jp-sorted-header)
+  .jp-sort-iconButton {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Restore inactive sort controls for mouse and keyboard interaction. */
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th:not(.jp-sorted-header):hover
+  .jp-sort-iconButton,
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th:not(.jp-sorted-header):focus-within
+  .jp-sort-iconButton,
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th:not(.jp-sorted-header)
+  .jp-sort-iconButton:focus,
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th:not(.jp-sorted-header)
+  .jp-sort-iconButton:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .jp-NewLauncher-table
   .jp-sortable-table-tr
+  > th:not(.jp-sorted-header):hover
+  .jp-sort-icon,
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th:not(.jp-sorted-header):focus-within
+  .jp-sort-icon,
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
   > th:not(.jp-sorted-header)
-  .jp-sort-icon {
+  .jp-sort-iconButton:focus
+  .jp-sort-icon,
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th:not(.jp-sorted-header)
+  .jp-sort-iconButton:focus-visible
+  .jp-sort-icon,
+.jp-NewLauncher-table .jp-sorted-header .jp-sort-icon {
   opacity: 1;
 }
 
@@ -787,10 +841,10 @@
 
 .jp-NewLauncher-table th[data-id='star'],
 .jp-NewLauncher-table td[data-id='star'] {
-  min-width: 40px;
+  min-width: 36px;
   padding: 0;
   text-align: center;
-  width: 40px;
+  width: 36px;
 }
 
 .jp-NewLauncher-table th[data-id='actions'],
@@ -832,7 +886,9 @@
   height: 100px;
 }
 
-.jp-sortable-table-tr > td.jp-mod-col-resized > .jp-ellipsis-wrapper {
+.jp-sortable-table-tr
+  > td.jp-mod-col-resized
+  > .jp-LaunchpadTooltipAnchor.jp-ellipsis-tooltip {
   align-items: center;
   display: flex;
   inset: 0;
@@ -842,7 +898,7 @@
 
 .jp-sortable-table-tr
   > td.jp-mod-col-resized
-  > .jp-ellipsis-wrapper
+  > .jp-LaunchpadTooltipAnchor.jp-ellipsis-tooltip
   > .jp-ellipsis {
   overflow: hidden;
   padding: 10px 12px;
@@ -880,6 +936,7 @@ body.jp-mod-resize-table .jp-sortable-table {
   display: inline-flex;
   gap: 6px;
   line-height: 20px;
+  max-width: 100%;
   min-width: 0;
 }
 
@@ -909,6 +966,9 @@ body.jp-mod-resize-table .jp-sortable-table {
 
 .jp-TableKernelItem-label {
   line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .jp-starIconButton {
@@ -994,6 +1054,49 @@ body.jp-mod-resize-table .jp-sortable-table {
   flex: 0 0 13px;
   height: 13px;
   width: 13px;
+}
+
+.jp-NebiIndicator-compactIcon {
+  color: inherit;
+  display: none;
+  flex: 0 0 13px;
+  height: 13px;
+  width: 13px;
+}
+
+.jp-NebiVersionUpdateIcon {
+  color: var(--jp-ui-font-color2);
+  display: none;
+  flex: 0 0 24px;
+  height: 16px;
+  width: 24px;
+}
+
+.jp-NebiIndicator-compactIcon > svg {
+  height: 13px;
+  width: 13px;
+}
+
+.jp-NebiVersionUpdateIcon > svg {
+  height: 16px;
+  width: 24px;
+}
+
+.jp-NebiIndicator-compactTooltip,
+.jp-NebiVersionUpdateIconTooltip {
+  display: none;
+}
+
+.jp-NebiIndicator-compactIcon > svg .jp-icon3,
+.jp-NebiIndicator-compactIcon > svg [fill],
+.jp-NebiVersionUpdateIcon > svg .jp-icon3,
+.jp-NebiVersionUpdateIcon > svg [fill] {
+  fill: currentcolor;
+}
+
+.jp-NebiIndicator-compactIcon > svg [stroke],
+.jp-NebiVersionUpdateIcon > svg [stroke] {
+  stroke: currentcolor;
 }
 
 .jp-NebiIndicator-icon > svg {
@@ -1161,6 +1264,23 @@ body.jp-mod-resize-table .jp-sortable-table {
   width: 16px;
 }
 
+.jp-KernelActionButton-compactIcon {
+  color: currentcolor;
+  display: none;
+  height: 14px;
+  width: 14px;
+}
+
+.jp-KernelActionButton-compactIcon > svg {
+  height: 14px;
+  width: 14px;
+}
+
+.jp-KernelActionButton-compactIcon > svg .jp-icon3,
+.jp-KernelActionButton-compactIcon > svg [fill] {
+  fill: currentcolor;
+}
+
 @keyframes jp-launchpad-spin {
   to {
     transform: rotate(360deg);
@@ -1173,9 +1293,143 @@ body.jp-mod-resize-table .jp-sortable-table {
   }
 }
 
-.jp-ellipsis-wrapper,
 .jp-ellipsis {
+  max-width: 100%;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable .jp-sortable-table-tr > th,
+.jp-NewLauncher-table.jp-mod-compactTable .jp-sortable-table-tr > td {
+  padding: 0 8px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable .jp-sortable-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+/* In cramped compact headers, swap the label for the inactive sort icon on hover/focus. */
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-sortable-table-tr
+  > th.jp-mod-sort-icon-only:not(.jp-sorted-header)
+  .jp-sort-iconButton {
+  flex-basis: 0;
+  overflow: hidden;
+  width: 0;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-sortable-table-tr
+  > th.jp-mod-sort-icon-only:not(.jp-sorted-header):hover
+  .jp-sortable-table-th-wrapper
+  > label,
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-sortable-table-tr
+  > th.jp-mod-sort-icon-only:not(.jp-sorted-header):focus-within
+  .jp-sortable-table-th-wrapper
+  > label {
+  display: none;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-sortable-table-tr
+  > th.jp-mod-sort-icon-only:not(.jp-sorted-header):hover
+  .jp-sort-iconButton,
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-sortable-table-tr
+  > th.jp-mod-sort-icon-only:not(.jp-sorted-header):focus-within
+  .jp-sort-iconButton,
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-sortable-table-tr
+  > th.jp-mod-sort-icon-only:not(.jp-sorted-header)
+  .jp-sort-iconButton:focus,
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-sortable-table-tr
+  > th.jp-mod-sort-icon-only:not(.jp-sorted-header)
+  .jp-sort-iconButton:focus-visible {
+  flex-basis: 24px;
+  overflow: visible;
+  width: 24px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable th[data-id='star'],
+.jp-NewLauncher-table.jp-mod-compactTable td[data-id='star'] {
+  width: 36px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable th[data-id='kernel'],
+.jp-NewLauncher-table.jp-mod-compactTable td[data-id='kernel'] {
+  width: 130px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable th[data-id='nebi_version'],
+.jp-NewLauncher-table.jp-mod-compactTable td[data-id='nebi_version'] {
+  width: 80px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable th[data-id='nebi_status'],
+.jp-NewLauncher-table.jp-mod-compactTable td[data-id='nebi_status'] {
+  width: 56px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable th[data-id='actions'],
+.jp-NewLauncher-table.jp-mod-compactTable td[data-id='actions'] {
+  min-width: 116px;
+  width: 116px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable th[data-id='last-used'],
+.jp-NewLauncher-table.jp-mod-compactTable td[data-id='last-used'] {
+  width: 70px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiIndicator {
+  gap: 0;
+  justify-content: center;
+  min-width: 24px;
+  padding: 1px 5px;
+}
+
+/* Compact tables replace long Nebi status/version labels with icons. */
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiIndicator-label,
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiIndicator-infoTooltip,
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiIndicator-icon,
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiVersionSeparator,
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiVersionUpdateTextTooltip {
+  display: none;
+}
+
+/* Show the tooltip-enabled compact icons that replace the hidden labels. */
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiIndicator-compactTooltip,
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiIndicator-compactIcon,
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiVersionUpdateIconTooltip,
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiVersionUpdateIcon {
+  display: inline-flex;
+}
+
+/* In compact multi-action rows, collapse the secondary Open in Nebi action to its icon. */
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-KernelActions.jp-mod-multipleActions
+  .jp-KernelActionButton[data-action='nebi-open-overview'] {
+  min-width: 28px;
+  padding: 4px 6px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-KernelActions.jp-mod-multipleActions
+  .jp-KernelActionButton[data-action='nebi-open-overview']
+  .jp-KernelActionButton-label {
+  display: none;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-KernelActions.jp-mod-multipleActions
+  .jp-KernelActionButton[data-action='nebi-open-overview']
+  .jp-KernelActionButton-compactIcon {
+  display: inline-flex;
 }
 
 .jp-KernelSelector-Dialog > .jp-Dialog-content {

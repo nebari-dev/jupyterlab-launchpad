@@ -16,6 +16,7 @@ import {
   searchIcon
 } from '@jupyterlab/ui-components';
 import { Table } from './base-table';
+import { LaunchpadTooltip } from './tooltip';
 import * as React from 'react';
 import {
   ISettingsLayout,
@@ -31,22 +32,22 @@ import { starIcon } from '../icons';
 const STAR_BUTTON_CLASS = 'jp-starIconButton';
 const KERNEL_ITEM_CLASS = 'jp-TableKernelItem';
 const COLUMN_MIN_WIDTHS: Record<string, number> = {
-  star: 40,
-  kernel: 182,
-  nebi_version: 169,
+  star: 36,
+  kernel: 130,
+  nebi_version: 80,
   'widget-type': 96,
   conda_env_name: 150,
   Namespace: 140,
   pixi_environment: 130,
   nebi_workspace: 180,
-  nebi_status: 171,
-  nebi_state: 171,
+  nebi_status: 56,
+  nebi_state: 56,
   nebi_location: 120,
   nebi_source: 120,
-  nebi_local_version: 150,
-  nebi_remote_version: 150,
-  actions: 218,
-  'last-used': 118
+  nebi_local_version: 80,
+  nebi_remote_version: 80,
+  actions: 116,
+  'last-used': 70
 };
 
 interface IVisibleKernelAction {
@@ -130,28 +131,6 @@ function renderMetadataValue(
   return text || '-';
 }
 
-function metadataValueTitle(
-  metadataKey: string,
-  value: unknown,
-  item: IKernelItem,
-  metadata: ReadonlyJSONObject | undefined,
-  trans: TranslationBundle,
-  kernelTable: ILaunchpadKernelTable
-): string | undefined {
-  const title = kernelTable.getMetadataColumn(metadataKey)?.title?.({
-    item,
-    metadataKey,
-    value,
-    metadata,
-    trans
-  });
-  if (title !== undefined) {
-    return title ?? undefined;
-  }
-
-  return metadataValueToString(value);
-}
-
 function compareMetadataValues(aValue: unknown, bValue: unknown): number {
   if (aValue === bValue) {
     return 0;
@@ -198,34 +177,50 @@ function visibleKernelActions(
   return actions;
 }
 
-function EllipsedCell(props: React.PropsWithChildren<{ title?: string }>) {
-  const [innerTitle, setInnerTitle] = React.useState<string | undefined>(
-    undefined
-  );
+function EllipsedCell(
+  props: React.PropsWithChildren<{
+    tooltip?: string;
+    tooltipElementSelector?: string;
+    tooltipOnOverflow?: boolean;
+  }>
+) {
   const elementRef = React.useRef<HTMLDivElement>(null);
-  return (
-    <div className="jp-ellipsis-wrapper" title={props.title}>
-      <div
-        className="jp-ellipsis"
-        title={innerTitle}
-        ref={elementRef}
-        onMouseEnter={() => {
-          if (props.title) {
-            // do nothing if there is a parent title
-            return;
-          }
-          const el = elementRef.current;
-          // if the ellipsis is active, add a title so that user can see the full text on hover
-          if (el && el.scrollWidth > el.clientWidth) {
-            setInnerTitle(el.innerText);
-          } else {
-            setInnerTitle(undefined);
-          }
-        }}
-      >
-        {props.children}
-      </div>
+  const resolveTooltip = React.useCallback(() => {
+    if (!props.tooltipOnOverflow) {
+      return props.tooltip;
+    }
+    const element = elementRef.current;
+    const tooltipElement = props.tooltipElementSelector
+      ? element?.querySelector<HTMLElement>(props.tooltipElementSelector)
+      : element;
+    if (
+      tooltipElement &&
+      tooltipElement.scrollWidth > tooltipElement.clientWidth
+    ) {
+      return props.tooltip ?? tooltipElement.innerText;
+    }
+    return undefined;
+  }, [props.tooltip, props.tooltipElementSelector, props.tooltipOnOverflow]);
+
+  const content = (
+    <div className="jp-ellipsis" ref={elementRef}>
+      {props.children}
     </div>
+  );
+
+  if (!props.tooltip && !props.tooltipOnOverflow) {
+    return content;
+  }
+
+  return (
+    <LaunchpadTooltip
+      className="jp-ellipsis-tooltip"
+      focusable={false}
+      label={props.tooltip}
+      resolveLabel={resolveTooltip}
+    >
+      {content}
+    </LaunchpadTooltip>
   );
 }
 
@@ -240,12 +235,15 @@ function KernelActionButton(props: {
   const mounted = React.useRef(true);
   const label =
     pending && action.pendingLabel ? action.pendingLabel : action.label;
+  const CompactIcon = action.compactIcon?.react;
 
   React.useEffect(() => {
     return () => {
       mounted.current = false;
     };
   }, []);
+
+  const ariaLabel = pending ? label : action.title ?? (caption || action.label);
 
   return (
     <button
@@ -255,9 +253,9 @@ function KernelActionButton(props: {
           : 'jp-KernelActionButton'
       }
       data-action={action.id}
-      title={pending ? label : action.title ?? (caption || action.label)}
       disabled={pending}
       aria-busy={pending || undefined}
+      aria-label={ariaLabel}
       onClick={async event => {
         event.stopPropagation();
         if (pending) {
@@ -278,7 +276,14 @@ function KernelActionButton(props: {
       {pending ? (
         <span className="jp-KernelActionButton-spinner" aria-hidden="true" />
       ) : null}
-      <span>{label}</span>
+      {CompactIcon ? (
+        <CompactIcon
+          className="jp-KernelActionButton-compactIcon"
+          tag="span"
+          aria-hidden="true"
+        />
+      ) : null}
+      <span className="jp-KernelActionButton-label">{label}</span>
     </button>
   );
 }
@@ -372,16 +377,7 @@ export function KernelTable(props: {
             | undefined;
           const value = kernelMeta ? kernelMeta[metadataKey] : undefined;
           return (
-            <EllipsedCell
-              title={metadataValueTitle(
-                metadataKey,
-                value,
-                item,
-                kernelMeta,
-                trans,
-                props.kernelTable
-              )}
-            >
+            <EllipsedCell>
               {renderMetadataValue(
                 metadataKey,
                 value,
@@ -469,7 +465,13 @@ export function KernelTable(props: {
       }
 
       return (
-        <div className="jp-KernelActions">
+        <div
+          className={
+            actions.length > 1
+              ? 'jp-KernelActions jp-mod-multipleActions'
+              : 'jp-KernelActions'
+          }
+        >
           {actions.map(({ action, args, caption }) => (
             <KernelActionButton
               key={action.id}
@@ -494,7 +496,11 @@ export function KernelTable(props: {
       renderCell: (row: IKernelItem) => {
         const metadata = row.metadata?.kernel as ReadonlyJSONObject | undefined;
         return (
-          <EllipsedCell>
+          <EllipsedCell
+            tooltip={row.label}
+            tooltipElementSelector=".jp-TableKernelItem-label"
+            tooltipOnOverflow={true}
+          >
             <span
               className={KERNEL_ITEM_CLASS}
               onClick={event => {
@@ -550,15 +556,7 @@ export function KernelTable(props: {
           <UseSignal signal={row.refreshLastUsed}>
             {() => {
               return (
-                <EllipsedCell
-                  title={
-                    row.lastUsed
-                      ? Time.format(row.lastUsed)
-                      : trans.__(
-                          'No information about last use of this kernel is available in the layout database'
-                        )
-                  }
-                >
+                <EllipsedCell>
                   {row.lastUsed
                     ? Time.formatHuman(row.lastUsed)
                     : trans.__('Never')}
@@ -602,6 +600,7 @@ export function KernelTable(props: {
   );
   const scrollerRef = React.useRef<HTMLDivElement | null>(null);
   const [hasMoreRowsBelow, setHasMoreRowsBelow] = React.useState(false);
+  const [isCompactTable, setIsCompactTable] = React.useState(false);
   const KernelItemTable = Table<IKernelItem>;
 
   // Build the sortable rows from the active search query, matching both labels
@@ -662,6 +661,10 @@ export function KernelTable(props: {
     setHasMoreRowsBelow(current =>
       current === nextHasMoreRowsBelow ? current : nextHasMoreRowsBelow
     );
+    const nextIsCompactTable = scroller.clientWidth <= 850;
+    setIsCompactTable(current =>
+      current === nextIsCompactTable ? current : nextIsCompactTable
+    );
   }, []);
 
   const onSettings = () => {
@@ -714,7 +717,11 @@ export function KernelTable(props: {
   }, [updateScrollState]);
 
   return (
-    <div className="jp-NewLauncher-table">
+    <div
+      className={`jp-NewLauncher-table${
+        isCompactTable ? ' jp-mod-compactTable' : ''
+      }`}
+    >
       {props.showSearchBox ? (
         <div className="jp-Launcher-searchBox">
           <searchIcon.react
