@@ -177,6 +177,31 @@ function visibleKernelActions(
   return actions;
 }
 
+function compareVisibleKernelActions(
+  aActions: IVisibleKernelAction[],
+  bActions: IVisibleKernelAction[]
+): number {
+  if (aActions.length === 0 || bActions.length === 0) {
+    return Number(aActions.length === 0) - Number(bActions.length === 0);
+  }
+
+  const aPrimaryAction = aActions[0].action;
+  const bPrimaryAction = bActions[0].action;
+  const rankCompare =
+    (aPrimaryAction.rank ?? Number.MAX_SAFE_INTEGER) -
+    (bPrimaryAction.rank ?? Number.MAX_SAFE_INTEGER);
+  if (rankCompare !== 0) {
+    return rankCompare;
+  }
+
+  const actionIdCompare = aPrimaryAction.id.localeCompare(bPrimaryAction.id);
+  if (actionIdCompare !== 0) {
+    return actionIdCompare;
+  }
+
+  return aActions.length - bActions.length;
+}
+
 function EllipsedCell(
   props: React.PropsWithChildren<{
     tooltip?: string;
@@ -368,6 +393,7 @@ export function KernelTable(props: {
 
   const extraColumns: Table.IColumn<IKernelItem>[] = [...metadataAvailable].map(
     metadataKey => {
+      const metadataColumn = props.kernelTable.getMetadataColumn(metadataKey);
       return {
         id: metadataKey,
         label: columnLabelFromKey(metadataKey, props.kernelTable),
@@ -398,6 +424,26 @@ export function KernelTable(props: {
             | undefined;
           const aValue = aKernelMeta ? aKernelMeta[metadataKey] : undefined;
           const bValue = bKernelMeta ? bKernelMeta[metadataKey] : undefined;
+          const columnSort = metadataColumn?.sort?.(
+            {
+              item: a,
+              metadataKey,
+              value: aValue,
+              metadata: aKernelMeta,
+              trans
+            },
+            {
+              item: b,
+              metadataKey,
+              value: bValue,
+              metadata: bKernelMeta,
+              trans
+            }
+          );
+          if (columnSort !== undefined) {
+            return columnSort;
+          }
+
           return compareMetadataValues(aValue, bValue);
         },
         minWidth: COLUMN_MIN_WIDTHS[metadataKey]
@@ -484,7 +530,26 @@ export function KernelTable(props: {
         </div>
       );
     },
-    sort: () => 0
+    sort: (a: IKernelItem, b: IKernelItem) => {
+      const aMetadata = a.metadata?.kernel as ReadonlyJSONObject | undefined;
+      const bMetadata = b.metadata?.kernel as ReadonlyJSONObject | undefined;
+      return compareVisibleKernelActions(
+        visibleKernelActions(
+          a,
+          aMetadata,
+          trans,
+          props.kernelTable,
+          props.commands
+        ),
+        visibleKernelActions(
+          b,
+          bMetadata,
+          trans,
+          props.kernelTable,
+          props.commands
+        )
+      );
+    }
   };
 
   const availableColumns: Table.IColumn<IKernelItem>[] = [

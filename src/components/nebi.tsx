@@ -94,6 +94,15 @@ const NEBI_STATUS_PRESENTATION: Record<string, INebiStatusPresentation> = {
   }
 };
 
+const NEBI_STATUS_SORT_RANK: Record<string, number> = {
+  ready: 0,
+  outdated: 1,
+  'missing-deps': 2,
+  'not-installed': 3,
+  'not-pulled': 4,
+  failed: 5
+};
+
 const NEBI_LOCATION_LABELS: Record<string, string> = {
   local: 'Local',
   remote: 'Remote'
@@ -154,6 +163,14 @@ function statusFromMetadata(
     normalizeStatus(metadata?.['nebi_state']) ??
     normalizeStatus(fallback)
   );
+}
+
+function statusSortRank(
+  metadata: ReadonlyJSONObject | undefined,
+  fallback?: unknown
+): number {
+  const status = statusFromMetadata(metadata, fallback);
+  return status ? NEBI_STATUS_SORT_RANK[status] ?? Number.MAX_SAFE_INTEGER : 6;
 }
 
 function locationFromMetadata(
@@ -445,6 +462,12 @@ function createNebiColumns(
 
       return undefined;
     },
+    sort:
+      id === 'nebi_state' || id === 'nebi_status'
+        ? (a, b) =>
+            statusSortRank(a.metadata, a.value) -
+            statusSortRank(b.metadata, b.value)
+        : undefined,
     render: ({ value, metadata }) => {
       if (id === 'nebi_version') {
         const version = localVersionFromMetadata(metadata, value);

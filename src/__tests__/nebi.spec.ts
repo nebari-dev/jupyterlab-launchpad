@@ -205,6 +205,51 @@ describe('LaunchpadKernelTable', () => {
     expect(location?.label).toBe('Location');
   });
 
+  it('sorts Nebi statuses by readiness', () => {
+    const registry = new LaunchpadKernelTable();
+    const item = {} as IKernelItem;
+
+    activateNebiPlugin(registry);
+
+    const status = registry.getMetadataColumn('nebi_status');
+    const sorted = [
+      'failed',
+      'remote-not-pulled',
+      'not-installed',
+      'local-missing-deps',
+      'outdated',
+      'ready'
+    ].sort((a, b) => {
+      return (
+        status?.sort?.(
+          {
+            item,
+            metadataKey: 'nebi_status',
+            value: a,
+            metadata: { nebi_status: a },
+            trans: null as never
+          },
+          {
+            item,
+            metadataKey: 'nebi_status',
+            value: b,
+            metadata: { nebi_status: b },
+            trans: null as never
+          }
+        ) ?? 0
+      );
+    });
+
+    expect(sorted).toEqual([
+      'ready',
+      'outdated',
+      'local-missing-deps',
+      'not-installed',
+      'remote-not-pulled',
+      'failed'
+    ]);
+  });
+
   it('registers Nebi commands from the Nebi plugin', () => {
     const registry = new LaunchpadKernelTable();
 

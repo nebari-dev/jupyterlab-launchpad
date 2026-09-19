@@ -96,6 +96,10 @@ export interface IKernelMetadataColumn {
   isVisibleByDefault?: boolean;
   title?(options: IKernelMetadataRenderOptions): string | null | undefined;
   render?(options: IKernelMetadataRenderOptions): React.ReactNode | undefined;
+  sort?(
+    a: IKernelMetadataRenderOptions,
+    b: IKernelMetadataRenderOptions
+  ): number | undefined;
 }
 
 export interface IKernelMetadataRenderOptions {
