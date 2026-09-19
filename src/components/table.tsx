@@ -28,6 +28,7 @@ import {
   ILaunchpadKernelTable
 } from '../types';
 import { starIcon } from '../icons';
+import { compareKernelActionLists } from '../kernel-table';
 
 const STAR_BUTTON_CLASS = 'jp-starIconButton';
 const KERNEL_ITEM_CLASS = 'jp-TableKernelItem';
@@ -181,25 +182,10 @@ function compareVisibleKernelActions(
   aActions: IVisibleKernelAction[],
   bActions: IVisibleKernelAction[]
 ): number {
-  if (aActions.length === 0 || bActions.length === 0) {
-    return Number(aActions.length === 0) - Number(bActions.length === 0);
-  }
-
-  const aPrimaryAction = aActions[0].action;
-  const bPrimaryAction = bActions[0].action;
-  const rankCompare =
-    (aPrimaryAction.rank ?? Number.MAX_SAFE_INTEGER) -
-    (bPrimaryAction.rank ?? Number.MAX_SAFE_INTEGER);
-  if (rankCompare !== 0) {
-    return rankCompare;
-  }
-
-  const actionIdCompare = aPrimaryAction.id.localeCompare(bPrimaryAction.id);
-  if (actionIdCompare !== 0) {
-    return actionIdCompare;
-  }
-
-  return aActions.length - bActions.length;
+  return compareKernelActionLists(
+    aActions.map(({ action }) => action),
+    bActions.map(({ action }) => action)
+  );
 }
 
 function EllipsedCell(

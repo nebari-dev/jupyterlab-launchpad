@@ -52,7 +52,11 @@ jest.mock('../kernel-refresh-messages', () => ({
 import * as React from 'react';
 import { Notification, showErrorMessage } from '@jupyterlab/apputils';
 import { ServerConnection } from '@jupyterlab/services';
-import { LaunchpadKernelTable } from '../kernel-table';
+import type { ReadonlyJSONObject } from '@lumino/coreutils';
+import {
+  compareKernelActionLists,
+  LaunchpadKernelTable
+} from '../kernel-table';
 import {
   NebiCommandIDs,
   NEBI_JOB_COMPLETED_MESSAGE,
@@ -247,6 +251,90 @@ describe('LaunchpadKernelTable', () => {
       'not-installed',
       'remote-not-pulled',
       'failed'
+    ]);
+  });
+
+  it('sorts Nebi action lists by primary action', () => {
+    const registry = new LaunchpadKernelTable();
+    const item = {} as IKernelItem;
+
+    activateNebiPlugin(registry);
+
+    const rows: Array<{ label: string; metadata: ReadonlyJSONObject }> = [
+      {
+        label: 'ready',
+        metadata: {
+          nebi_status: 'ready'
+        }
+      },
+      {
+        label: 'failed',
+        metadata: {
+          nebi_status: 'failed'
+        }
+      },
+      {
+        label: 'not-installed',
+        metadata: {
+          nebi_status: 'not-installed',
+          nebi_workspace_path: '/tmp/new-environment'
+        }
+      },
+      {
+        label: 'missing-deps',
+        metadata: {
+          nebi_status: 'missing-deps',
+          nebi_workspace_path: '/tmp/missing-deps',
+          nebi_missing_dependencies: ['ipykernel']
+        }
+      },
+      {
+        label: 'not-pulled',
+        metadata: {
+          nebi_status: 'not-pulled',
+          nebi_workspace: 'nebari/remote-workspace'
+        }
+      }
+    ];
+
+    const sorted = rows.sort((a, b) =>
+      compareKernelActionLists(
+        registry.getActions({
+          item,
+          metadata: a.metadata,
+          trans: null as never
+        }),
+        registry.getActions({
+          item,
+          metadata: b.metadata,
+          trans: null as never
+        })
+      )
+    );
+
+    expect(sorted.map(row => row.label)).toEqual([
+      'not-pulled',
+      'missing-deps',
+      'not-installed',
+      'failed',
+      'ready'
+    ]);
+    expect(
+      sorted.map(row =>
+        registry
+          .getActions({
+            item,
+            metadata: row.metadata,
+            trans: null as never
+          })
+          .map(action => action.label)
+      )
+    ).toEqual([
+      ['Pull'],
+      ['Attempt fix', 'Open in Nebi'],
+      ['Install'],
+      ['Open in Nebi'],
+      []
     ]);
   });
 
