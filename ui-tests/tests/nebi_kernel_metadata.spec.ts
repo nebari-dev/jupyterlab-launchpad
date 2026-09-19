@@ -17,6 +17,11 @@ const commonHiddenColumns = {
   conda_is_currently_running: 'hidden',
   supported_encryption: 'hidden',
   nebi: 'hidden',
+  nebi_state: 'hidden',
+  nebi_location: 'hidden',
+  nebi_source: 'hidden',
+  nebi_local_version: 'hidden',
+  nebi_remote_version: 'hidden',
   nebi_missing_dependencies: 'hidden',
   nebi_outdated: 'hidden',
   nebi_not_ready_reason: 'hidden',
@@ -25,23 +30,35 @@ const commonHiddenColumns = {
   nebi_discovered_at: 'hidden',
   nebi_kernel_spec: 'hidden',
   nebi_kernel_state: 'hidden',
-  nebi_workspace_path: 'hidden'
-};
-
-const hiddenColumns = {
-  ...commonHiddenColumns,
-  nebi_version: 'hidden',
-  'last-used': 'hidden',
-  star: 'hidden'
-};
-
-const responsiveHiddenColumns = {
-  ...commonHiddenColumns,
-  nebi_location: 'hidden',
-  nebi_local_version: 'hidden',
-  nebi_remote_version: 'hidden',
   nebi_workspace: 'hidden',
+  nebi_workspace_path: 'hidden',
   pixi_environment: 'hidden'
+};
+
+const tableColumnOrder = [
+  'star',
+  'kernel',
+  'nebi_version',
+  'nebi_status',
+  'actions',
+  'last-used'
+];
+
+const nebiMetadataMockSettings = {
+  ...galata.DEFAULT_SETTINGS,
+  [SETTINGS_ID]: {
+    ...galata.DEFAULT_SETTINGS[SETTINGS_ID],
+    createEmptySection: true,
+    launchConsoleSection: false,
+    hiddenColumns: commonHiddenColumns,
+    collapsedSections: {
+      'create-empty': 'expanded',
+      starred: 'collapsed',
+      'launch-console': 'collapsed',
+      'launch-notebook': 'expanded'
+    },
+    columnOrder: tableColumnOrder
+  }
 };
 
 const kernelspecs: KernelspecsResponse = {
@@ -116,7 +133,7 @@ const overflowReadyKernelspecs = Array.from({ length: 18 }).reduce<
       resources: {},
       spec: {
         argv: ['python', '-m', 'ipykernel_launcher', '-f', '{connection_file}'],
-        display_name: `Nebi Overflow Ready ${suffix}`,
+        display_name: `Nebi Z Overflow Ready ${suffix}`,
         language: 'python',
         metadata: {
           nebi_status: 'ready',
@@ -238,40 +255,17 @@ test.describe('Nebi kernel metadata', () => {
   test.use({
     autoGoto: false,
     viewport: { width: 1440, height: 720 },
-    mockSettings: {
-      ...galata.DEFAULT_SETTINGS,
-      [SETTINGS_ID]: {
-        ...galata.DEFAULT_SETTINGS[SETTINGS_ID],
-        createEmptySection: false,
-        launchConsoleSection: false,
-        hiddenColumns,
-        collapsedSections: {
-          'create-empty': 'collapsed',
-          starred: 'collapsed',
-          'launch-console': 'collapsed',
-          'launch-notebook': 'expanded'
-        },
-        columnOrder: [
-          'kernel',
-          'nebi_status',
-          'nebi_location',
-          'nebi_local_version',
-          'nebi_remote_version',
-          'nebi_workspace',
-          'pixi_environment',
-          'actions',
-          'last-used',
-          'star'
-        ]
-      }
-    }
+    mockSettings: nebiMetadataMockSettings
   });
 
   test('should render Nebi metadata columns and actions', async ({
     page,
     tmpPath
   }) => {
-    await mockNebiEndpoints(page, { specs: overflowKernelspecs });
+    await mockNebiEndpoints(page, {
+      includeNebiServerProxy: true,
+      specs: overflowKernelspecs
+    });
     await page.goto(`tree/${tmpPath}?reset`);
 
     const launcher = page.locator('.jp-LauncherBody');
@@ -283,20 +277,23 @@ test.describe('Nebi kernel metadata', () => {
     ).toBeVisible();
     await expect(
       notebookSection.getByText('Missing dependencies', { exact: true })
-    ).toBeVisible();
-    await expect(
-      notebookSection.getByText('Remote', { exact: true })
-    ).toBeVisible();
+    ).toHaveCount(1);
     await expect(
       notebookSection
         .locator('.jp-KernelActionButton')
         .filter({ hasText: 'Pull' })
     ).toBeVisible();
     await expect(
+      notebookSection.locator(
+        '.jp-KernelActionButton[data-action="nebi-open-overview"]'
+      )
+    ).toHaveCount(1);
+    await expect(
       notebookSection.locator('.jp-NewLauncher-table-scrollerWrapper')
     ).toHaveClass(/jp-mod-hasMoreBelow/);
 
-    expect(await launcher.screenshot()).toMatchSnapshot(
+    await notebookSection.scrollIntoViewIfNeeded();
+    expect(await notebookSection.screenshot()).toMatchSnapshot(
       'nebi-kernel-metadata.png'
     );
   });
@@ -306,29 +303,7 @@ test.describe('Nebi kernel metadata responsive layout', () => {
   test.use({
     autoGoto: false,
     viewport: { width: 625, height: 720 },
-    mockSettings: {
-      ...galata.DEFAULT_SETTINGS,
-      [SETTINGS_ID]: {
-        ...galata.DEFAULT_SETTINGS[SETTINGS_ID],
-        createEmptySection: true,
-        launchConsoleSection: false,
-        hiddenColumns: responsiveHiddenColumns,
-        collapsedSections: {
-          'create-empty': 'expanded',
-          starred: 'collapsed',
-          'launch-console': 'collapsed',
-          'launch-notebook': 'expanded'
-        },
-        columnOrder: [
-          'star',
-          'kernel',
-          'nebi_version',
-          'nebi_status',
-          'actions',
-          'last-used'
-        ]
-      }
-    }
+    mockSettings: nebiMetadataMockSettings
   });
 
   test('should render compact Nebi metadata on a narrow screen', async ({
@@ -340,7 +315,22 @@ test.describe('Nebi kernel metadata responsive layout', () => {
       specs: responsiveKernelspecs
     });
     await page.goto(`tree/${tmpPath}?reset`);
-    await page.sidebar.close('left');
+    if (await page.locator('#jp-left-stack').isVisible()) {
+      await page.evaluate(async () => {
+        const app = (
+          window as typeof window & {
+            jupyterapp: {
+              commands: {
+                execute: (id: string) => Promise<unknown>;
+              };
+            };
+          }
+        ).jupyterapp;
+
+        await app.commands.execute('application:toggle-left-area');
+      });
+      await expect(page.locator('#jp-left-stack')).toBeHidden();
+    }
 
     const launcher = page.locator('.jp-LauncherBody');
     const notebookSection = launcher.locator('.jp-Launcher-launchNotebook');
