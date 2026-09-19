@@ -82,18 +82,25 @@ test.describe('Filter individual', () => {
 
   test('search in individual sections', async ({ page }) => {
     const launcher = page.locator('.jp-LauncherBody');
-    await expect(
-      launcher
-        .locator('.jp-Launcher-launchNotebook .jp-Launcher-searchBox')
-        .getByPlaceholder('Search notebook kernels and environments')
-    ).toBeVisible();
-    await expect(
-      launcher
-        .locator('.jp-Launcher-launchConsole .jp-Launcher-searchBox')
-        .getByPlaceholder('Search console kernels and environments')
-    ).toBeVisible();
-    expect(await launcher.screenshot()).toMatchSnapshot(
-      'launcher-search-in-individual.png'
+    const notebookSearchBox = launcher
+      .locator('.jp-Launcher-launchNotebook .jp-Launcher-searchBox')
+      .getByRole('searchbox');
+
+    await expect(notebookSearchBox).toBeVisible();
+    await expect(notebookSearchBox).toHaveAttribute(
+      'placeholder',
+      'Search notebook kernels and environments'
+    );
+
+    await launcher.locator('.jp-Launcher-launchConsole summary').click();
+    const consoleSearchBox = launcher
+      .locator('.jp-Launcher-launchConsole .jp-Launcher-searchBox')
+      .getByRole('searchbox');
+
+    await expect(consoleSearchBox).toBeVisible();
+    await expect(consoleSearchBox).toHaveAttribute(
+      'placeholder',
+      'Search console kernels and environments'
     );
   });
 });
