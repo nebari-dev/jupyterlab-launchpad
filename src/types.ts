@@ -90,8 +90,8 @@ export interface IKernelMetadataColumn {
   label?: string;
   /**
    * Include registered virtual columns even when rows do not expose metadata
-   * with the same id. For example, `nebi_version` renders from local/remote
-   * version metadata.
+   * with the same id. For example, `nebi_version` renders from
+   * `nebi_local_version`, and `nebi_status` can render from `nebi_state`.
    */
   isVisibleByDefault?: boolean;
   title?(options: IKernelMetadataRenderOptions): string | null | undefined;

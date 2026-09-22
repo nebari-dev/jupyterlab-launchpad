@@ -116,27 +116,6 @@ const NEBI_REDUNDANT_REASONS = new Set([
   'workspace-not-pulled'
 ]);
 
-const NEBI_METADATA_LABELS: Record<string, string> = {
-  nebi_version: 'Version',
-  nebi_state: 'Status',
-  nebi_status: 'Status',
-  nebi_location: 'Location',
-  nebi_missing_dependencies: 'Missing dependencies',
-  nebi_local_version: 'Local version',
-  nebi_remote_version: 'Remote version',
-  nebi_outdated: 'Outdated?',
-  nebi_not_ready_reason: 'Not ready reason',
-  nebi_logo_reason: 'Logo reason',
-  nebi_discovery_hash: 'Discovery hash',
-  nebi_discovered_at: 'Discovered at',
-  nebi_kernel_spec: 'Kernel spec',
-  nebi_kernel_state: 'Kernel state',
-  nebi_workspace: 'Workspace',
-  nebi_workspace_path: 'Workspace path',
-  nebi_source: 'Location',
-  pixi_environment: 'Environment'
-};
-
 function normalizeStatus(value: unknown): string | undefined {
   if (typeof value !== 'string' || value.length === 0) {
     return undefined;
@@ -313,37 +292,6 @@ function missingDependenciesTitle(
       );
 }
 
-function isLatestVersion(
-  id: string,
-  value: unknown,
-  metadata: ReadonlyJSONObject | undefined
-): value is string {
-  if (typeof value !== 'string' || value.length === 0 || !metadata) {
-    return false;
-  }
-
-  const localVersion = metadata['nebi_local_version'];
-  const remoteVersion = metadata['nebi_remote_version'];
-  const outdated = metadata['nebi_outdated'];
-
-  if (id === 'nebi_remote_version') {
-    return (
-      value === remoteVersion &&
-      (outdated === true || typeof localVersion !== 'string')
-    );
-  }
-
-  if (id === 'nebi_local_version') {
-    return (
-      value === localVersion &&
-      outdated === false &&
-      (typeof remoteVersion !== 'string' || localVersion === remoteVersion)
-    );
-  }
-
-  return false;
-}
-
 function localVersionFromMetadata(
   metadata: ReadonlyJSONObject | undefined,
   fallback?: unknown
@@ -447,114 +395,150 @@ function nebiStatusTitle(
 function createNebiColumns(
   trans: ReturnType<ITranslator['load']>
 ): IKernelMetadataColumn[] {
-  return Object.entries(NEBI_METADATA_LABELS).map(([id, label]) => ({
-    id,
-    label: trans.__(label),
-    isVisibleByDefault: id === 'nebi_version' || id === 'nebi_status',
-    title: ({ value, metadata }) => {
-      if (id === 'nebi_state' || id === 'nebi_status') {
-        return null;
-      }
-
-      if (id === 'nebi_missing_dependencies') {
-        return missingDependenciesTitle(metadata, trans);
-      }
-
-      return undefined;
-    },
-    sort:
-      id === 'nebi_state' || id === 'nebi_status'
-        ? (a, b) =>
-            statusSortRank(a.metadata, a.value) -
-            statusSortRank(b.metadata, b.value)
-        : undefined,
-    render: ({ value, metadata }) => {
-      if (id === 'nebi_version') {
+  return [
+    {
+      // Launchpad display column derived from nb-nebi-kernels' local version.
+      // Ordinary kernels supply the explicit value "Built in" in Item.
+      id: 'nebi_version',
+      label: trans.__('Version'),
+      isVisibleByDefault: true,
+      render: ({ value, metadata }) => {
         const version = localVersionFromMetadata(metadata, value);
-        if (!version) {
-          return '-';
-        }
-
-        if (metadata?.['nebi_outdated'] === true) {
-          return renderNebiVersion(
-            version,
-            {
-              updateAvailable: true
-            },
-            trans
-          );
-        }
-
-        return renderNebiVersion(version);
+        return version
+          ? renderNebiVersion(
+              version,
+              { updateAvailable: metadata?.['nebi_outdated'] === true },
+              trans
+            )
+          : '-';
       }
-
-      if (id === 'nebi_state' || id === 'nebi_status') {
+    },
+    {
+      id: 'nebi_state',
+      label: trans.__('Status'),
+      title: () => null,
+      sort: (a, b) =>
+        statusSortRank(a.metadata, a.value) -
+        statusSortRank(b.metadata, b.value),
+      render: ({ value, metadata }) => {
         const status = statusFromMetadata(metadata, value);
-        if (!status) {
-          return '-';
-        }
-
-        return renderStatus(status, metadata, trans);
+        return status ? renderStatus(status, metadata, trans) : '-';
       }
-
-      if (id === 'nebi_source' || id === 'nebi_location') {
+    },
+    {
+      // Launchpad display column: accepts nebi_status and falls back to the
+      // nebi_state field emitted by nb-nebi-kernels. Item supplies "ready"
+      // for ordinary kernels.
+      id: 'nebi_status',
+      label: trans.__('Status'),
+      isVisibleByDefault: true,
+      title: () => null,
+      sort: (a, b) =>
+        statusSortRank(a.metadata, a.value) -
+        statusSortRank(b.metadata, b.value),
+      render: ({ value, metadata }) => {
+        const status = statusFromMetadata(metadata, value);
+        return status ? renderStatus(status, metadata, trans) : '-';
+      }
+    },
+    {
+      id: 'nebi_location',
+      label: trans.__('Location'),
+      render: ({ value, metadata }) => {
         const location = locationFromMetadata(metadata, value);
-        if (!location) {
-          return '-';
+        return location ? renderLocation(location, trans) : '-';
+      }
+    },
+    {
+      id: 'nebi_missing_dependencies',
+      label: trans.__('Missing dependencies'),
+      title: ({ metadata }) => missingDependenciesTitle(metadata, trans),
+      render: ({ value }) => {
+        if (!Array.isArray(value)) {
+          return undefined;
         }
-
-        return renderLocation(location, trans);
+        return value.length === 0
+          ? '-'
+          : value
+              .filter(item => typeof item === 'string' && item.length > 0)
+              .join(', ');
       }
-
-      if (
-        id === 'nebi_local_version' &&
-        metadata?.['nebi_outdated'] === true &&
-        typeof value === 'string' &&
-        value.length > 0
-      ) {
-        const version = value;
-        return renderNebiVersion(
-          version,
-          {
-            updateAvailable: true
-          },
-          trans
-        );
+    },
+    {
+      id: 'nebi_local_version',
+      label: trans.__('Local version'),
+      render: ({ value, metadata }) =>
+        typeof value === 'string' && value.length > 0
+          ? renderNebiVersion(
+              value,
+              { updateAvailable: metadata?.['nebi_outdated'] === true },
+              trans
+            )
+          : undefined
+    },
+    {
+      id: 'nebi_remote_version',
+      label: trans.__('Remote version'),
+      render: ({ value }) =>
+        typeof value === 'string' && value.length > 0
+          ? renderNebiVersion(value)
+          : undefined
+    },
+    {
+      id: 'nebi_outdated',
+      label: trans.__('Outdated?'),
+      render: ({ value }) =>
+        typeof value === 'boolean'
+          ? value
+            ? trans.__('Yes')
+            : trans.__('No')
+          : undefined
+    },
+    {
+      id: 'nebi_not_ready_reason',
+      label: trans.__('Not ready reason')
+    },
+    {
+      id: 'nebi_logo_reason',
+      label: trans.__('Logo reason')
+    },
+    {
+      id: 'nebi_discovery_hash',
+      label: trans.__('Discovery hash')
+    },
+    {
+      id: 'nebi_discovered_at',
+      label: trans.__('Discovered at')
+    },
+    {
+      id: 'nebi_kernel_spec',
+      label: trans.__('Kernel spec')
+    },
+    {
+      id: 'nebi_kernel_state',
+      label: trans.__('Kernel state')
+    },
+    {
+      id: 'nebi_workspace',
+      label: trans.__('Workspace')
+    },
+    {
+      id: 'nebi_workspace_path',
+      label: trans.__('Workspace path')
+    },
+    {
+      id: 'nebi_source',
+      label: trans.__('Location'),
+      render: ({ value, metadata }) => {
+        const location = locationFromMetadata(metadata, value);
+        return location ? renderLocation(location, trans) : '-';
       }
-
-      if (
-        (id === 'nebi_local_version' || id === 'nebi_remote_version') &&
-        isLatestVersion(id, value, metadata)
-      ) {
-        const version = value;
-        return renderNebiVersion(version);
-      }
-
-      if (
-        (id === 'nebi_local_version' || id === 'nebi_remote_version') &&
-        typeof value === 'string' &&
-        value.length > 0
-      ) {
-        return renderNebiVersion(value);
-      }
-
-      if (id === 'nebi_missing_dependencies' && Array.isArray(value)) {
-        if (value.length === 0) {
-          return '-';
-        }
-
-        return value
-          .filter(item => typeof item === 'string' && item.length > 0)
-          .join(', ');
-      }
-
-      if (id === 'nebi_outdated' && typeof value === 'boolean') {
-        return value ? trans.__('Yes') : trans.__('No');
-      }
-
-      return undefined;
+    },
+    {
+      id: 'pixi_environment',
+      label: trans.__('Environment')
     }
-  }));
+  ];
 }
 
 function actionArgs({ metadata }: IKernelActionOptions) {

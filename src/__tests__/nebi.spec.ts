@@ -52,6 +52,7 @@ jest.mock('../kernel-refresh-messages', () => ({
 import * as React from 'react';
 import { Notification, showErrorMessage } from '@jupyterlab/apputils';
 import { ServerConnection } from '@jupyterlab/services';
+import { nullTranslator } from '@jupyterlab/translation';
 import type { ReadonlyJSONObject } from '@lumino/coreutils';
 import {
   compareKernelActionLists,
@@ -88,13 +89,7 @@ function activateNebiPlugin(registry: LaunchpadKernelTable) {
       }
     }
   };
-  const translator = {
-    load: () => ({
-      __: (message: string) => message
-    })
-  };
-
-  nebiKernelTablePlugin.activate(app as never, translator as never, registry);
+  nebiKernelTablePlugin.activate(app as never, nullTranslator, registry);
   return app;
 }
 
@@ -207,6 +202,66 @@ describe('LaunchpadKernelTable', () => {
 
     expect(status?.label).toBe('Status');
     expect(location?.label).toBe('Location');
+  });
+
+  it('renders the default columns from upstream metadata without display fields', () => {
+    const registry = new LaunchpadKernelTable();
+    activateNebiPlugin(registry);
+    const options = {
+      item: {} as IKernelItem,
+      value: undefined,
+      metadata: {
+        nebi_state: 'outdated',
+        nebi_local_version: 'v1',
+        nebi_remote_version: 'v2',
+        nebi_outdated: true
+      },
+      trans: null as never
+    };
+
+    const version = registry.getMetadataColumn('nebi_version')?.render?.({
+      ...options,
+      metadataKey: 'nebi_version'
+    });
+    const status = registry.getMetadataColumn('nebi_status')?.render?.({
+      ...options,
+      metadataKey: 'nebi_status'
+    });
+
+    expect(React.isValidElement(version) && version.props['aria-label']).toBe(
+      'v1 update available'
+    );
+    expect(React.isValidElement(status) && status.props['data-status']).toBe(
+      'outdated'
+    );
+  });
+
+  it('shows a remote-only workspace as not pulled without a local version', () => {
+    const registry = new LaunchpadKernelTable();
+    activateNebiPlugin(registry);
+    const options = {
+      item: {} as IKernelItem,
+      value: undefined,
+      metadata: {
+        nebi_state: 'remote-not-pulled',
+        nebi_remote_version: 'v2'
+      },
+      trans: null as never
+    };
+
+    expect(
+      registry.getMetadataColumn('nebi_version')?.render?.({
+        ...options,
+        metadataKey: 'nebi_version'
+      })
+    ).toBe('-');
+    const status = registry.getMetadataColumn('nebi_status')?.render?.({
+      ...options,
+      metadataKey: 'nebi_status'
+    });
+    expect(React.isValidElement(status) && status.props['data-status']).toBe(
+      'not-pulled'
+    );
   });
 
   it('sorts Nebi statuses by readiness', () => {
