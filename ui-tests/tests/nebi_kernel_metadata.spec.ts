@@ -354,3 +354,117 @@ test.describe('Nebi kernel metadata responsive layout', () => {
     );
   });
 });
+
+test.describe('Nebi kernel selector dialog', () => {
+  test.use({
+    autoGoto: false,
+    mockSettings: nebiMetadataMockSettings,
+    waitForApplication: async ({}, use) => {
+      await use(async page => {
+        await page.evaluate(() => window.jupyterapp.restored);
+        await page.locator('.jp-LauncherBody').waitFor();
+      });
+    }
+  });
+
+  test('keeps its layout stable when opened, resized, and headers are hovered', async ({
+    page,
+    tmpPath
+  }) => {
+    // Short names and statuses make the unbounded dialog cross the compact
+    // breakpoint in opposite directions on successive ResizeObserver callbacks.
+    const specs: KernelspecsResponse = {
+      default: 'demo0',
+      kernelspecs: Object.fromEntries(
+        Array.from({ length: 12 }, (_, index) => {
+          const name = `demo${index}`;
+          return [
+            name,
+            {
+              name,
+              resources: {},
+              spec: {
+                argv: [],
+                display_name: `env${index}`,
+                language: 'python',
+                metadata: {
+                  nebi_state: index % 2 ? 'remote-not-pulled' : 'ready',
+                  nebi_local_version: index % 2 ? null : `1.0.${index}`,
+                  nebi_remote_version: `1.0.${index}`,
+                  nebi_outdated: false,
+                  nebi_workspace: name,
+                  nebi_workspace_path: index % 2 ? '' : `/tmp/${name}`,
+                  pixi_environment: 'default'
+                }
+              }
+            }
+          ];
+        })
+      )
+    };
+    await mockNebiEndpoints(page, { specs });
+    await page.goto(`tree/${tmpPath}?reset`);
+    await page.evaluate(async path => {
+      const app = window.jupyterapp;
+      const model = await app.serviceManager.contents.newUntitled({
+        type: 'notebook',
+        path
+      });
+      await app.commands.execute('docmanager:open', {
+        path: model.path,
+        kernelPreference: { shouldStart: false }
+      });
+    }, tmpPath);
+    await page.getByRole('button', { name: 'No Kernel', exact: true }).click();
+    const dialog = page.locator('.jp-KernelSelector-Dialog');
+    await expect(dialog).toBeVisible();
+    const table = dialog.locator('.jp-NewLauncher-table').first();
+    await expect(table.locator('tbody tr')).toHaveCount(12);
+
+    const expectStableLayout = async () => {
+      const samples = await dialog.evaluate(async node => {
+        const samples: string[] = [];
+        for (let frame = 0; frame < 70; frame++) {
+          await new Promise(requestAnimationFrame);
+          if (frame < 10) {
+            continue;
+          }
+          const content = node.querySelector('.jp-Dialog-content')!;
+          const table = node.querySelector('.jp-NewLauncher-table')!;
+          samples.push(
+            JSON.stringify({
+              width: content.clientWidth,
+              height: content.clientHeight,
+              compact: table.classList.contains('jp-mod-compactTable'),
+              headers: Array.from(table.querySelectorAll('th')).map(th => [
+                th.clientWidth,
+                th.className
+              ])
+            })
+          );
+        }
+        return samples;
+      });
+      expect(new Set(samples).size).toBe(1);
+    };
+
+    for (const width of [1280, 850, 625, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expectStableLayout();
+      const bounds = await dialog.locator('.jp-Dialog-content').boundingBox();
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+      const header = table.locator('th[data-id="nebi_status"]');
+      await header.hover();
+      await expectStableLayout();
+      await header.getByRole('button').focus();
+      await expectStableLayout();
+      await page.mouse.move(0, 0);
+      await header.getByRole('button').evaluate(button => button.blur());
+    }
+    await dialog
+      .getByRole('button', { name: 'No Kernel', exact: true })
+      .click();
+    await expect(dialog).toBeHidden();
+  });
+});

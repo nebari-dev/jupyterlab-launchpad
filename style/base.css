@@ -1432,7 +1432,10 @@ body.jp-mod-resize-table .jp-sortable-table {
 
 .jp-KernelSelector-Dialog > .jp-Dialog-content {
   max-height: 80%;
-  max-width: unset;
+  max-width: calc(100vw - 32px);
+
+  /* Size independently of the responsive table to avoid a resize feedback loop. */
+  width: 1000px;
 }
 
 .jp-KernelSelector-Dialog > .jp-Dialog-content > .jp-Dialog-header {
@@ -1441,6 +1444,7 @@ body.jp-mod-resize-table .jp-sortable-table {
 
 .jp-KernelSelector-Dialog > .jp-Dialog-content > .jp-Dialog-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .jp-KernelSelector-SelectButton {

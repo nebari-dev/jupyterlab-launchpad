@@ -408,7 +408,7 @@ function createNebiColumns(
         if (!aVersion || !bVersion) {
           return Number(!aVersion) - Number(!bVersion);
         }
-        return aVersion.localeCompare(bVersion);
+        return aVersion.localeCompare(bVersion, undefined, { numeric: true });
       },
       render: ({ value, metadata }) => {
         const version = localVersionFromMetadata(metadata, value);
@@ -423,7 +423,7 @@ function createNebiColumns(
     },
     {
       id: 'nebi_state',
-      label: trans.__('Status'),
+      label: trans.__('Nebi status'),
       title: () => null,
       sort: (a, b) =>
         statusSortRank(a.metadata, a.value) -

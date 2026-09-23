@@ -207,7 +207,6 @@ export class KernelSelector extends ReactWidget {
 
   onBeforeAttach(msg: Message) {
     super.onBeforeAttach(msg);
-    this.node.style.minWidth = '';
     this.node.style.minHeight = '';
   }
 
@@ -215,10 +214,9 @@ export class KernelSelector extends ReactWidget {
     super.onAfterAttach(msg);
     this.options.dataChanged.connect(this.update.bind(this));
     requestAnimationFrame(() => {
-      // Set minimum dimensions so that when user starts typing to filter
-      // the kernels the dialog does not start jumping around.
+      // Keep the height stable while filtering. CSS bounds the dialog width
+      // to the viewport independently of the responsive table's contents.
       const bbox = this.node.getBoundingClientRect();
-      this.node.style.minWidth = bbox.width + 'px';
       this.node.style.minHeight = bbox.height + 'px';
     });
   }

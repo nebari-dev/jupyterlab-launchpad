@@ -139,7 +139,7 @@ describe('LaunchpadKernelTable', () => {
     const remoteVersion = registry.getMetadataColumn('nebi_remote_version');
 
     expect(version?.label).toBe('Version');
-    expect(state?.label).toBe('Status');
+    expect(state?.label).toBe('Nebi status');
     expect(source?.label).toBe('Location');
     expect(
       state?.title?.({
@@ -325,8 +325,8 @@ describe('LaunchpadKernelTable', () => {
       trans: nullTranslator.load('jupyterlab-launchpad')
     });
     const remote = options({ nebi_remote_version: '9.0.0' });
-    const older = options({ nebi_local_version: '1.0.0' });
-    const newer = options({ nebi_local_version: '2.0.0' });
+    const older = options({ nebi_local_version: '1.2.0' });
+    const newer = options({ nebi_local_version: '1.10.0' });
     const builtin = options({ nebi_version: 'Built in' });
     const rows = [remote, newer, builtin, older];
     const sort = version.sort;

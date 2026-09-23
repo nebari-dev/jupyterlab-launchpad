@@ -49,6 +49,7 @@
         "nebi_state": "hidden",
         "nebi_location": "hidden",
         "nebi_source": "hidden",
+        "nebi_install_status": "hidden",
         "nebi_local_version": "hidden",
         "nebi_remote_version": "hidden",
         "nebi_missing_dependencies": "hidden",
