@@ -402,6 +402,14 @@ function createNebiColumns(
       id: 'nebi_version',
       label: trans.__('Version'),
       isVisibleByDefault: true,
+      sort: (a, b) => {
+        const aVersion = localVersionFromMetadata(a.metadata, a.value);
+        const bVersion = localVersionFromMetadata(b.metadata, b.value);
+        if (!aVersion || !bVersion) {
+          return Number(!aVersion) - Number(!bVersion);
+        }
+        return aVersion.localeCompare(bVersion);
+      },
       render: ({ value, metadata }) => {
         const version = localVersionFromMetadata(metadata, value);
         return version

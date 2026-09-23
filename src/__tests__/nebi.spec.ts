@@ -264,49 +264,86 @@ describe('LaunchpadKernelTable', () => {
     );
   });
 
-  it('sorts Nebi statuses by readiness', () => {
+  it.each(['nebi_state', 'nebi_status'])(
+    'sorts Nebi statuses from %s by readiness',
+    field => {
+      const registry = new LaunchpadKernelTable();
+      const item = {} as IKernelItem;
+
+      activateNebiPlugin(registry);
+
+      const status = registry.getMetadataColumn('nebi_status');
+      const sorted = [
+        'remote-not-pulled',
+        'local-not-installed',
+        'local-missing-deps',
+        'outdated',
+        'ready'
+      ].sort((a, b) => {
+        return (
+          status?.sort?.(
+            {
+              item,
+              metadataKey: 'nebi_status',
+              value: field === 'nebi_status' ? a : undefined,
+              metadata: { [field]: a },
+              trans: null as never
+            },
+            {
+              item,
+              metadataKey: 'nebi_status',
+              value: field === 'nebi_status' ? b : undefined,
+              metadata: { [field]: b },
+              trans: null as never
+            }
+          ) ?? 0
+        );
+      });
+
+      expect(sorted).toEqual([
+        'ready',
+        'outdated',
+        'local-missing-deps',
+        'local-not-installed',
+        'remote-not-pulled'
+      ]);
+    }
+  );
+
+  it('sorts versions from upstream metadata, with missing local versions last', () => {
     const registry = new LaunchpadKernelTable();
-    const item = {} as IKernelItem;
-
     activateNebiPlugin(registry);
-
-    const status = registry.getMetadataColumn('nebi_status');
-    const sorted = [
-      'failed',
-      'remote-not-pulled',
-      'not-installed',
-      'local-missing-deps',
-      'outdated',
-      'ready'
-    ].sort((a, b) => {
-      return (
-        status?.sort?.(
-          {
-            item,
-            metadataKey: 'nebi_status',
-            value: a,
-            metadata: { nebi_status: a },
-            trans: null as never
-          },
-          {
-            item,
-            metadataKey: 'nebi_status',
-            value: b,
-            metadata: { nebi_status: b },
-            trans: null as never
-          }
-        ) ?? 0
-      );
+    const version = registry.getMetadataColumn('nebi_version');
+    if (!version?.sort) {
+      throw new Error('Version column must sort derived values');
+    }
+    const options = (metadata: ReadonlyJSONObject) => ({
+      item: {} as IKernelItem,
+      metadataKey: 'nebi_version',
+      value: metadata['nebi_version'],
+      metadata,
+      trans: nullTranslator.load('jupyterlab-launchpad')
     });
+    const remote = options({ nebi_remote_version: '9.0.0' });
+    const older = options({ nebi_local_version: '1.0.0' });
+    const newer = options({ nebi_local_version: '2.0.0' });
+    const builtin = options({ nebi_version: 'Built in' });
+    const rows = [remote, newer, builtin, older];
+    const sort = version.sort;
 
-    expect(sorted).toEqual([
-      'ready',
-      'outdated',
-      'local-missing-deps',
-      'not-installed',
-      'remote-not-pulled',
-      'failed'
+    expect([...rows].sort((a, b) => sort(a, b) ?? 0)).toEqual([
+      older,
+      newer,
+      builtin,
+      remote
     ]);
+    expect([...rows].sort((a, b) => sort(b, a) ?? 0)).toEqual([
+      remote,
+      builtin,
+      newer,
+      older
+    ]);
+    expect(version.sort(remote, options({ nebi_local_version: null }))).toBe(0);
   });
 
   it('sorts Nebi action lists by primary action', () => {

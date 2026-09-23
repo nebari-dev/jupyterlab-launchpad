@@ -29,20 +29,29 @@ JUPYTER_CONFIG_PATH = (
 def _sample_workspace_metadata(name, **metadata):
     return {
         "nebi_workspace": f"nebari/{name}",
-        "nebi_workspace_path": str(NEBI_DEMO_WORKSPACE.relative_to(ROOT)),
+        "nebi_workspace_path": str(NEBI_DEMO_WORKSPACE.resolve()),
         "pixi_environment": "default",
+        "nebi_source": "local",
+        "nebi_local_version": None,
+        "nebi_remote_version": None,
+        "nebi_outdated": False,
+        "nebi_missing_dependencies": [],
+        "nebi_not_ready_reason": None,
         **metadata,
     }
 
 
+# Synthetic rows using the kernelspec metadata emitted by nb-nebi-kernels.
+# Keep display-only fields (nebi_version/nebi_status) out of these fixtures.
+# Schema: https://github.com/nebari-dev/nb-nebi-kernels/blob/01b69406eddcd09e9d1dd541dc642d6267fbd177/src/nb_nebi_kernels/manager.py#L420-L441
 SAMPLE_KERNELS = [
     (
         "test123",
         "test123",
         _sample_workspace_metadata(
             "test123",
-            nebi_version="1.2.0",
-            nebi_status="ready",
+            nebi_local_version="1.2.0",
+            nebi_state="ready",
             nebi_remote_version="1.2.0",
             nebi_outdated=False,
         ),
@@ -52,7 +61,8 @@ SAMPLE_KERNELS = [
         "new-env",
         _sample_workspace_metadata(
             "new-env",
-            nebi_status="not-installed",
+            nebi_state="local-not-installed",
+            nebi_not_ready_reason="environment-not-installed",
         ),
     ),
     (
@@ -60,8 +70,9 @@ SAMPLE_KERNELS = [
         "my-project",
         _sample_workspace_metadata(
             "my-project",
-            nebi_version="1.0.0",
-            nebi_status="missing-deps",
+            nebi_local_version="1.0.0",
+            nebi_state="local-missing-deps",
+            nebi_not_ready_reason="missing-dependencies",
             nebi_missing_dependencies=["ipykernel"],
             nebi_remote_version="1.1.0",
             nebi_outdated=True,
@@ -72,28 +83,31 @@ SAMPLE_KERNELS = [
         "env5",
         _sample_workspace_metadata(
             "env5",
-            nebi_version="1.2.1",
-            nebi_status="failed",
-            nebi_not_ready_reason="The previous launch failed",
+            nebi_local_version="1.2.1",
+            nebi_state="local-missing-deps",
+            nebi_not_ready_reason="kernel-not-installed",
         ),
     ),
     (
         "remote-template",
         "remote-template",
-        {
-            "nebi_status": "not-pulled",
-            "nebi_workspace": "nebari/remote-template",
-            "nebi_remote_version": "2.0.0",
-            "pixi_environment": "default",
-        },
+        _sample_workspace_metadata(
+            "remote-template",
+            nebi_state="remote-not-pulled",
+            nebi_source="remote",
+            nebi_workspace_path="",
+            nebi_remote_version="2.0.0",
+            nebi_not_ready_reason="workspace-not-pulled",
+        ),
     ),
     (
         "analytics-outdated",
         "analytics-outdated",
         _sample_workspace_metadata(
             "analytics-outdated",
-            nebi_version="0.9.0",
-            nebi_status="outdated",
+            nebi_local_version="0.9.0",
+            nebi_state="outdated",
+            nebi_not_ready_reason="local-version-behind-remote",
             nebi_remote_version="1.0.0",
             nebi_outdated=True,
         ),
@@ -104,8 +118,8 @@ SAMPLE_KERNELS = [
             f"env{index}",
             _sample_workspace_metadata(
                 f"env{index}",
-                nebi_version="1.2.1",
-                nebi_status="ready",
+                nebi_local_version="1.2.1",
+                nebi_state="ready",
                 nebi_remote_version="1.2.1",
                 nebi_outdated=False,
             ),
