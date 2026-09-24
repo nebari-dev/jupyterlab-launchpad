@@ -1,20 +1,43 @@
-jest.mock('@jupyterlab/ui-components', () => {
-  const icon = {
+jest.mock('@jupyterlab/ui-components', () => ({
+  LabIcon: class {
+    react = () => null;
+  },
+  infoIcon: {
     react: () => null
-  };
-  return {
-    checkIcon: icon,
-    downloadIcon: icon,
-    errorIcon: icon,
-    refreshIcon: icon
-  };
-});
+  }
+}));
 
 jest.mock('@jupyterlab/apputils', () => ({
   Notification: {
     promise: jest.fn()
   },
   showErrorMessage: jest.fn(() => Promise.resolve())
+}));
+
+jest.mock('@jupyterlab/services', () => ({
+  ServerConnection: {
+    makeSettings: jest.fn(() => ({
+      baseUrl: 'http://example.com/user/demo/'
+    })),
+    makeRequest: jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            server_processes: [
+              {
+                name: 'nebi',
+                launcher_entry: {
+                  path_info: 'nebi/workspaces'
+                }
+              }
+            ]
+          })
+      })
+    ),
+    NetworkError: class extends Error {},
+    ResponseError: class extends Error {}
+  }
 }));
 
 jest.mock('../handler', () => ({
@@ -27,8 +50,14 @@ jest.mock('../kernel-refresh-messages', () => ({
 }));
 
 import * as React from 'react';
-import { Notification } from '@jupyterlab/apputils';
-import { LaunchpadKernelTable } from '../kernel-table';
+import { Notification, showErrorMessage } from '@jupyterlab/apputils';
+import { ServerConnection } from '@jupyterlab/services';
+import { nullTranslator } from '@jupyterlab/translation';
+import type { ReadonlyJSONObject } from '@lumino/coreutils';
+import {
+  compareKernelActionLists,
+  LaunchpadKernelTable
+} from '../kernel-table';
 import {
   NebiCommandIDs,
   NEBI_JOB_COMPLETED_MESSAGE,
@@ -38,26 +67,29 @@ import { requestAPI } from '../handler';
 import { addKernelRefreshMessageListener } from '../kernel-refresh-messages';
 import { IKernelItem } from '../types';
 
+async function settlePromises() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 function activateNebiPlugin(registry: LaunchpadKernelTable) {
   const app = {
     commands: {
       addCommand: jest.fn(),
       execute: jest.fn(),
+      hasCommand: jest.fn(id => id === 'server-proxy:open'),
       notifyCommandChanged: jest.fn()
     },
     serviceManager: {
+      serverSettings: {
+        baseUrl: 'http://example.com/user/demo/'
+      },
       kernelspecs: {
         refreshSpecs: jest.fn()
       }
     }
   };
-  const translator = {
-    load: () => ({
-      __: (message: string) => message
-    })
-  };
-
-  nebiKernelTablePlugin.activate(app as never, translator as never, registry);
+  nebiKernelTablePlugin.activate(app as never, nullTranslator, registry);
   return app;
 }
 
@@ -94,11 +126,20 @@ describe('LaunchpadKernelTable', () => {
 
     activateNebiPlugin(registry);
 
+    expect(
+      registry
+        .getMetadataColumns()
+        .filter(column => column.isVisibleByDefault)
+        .map(column => column.id)
+    ).toEqual(['nebi_version', 'nebi_status']);
+
+    const version = registry.getMetadataColumn('nebi_version');
     const state = registry.getMetadataColumn('nebi_state');
     const source = registry.getMetadataColumn('nebi_source');
     const remoteVersion = registry.getMetadataColumn('nebi_remote_version');
 
-    expect(state?.label).toBe('Status');
+    expect(version?.label).toBe('Version');
+    expect(state?.label).toBe('Nebi status');
     expect(source?.label).toBe('Location');
     expect(
       state?.title?.({
@@ -111,7 +152,19 @@ describe('LaunchpadKernelTable', () => {
         },
         trans: null as never
       })
-    ).toBe('Missing: ipykernel');
+    ).toBeNull();
+    expect(
+      state?.title?.({
+        item,
+        metadataKey: 'nebi_state',
+        value: 'failed',
+        metadata: {
+          nebi_state: 'failed',
+          nebi_not_ready_reason: 'The previous launch failed'
+        },
+        trans: null as never
+      })
+    ).toBeNull();
     const renderedRemoteVersion = remoteVersion?.render?.({
       item,
       metadataKey: 'nebi_remote_version',
@@ -136,7 +189,7 @@ describe('LaunchpadKernelTable', () => {
           ? child.props.children
           : child
       )
-    ).toEqual(['v2', '(Latest)']);
+    ).toEqual(['v2']);
   });
 
   it('supports split Nebi status and location metadata', () => {
@@ -149,6 +202,232 @@ describe('LaunchpadKernelTable', () => {
 
     expect(status?.label).toBe('Status');
     expect(location?.label).toBe('Location');
+  });
+
+  it('renders the default columns from upstream metadata without display fields', () => {
+    const registry = new LaunchpadKernelTable();
+    activateNebiPlugin(registry);
+    const options = {
+      item: {} as IKernelItem,
+      value: undefined,
+      metadata: {
+        nebi_state: 'outdated',
+        nebi_local_version: 'v1',
+        nebi_remote_version: 'v2',
+        nebi_outdated: true
+      },
+      trans: null as never
+    };
+
+    const version = registry.getMetadataColumn('nebi_version')?.render?.({
+      ...options,
+      metadataKey: 'nebi_version'
+    });
+    const status = registry.getMetadataColumn('nebi_status')?.render?.({
+      ...options,
+      metadataKey: 'nebi_status'
+    });
+
+    expect(React.isValidElement(version) && version.props['aria-label']).toBe(
+      'v1 update available'
+    );
+    expect(React.isValidElement(status) && status.props['data-status']).toBe(
+      'outdated'
+    );
+  });
+
+  it('shows a remote-only workspace as not pulled without a local version', () => {
+    const registry = new LaunchpadKernelTable();
+    activateNebiPlugin(registry);
+    const options = {
+      item: {} as IKernelItem,
+      value: undefined,
+      metadata: {
+        nebi_state: 'remote-not-pulled',
+        nebi_remote_version: 'v2'
+      },
+      trans: null as never
+    };
+
+    expect(
+      registry.getMetadataColumn('nebi_version')?.render?.({
+        ...options,
+        metadataKey: 'nebi_version'
+      })
+    ).toBe('-');
+    const status = registry.getMetadataColumn('nebi_status')?.render?.({
+      ...options,
+      metadataKey: 'nebi_status'
+    });
+    expect(React.isValidElement(status) && status.props['data-status']).toBe(
+      'not-pulled'
+    );
+  });
+
+  it.each(['nebi_state', 'nebi_status'])(
+    'sorts Nebi statuses from %s by readiness',
+    field => {
+      const registry = new LaunchpadKernelTable();
+      const item = {} as IKernelItem;
+
+      activateNebiPlugin(registry);
+
+      const status = registry.getMetadataColumn('nebi_status');
+      const sorted = [
+        'remote-not-pulled',
+        'local-not-installed',
+        'local-missing-deps',
+        'outdated',
+        'ready'
+      ].sort((a, b) => {
+        return (
+          status?.sort?.(
+            {
+              item,
+              metadataKey: 'nebi_status',
+              value: field === 'nebi_status' ? a : undefined,
+              metadata: { [field]: a },
+              trans: null as never
+            },
+            {
+              item,
+              metadataKey: 'nebi_status',
+              value: field === 'nebi_status' ? b : undefined,
+              metadata: { [field]: b },
+              trans: null as never
+            }
+          ) ?? 0
+        );
+      });
+
+      expect(sorted).toEqual([
+        'ready',
+        'outdated',
+        'local-missing-deps',
+        'local-not-installed',
+        'remote-not-pulled'
+      ]);
+    }
+  );
+
+  it('sorts versions from upstream metadata, with missing local versions last', () => {
+    const registry = new LaunchpadKernelTable();
+    activateNebiPlugin(registry);
+    const version = registry.getMetadataColumn('nebi_version');
+    if (!version?.sort) {
+      throw new Error('Version column must sort derived values');
+    }
+    const options = (metadata: ReadonlyJSONObject) => ({
+      item: {} as IKernelItem,
+      metadataKey: 'nebi_version',
+      value: metadata['nebi_version'],
+      metadata,
+      trans: nullTranslator.load('jupyterlab-launchpad')
+    });
+    const remote = options({ nebi_remote_version: '9.0.0' });
+    const older = options({ nebi_local_version: '1.2.0' });
+    const newer = options({ nebi_local_version: '1.10.0' });
+    const builtin = options({ nebi_version: 'Built in' });
+    const rows = [remote, newer, builtin, older];
+    const sort = version.sort;
+
+    expect([...rows].sort((a, b) => sort(a, b) ?? 0)).toEqual([
+      older,
+      newer,
+      builtin,
+      remote
+    ]);
+    expect([...rows].sort((a, b) => sort(b, a) ?? 0)).toEqual([
+      remote,
+      builtin,
+      newer,
+      older
+    ]);
+    expect(version.sort(remote, options({ nebi_local_version: null }))).toBe(0);
+  });
+
+  it('sorts Nebi action lists by primary action', () => {
+    const registry = new LaunchpadKernelTable();
+    const item = {} as IKernelItem;
+
+    activateNebiPlugin(registry);
+
+    const rows: Array<{ label: string; metadata: ReadonlyJSONObject }> = [
+      {
+        label: 'ready',
+        metadata: {
+          nebi_status: 'ready'
+        }
+      },
+      {
+        label: 'failed',
+        metadata: {
+          nebi_status: 'failed'
+        }
+      },
+      {
+        label: 'not-installed',
+        metadata: {
+          nebi_status: 'not-installed',
+          nebi_workspace_path: '/tmp/new-environment'
+        }
+      },
+      {
+        label: 'missing-deps',
+        metadata: {
+          nebi_status: 'missing-deps',
+          nebi_workspace_path: '/tmp/missing-deps',
+          nebi_missing_dependencies: ['ipykernel']
+        }
+      },
+      {
+        label: 'not-pulled',
+        metadata: {
+          nebi_status: 'not-pulled',
+          nebi_workspace: 'nebari/remote-workspace'
+        }
+      }
+    ];
+
+    const sorted = rows.sort((a, b) =>
+      compareKernelActionLists(
+        registry.getActions({
+          item,
+          metadata: a.metadata,
+          trans: null as never
+        }),
+        registry.getActions({
+          item,
+          metadata: b.metadata,
+          trans: null as never
+        })
+      )
+    );
+
+    expect(sorted.map(row => row.label)).toEqual([
+      'not-pulled',
+      'missing-deps',
+      'not-installed',
+      'failed',
+      'ready'
+    ]);
+    expect(
+      sorted.map(row =>
+        registry
+          .getActions({
+            item,
+            metadata: row.metadata,
+            trans: null as never
+          })
+          .map(action => action.label)
+      )
+    ).toEqual([
+      ['Pull'],
+      ['Attempt fix', 'Open in Nebi'],
+      ['Install'],
+      ['Open in Nebi'],
+      []
+    ]);
   });
 
   it('registers Nebi commands from the Nebi plugin', () => {
@@ -165,7 +444,7 @@ describe('LaunchpadKernelTable', () => {
       expect.any(Object)
     );
     expect(app.commands.addCommand).toHaveBeenCalledWith(
-      NebiCommandIDs.editConfig,
+      NebiCommandIDs.openOverview,
       expect.any(Object)
     );
   });
@@ -211,6 +490,119 @@ describe('LaunchpadKernelTable', () => {
         })
       })
     );
+  });
+
+  it('does not show an extra error dialog for Nebi action failures', async () => {
+    jest.clearAllMocks();
+    const consoleError = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    (Notification.promise as jest.Mock).mockImplementationOnce(
+      (promise: Promise<unknown>) => promise.catch(() => undefined)
+    );
+    const registry = new LaunchpadKernelTable();
+
+    const app = activateNebiPlugin(registry);
+    await settlePromises();
+    const installCommand = (
+      app.commands.addCommand as jest.Mock
+    ).mock.calls.find(([id]) => id === NebiCommandIDs.installDependencies)?.[1];
+    if (!installCommand) {
+      throw new Error('Install dependencies command was not registered');
+    }
+
+    try {
+      (requestAPI as jest.Mock).mockRejectedValueOnce(new Error('Pixi failed'));
+      await installCommand.execute({
+        workspacePath: '/tmp/demo',
+        missingDependencies: ['ipykernel']
+      });
+
+      expect(Notification.promise).toHaveBeenCalled();
+      const [, messages] = (Notification.promise as jest.Mock).mock.calls[0];
+      expect(messages.error.message()).toBe('Could not install dependencies');
+      expect(showErrorMessage).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it('opens the Nebi overview through server proxy', async () => {
+    jest.clearAllMocks();
+    const registry = new LaunchpadKernelTable();
+
+    const app = activateNebiPlugin(registry);
+    const openCommand = (app.commands.addCommand as jest.Mock).mock.calls.find(
+      ([id]) => id === NebiCommandIDs.openOverview
+    )?.[1];
+    if (!openCommand) {
+      throw new Error('Open in Nebi command was not registered');
+    }
+
+    await settlePromises();
+    await openCommand.execute({});
+
+    expect(app.commands.execute).toHaveBeenCalledWith('server-proxy:open', {
+      id: 'server-proxy:nebi',
+      title: 'Nebi',
+      url: 'http://example.com/user/demo/nebi/workspaces',
+      newBrowserTab: false
+    });
+    expect(
+      (requestAPI as jest.Mock).mock.calls.map(([endpoint]) => endpoint)
+    ).not.toContain('nebi/config-path');
+  });
+
+  it('requires the Nebi server-proxy entry before opening Nebi', async () => {
+    jest.clearAllMocks();
+    const registry = new LaunchpadKernelTable();
+
+    const app = activateNebiPlugin(registry);
+    const openCommand = (app.commands.addCommand as jest.Mock).mock.calls.find(
+      ([id]) => id === NebiCommandIDs.openOverview
+    )?.[1];
+    if (!openCommand) {
+      throw new Error('Open in Nebi command was not registered');
+    }
+
+    expect(openCommand.isVisible()).toBe(false);
+
+    await settlePromises();
+
+    expect(openCommand.isVisible()).toBe(true);
+    expect(openCommand.isEnabled()).toBe(true);
+    expect(ServerConnection.makeRequest).toHaveBeenCalledWith(
+      'http://example.com/user/demo/server-proxy/servers-info',
+      {},
+      expect.objectContaining({
+        baseUrl: 'http://example.com/user/demo/'
+      })
+    );
+    expect(app.commands.notifyCommandChanged).toHaveBeenCalledWith(
+      NebiCommandIDs.openOverview
+    );
+  });
+
+  it('does not enable Open in Nebi without a Nebi server-proxy entry', async () => {
+    jest.clearAllMocks();
+    (ServerConnection.makeRequest as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ server_processes: [] })
+    });
+    const registry = new LaunchpadKernelTable();
+
+    const app = activateNebiPlugin(registry);
+    const openCommand = (app.commands.addCommand as jest.Mock).mock.calls.find(
+      ([id]) => id === NebiCommandIDs.openOverview
+    )?.[1];
+    if (!openCommand) {
+      throw new Error('Open in Nebi command was not registered');
+    }
+
+    await settlePromises();
+
+    expect(openCommand.isVisible()).toBe(false);
+    expect(openCommand.isEnabled()).toBe(false);
   });
 
   it('keeps Nebi fallback icon titles behind the Nebi plugin', () => {
@@ -261,6 +653,22 @@ describe('LaunchpadKernelTable', () => {
       workspace: 'demo'
     });
 
+    const notInstalledActions = registry.getActions({
+      item,
+      metadata: {
+        nebi_status: 'not-installed',
+        nebi_workspace: 'demo',
+        nebi_workspace_path: '/tmp/demo'
+      },
+      trans: null as never
+    });
+    expect(notInstalledActions.map(action => action.label)).toContain(
+      'Install'
+    );
+    expect(notInstalledActions.map(action => action.command)).not.toContain(
+      NebiCommandIDs.openOverview
+    );
+
     const missingDependencyActions = registry.getActions({
       item,
       metadata: {
@@ -273,7 +681,32 @@ describe('LaunchpadKernelTable', () => {
     });
     expect(missingDependencyActions.map(action => action.command)).toEqual([
       NebiCommandIDs.installDependencies,
-      NebiCommandIDs.editConfig
+      NebiCommandIDs.openOverview
+    ]);
+
+    const missingDependencyActionsWithoutPath = registry.getActions({
+      item,
+      metadata: {
+        nebi_status: 'missing-deps',
+        nebi_workspace: 'demo',
+        nebi_missing_dependencies: ['ipykernel']
+      },
+      trans: null as never
+    });
+    expect(
+      missingDependencyActionsWithoutPath.map(action => action.command)
+    ).toEqual([NebiCommandIDs.openOverview]);
+
+    const failedActions = registry.getActions({
+      item,
+      metadata: {
+        nebi_status: 'failed',
+        nebi_workspace: 'demo'
+      },
+      trans: null as never
+    });
+    expect(failedActions.map(action => action.command)).toEqual([
+      NebiCommandIDs.openOverview
     ]);
 
     const readyActions = registry.getActions({
@@ -285,8 +718,15 @@ describe('LaunchpadKernelTable', () => {
       },
       trans: null as never
     });
-    expect(readyActions.map(action => action.command)).toEqual([
-      NebiCommandIDs.editConfig
-    ]);
+    expect(readyActions.map(action => action.command)).toEqual([]);
+
+    const builtInReadyActions = registry.getActions({
+      item,
+      metadata: {
+        nebi_status: 'ready'
+      },
+      trans: null as never
+    });
+    expect(builtInReadyActions.map(action => action.command)).toEqual([]);
   });
 });

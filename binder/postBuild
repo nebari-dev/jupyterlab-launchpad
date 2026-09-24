@@ -10,19 +10,124 @@
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 
 ROOT = Path.cwd()
+PREFIX = Path(os.environ.get("CONDA_PREFIX", sys.prefix))
 NEBI_DEMO_WORKSPACE = ROOT / "binder" / "nebi-workspaces" / "launchpad-demo"
+KERNELS_PATH = PREFIX / "share" / "jupyter" / "kernels"
+PYTHON_KERNEL_PATH = KERNELS_PATH / "python3"
 JUPYTER_CONFIG_PATH = (
-    Path(os.environ.get("CONDA_PREFIX", sys.prefix))
-    / "etc"
-    / "jupyter"
-    / "jupyter_server_config.json"
+    PREFIX / "etc" / "jupyter" / "jupyter_server_config.json"
 )
+
+
+def _sample_workspace_metadata(name, **metadata):
+    return {
+        "nebi_workspace": f"nebari/{name}",
+        "nebi_workspace_path": str(NEBI_DEMO_WORKSPACE.resolve()),
+        "pixi_environment": "default",
+        "nebi_source": "local",
+        "nebi_local_version": None,
+        "nebi_remote_version": None,
+        "nebi_outdated": False,
+        "nebi_missing_dependencies": [],
+        "nebi_not_ready_reason": None,
+        **metadata,
+    }
+
+
+# Synthetic rows using the kernelspec metadata emitted by nb-nebi-kernels.
+# Keep display-only fields (nebi_version/nebi_status) out of these fixtures.
+# Schema: https://github.com/nebari-dev/nb-nebi-kernels/blob/01b69406eddcd09e9d1dd541dc642d6267fbd177/src/nb_nebi_kernels/manager.py#L420-L441
+SAMPLE_KERNELS = [
+    (
+        "test123",
+        "test123",
+        _sample_workspace_metadata(
+            "test123",
+            nebi_local_version="1.2.0",
+            nebi_state="ready",
+            nebi_remote_version="1.2.0",
+            nebi_outdated=False,
+        ),
+    ),
+    (
+        "new-env",
+        "new-env",
+        _sample_workspace_metadata(
+            "new-env",
+            nebi_state="local-not-installed",
+            nebi_not_ready_reason="environment-not-installed",
+        ),
+    ),
+    (
+        "my-project",
+        "my-project",
+        _sample_workspace_metadata(
+            "my-project",
+            nebi_local_version="1.0.0",
+            nebi_state="local-missing-deps",
+            nebi_not_ready_reason="missing-dependencies",
+            nebi_missing_dependencies=["ipykernel"],
+            nebi_remote_version="1.1.0",
+            nebi_outdated=True,
+        ),
+    ),
+    (
+        "env5",
+        "env5",
+        _sample_workspace_metadata(
+            "env5",
+            nebi_local_version="1.2.1",
+            nebi_state="local-missing-deps",
+            nebi_not_ready_reason="kernel-not-installed",
+        ),
+    ),
+    (
+        "remote-template",
+        "remote-template",
+        _sample_workspace_metadata(
+            "remote-template",
+            nebi_state="remote-not-pulled",
+            nebi_source="remote",
+            nebi_workspace_path="",
+            nebi_remote_version="2.0.0",
+            nebi_not_ready_reason="workspace-not-pulled",
+        ),
+    ),
+    (
+        "analytics-outdated",
+        "analytics-outdated",
+        _sample_workspace_metadata(
+            "analytics-outdated",
+            nebi_local_version="0.9.0",
+            nebi_state="outdated",
+            nebi_not_ready_reason="local-version-behind-remote",
+            nebi_remote_version="1.0.0",
+            nebi_outdated=True,
+        ),
+    ),
+    *[
+        (
+            f"env{index}",
+            f"env{index}",
+            _sample_workspace_metadata(
+                f"env{index}",
+                nebi_local_version="1.2.1",
+                nebi_state="ready",
+                nebi_remote_version="1.2.1",
+                nebi_outdated=False,
+            ),
+        )
+        for index in range(1, 10)
+        if index != 5
+    ],
+]
 
 
 def _(*args, **kwargs):
@@ -97,6 +202,39 @@ def _configure_nebi_kernel_manager():
     )
 
 
+def _copy_python_kernel_assets(kernel_dir):
+    """Reuse the Python logo so sample rows render like real kernels."""
+    for name in ("logo-32x32.png", "logo-64x64.png", "logo-svg.svg"):
+        source = PYTHON_KERNEL_PATH / name
+        if source.exists():
+            shutil.copyfile(source, kernel_dir / name)
+
+
+def _create_sample_kernels():
+    """Seed Binder with rows covering Launchpad columns, labels, and actions."""
+    KERNELS_PATH.mkdir(exist_ok=True, parents=True)
+    for name, display_name, metadata in SAMPLE_KERNELS:
+        kernel_dir = KERNELS_PATH / name
+        kernel_dir.mkdir(exist_ok=True, parents=True)
+        kernel_json = {
+            "argv": [
+                sys.executable,
+                "-m",
+                "ipykernel_launcher",
+                "-f",
+                "{connection_file}",
+            ],
+            "display_name": display_name,
+            "language": "python",
+            "metadata": metadata,
+        }
+        (kernel_dir / "kernel.json").write_text(
+            json.dumps(kernel_json, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        _copy_python_kernel_assets(kernel_dir)
+
+
 # verify the environment is self-consistent before even starting
 _(sys.executable, "-m", "pip", "check")
 
@@ -107,6 +245,7 @@ _(sys.executable, "-m", "jupyter", "labextension", "develop", "--overwrite", "."
 # create a small nebi workspace so Binder previews show nebi kernel metadata
 _create_nebi_demo_workspace()
 _configure_nebi_kernel_manager()
+_create_sample_kernels()
 
 # verify the environment the extension didn't break anything
 _(sys.executable, "-m", "pip", "check")

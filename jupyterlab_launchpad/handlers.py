@@ -83,8 +83,6 @@ class NebiActionHandler(APIHandler):
             self._pull_workspace(body)
         elif self.action == "install-dependencies":
             self._install_dependencies(body)
-        elif self.action == "config-path":
-            self._config_path(body)
         else:
             raise tornado.web.HTTPError(404, reason="Unknown Nebi action")
 
@@ -131,25 +129,6 @@ class NebiActionHandler(APIHandler):
 
         result = _run_command(cmd, cwd=workspace_dir)
         self.finish(json.dumps(result))
-
-    def _config_path(self, body: Dict[str, Any]):
-        workspace_path = _string_field(body, "workspacePath")
-        if not workspace_path:
-            raise tornado.web.HTTPError(400, reason="Missing workspace path")
-
-        workspace_dir = _resolve_workspace_dir(self.server_app, workspace_path)
-        manifest = _find_manifest(workspace_dir)
-        if not manifest.exists():
-            raise tornado.web.HTTPError(400, reason="Workspace manifest does not exist")
-
-        self.finish(
-            json.dumps(
-                {
-                    "path": _contents_path(self.server_app, manifest),
-                }
-            )
-        )
-
 
 class NebiCapabilitiesHandler(APIHandler):
     @tornado.web.authenticated
@@ -212,21 +191,6 @@ def _resolve_workspace_dir(server_app, workspace_path: str) -> Path:
     return resolved_dir
 
 
-def _contents_path(server_app, path: Path) -> str:
-    root_path = _server_root(server_app)
-    resolved_path = path.resolve()
-
-    try:
-        relative_path = resolved_path.relative_to(root_path)
-    except ValueError:
-        raise tornado.web.HTTPError(
-            400,
-            reason="Workspace config is outside the Jupyter file browser root",
-        )
-
-    return relative_path.as_posix()
-
-
 def _run_command(cmd: List[str], cwd: Optional[Path] = None) -> Dict[str, Any]:
     try:
         result = subprocess.run(
@@ -287,11 +251,6 @@ def setup_handlers(web_app, server_app):
             url_path_join(nebi_url, "install-dependencies"),
             NebiActionHandler,
             {"action": "install-dependencies", "server_app": server_app},
-        ),
-        (
-            url_path_join(nebi_url, "config-path"),
-            NebiActionHandler,
-            {"action": "config-path", "server_app": server_app},
         ),
     ]
     web_app.add_handlers(host_pattern, handlers)

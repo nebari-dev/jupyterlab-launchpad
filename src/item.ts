@@ -6,7 +6,25 @@ import { ReadonlyJSONObject, JSONObject } from '@lumino/coreutils';
 import { ILauncher } from '@jupyterlab/launcher';
 import { Signal, ISignal } from '@lumino/signaling';
 import { IItem, IFavoritesDatabase, ILastUsedDatabase } from './types';
-import { codeServerIcon } from './icons';
+import { codeServerIcon, nebiIcon } from './icons';
+
+function isJSONObject(value: unknown): value is JSONObject {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isKernelLauncherItem(item: ILauncher.IItemOptions): boolean {
+  return (
+    (item.command === 'notebook:create-new' ||
+      item.command === 'console:create') &&
+    !!item.category
+  );
+}
+
+function hasNebiMetadata(kernel: JSONObject): boolean {
+  return Object.keys(kernel).some(
+    key => key.startsWith('nebi_') || key === 'pixi_environment'
+  );
+}
 
 export class Item implements IItem {
   // base ILauncher.IItemOptions
@@ -47,7 +65,9 @@ export class Item implements IItem {
     this.label = commands.label(item.command, args);
     // special handling for conda-store
     // https://www.nebari.dev/docs/faq/#why-is-there-duplication-in-names-of-environments
-    const kernel = this.metadata['kernel'] as JSONObject | undefined;
+    const kernel = isJSONObject(this.metadata['kernel'])
+      ? this.metadata['kernel']
+      : undefined;
     if (kernel) {
       const condaStoreMatch = (
         (kernel['conda_env_name'] as string | undefined) ?? ''
@@ -69,12 +89,36 @@ export class Item implements IItem {
         };
       }
     }
+    // Built-in JupyterLab kernel items do not carry Nebi metadata, but the
+    // redesigned table still presents them in the Version and Status columns.
+    if (isKernelLauncherItem(item)) {
+      const kernelMetadata = isJSONObject(this.metadata['kernel'])
+        ? this.metadata['kernel']
+        : {};
+      if (!hasNebiMetadata(kernelMetadata)) {
+        this.metadata = {
+          ...this.metadata,
+          kernel: {
+            nebi_version: 'Built in',
+            nebi_status: 'ready',
+            ...kernelMetadata
+          }
+        };
+      }
+    }
     // set the code-server icon to support dark theme properly
     if (
       this.command === 'server-proxy:open' &&
       this.kernelIconUrl?.endsWith('/vscode')
     ) {
       this.icon = codeServerIcon;
+    }
+    const serverProxyId = (args as ReadonlyJSONObject)['id'];
+    if (
+      this.command === 'server-proxy:open' &&
+      (serverProxyId === 'server-proxy:nebi' || this.label === 'Nebi')
+    ) {
+      this.icon = nebiIcon;
     }
   }
   get starred() {

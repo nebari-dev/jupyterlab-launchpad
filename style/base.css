@@ -1,25 +1,172 @@
-.jp-Launcher-CardGroup {
-  justify-content: center;
+:root {
+  --jp-launchpad-neutral-100: #f8f8f8;
+  --jp-launchpad-neutral-200: #eeeeef;
+  --jp-launchpad-neutral-300: #dedee2;
+  --jp-launchpad-neutral-500: #70707a;
+  --jp-launchpad-neutral-700: #5a5a61;
+  --jp-launchpad-neutral-900: #262628;
+  --jp-launchpad-border: #b7b7bb;
+  --jp-launchpad-border-strong: #9d9da6;
+  --jp-launchpad-card-console-bg: #e6eefa;
+  --jp-launchpad-card-markdown-bg: #f3ebf9;
+  --jp-launchpad-card-neutral-bg: #f1f1f2;
+  --jp-launchpad-card-notebook-bg: #f9efe6;
+  --jp-launchpad-card-python-bg: #faf6e3;
+  --jp-launchpad-card-terminal-bg: #f1f1f3;
+  --jp-launchpad-star-color: #eab54e;
 }
 
-.jp-CollapsibleSection {
-  --jp-animation-depth: 10px;
-  --jp-animation-time: 150ms;
-  --jp-title-height: 24px;
-
-  padding: var(--jp-animation-depth);
-  padding-left: 0;
-  padding-right: 0;
+.jp-LauncherBody,
+.jp-KernelSelector-Dialog {
+  --jp-launchpad-primary: #9547c0;
+  --jp-launchpad-primary-hover: #8439aa;
+  --jp-launchpad-ready-bg: #dbf7df;
+  --jp-launchpad-ready-fg: #006e2e;
+  --jp-launchpad-info-bg: #e7efff;
+  --jp-launchpad-info-fg: #1848d2;
+  --jp-launchpad-warn-bg: #ffeeba;
+  --jp-launchpad-warn-fg: #6e5800;
+  --jp-launchpad-error-bg: #ffe9e5;
+  --jp-launchpad-error-fg: #d2161c;
 }
 
-.jp-Launcher-cwd > h3 {
+[data-jp-theme-light='false'] .jp-LauncherBody,
+[data-jp-theme-light='false'] .jp-KernelSelector-Dialog {
+  --jp-launchpad-card-console-bg: #18324d;
+  --jp-launchpad-card-markdown-bg: #342146;
+  --jp-launchpad-card-neutral-bg: #303035;
+  --jp-launchpad-card-notebook-bg: #4b2a14;
+  --jp-launchpad-card-python-bg: #463b10;
+  --jp-launchpad-primary-hover: #a458db;
+  --jp-launchpad-ready-bg: #0b3d1b;
+  --jp-launchpad-ready-fg: #79e69a;
+  --jp-launchpad-info-bg: #102f65;
+  --jp-launchpad-info-fg: #9abaff;
+  --jp-launchpad-warn-bg: #473400;
+  --jp-launchpad-warn-fg: #ffd66e;
+  --jp-launchpad-error-bg: #4c1418;
+  --jp-launchpad-error-fg: #ff8d93;
+}
+
+[data-jp-theme-light='false'] .jp-CollapsibleSection.jp-mod-empty > summary {
+  background: transparent;
+}
+
+.jp-LaunchpadTooltipAnchor {
+  display: inline-flex;
+}
+
+.jp-LaunchpadTooltipAnchor.jp-ellipsis-tooltip,
+.jp-LaunchpadTooltipAnchor.jp-ellipsis-tooltip > .jp-ellipsis {
+  min-width: 0;
+  width: 100%;
+}
+
+.jp-LaunchpadTooltip {
+  background: var(--jp-launchpad-neutral-900);
+  border-radius: 8px;
+  color: var(--jp-ui-inverse-font-color0);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  max-width: calc(100vw - 24px);
+  padding: 8px 12px;
+  pointer-events: none;
+  position: fixed;
+  transform: translate(-50%, -100%);
+  white-space: nowrap;
+  z-index: 100000;
+}
+
+.jp-LaunchpadTooltip::after {
+  border: 8px solid transparent;
+  border-top-color: var(--jp-launchpad-neutral-900);
+  content: '';
+  left: 50%;
+  position: absolute;
+  top: 100%;
+  transform: translateX(-50%);
+}
+
+[data-jp-theme-light='false'] .jp-LaunchpadTooltip {
+  background: var(--jp-inverse-layout-color0);
+  color: var(--jp-launchpad-neutral-900);
+}
+
+[data-jp-theme-light='false'] .jp-LaunchpadTooltip::after {
+  border-top-color: var(--jp-inverse-layout-color0);
+}
+
+.jp-LauncherBody {
+  box-sizing: border-box;
+  color: var(--jp-ui-font-color1);
+  height: 100%;
+  overflow-y: auto;
+  padding: 20px 28px 32px;
+  position: relative;
+}
+
+.jp-NewLauncher-Header {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0 0 24px;
+  max-width: 912px;
+  width: 100%;
+}
+
+.jp-NewLauncher-TopBar {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  height: 20px;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.jp-Launcher-cwd {
+  align-items: center;
+  color: var(--jp-ui-font-color2);
+  display: inline-flex;
   font-size: var(--jp-ui-font-size1);
-  margin: 0;
+  font-weight: 500;
+  gap: 8px;
+  line-height: 20px;
+}
+
+.jp-Launcher-cwdIcon {
+  color: var(--jp-ui-font-color2);
+  flex: 0 0 16px;
+  height: 16px;
+  width: 16px;
+}
+
+.jp-Launcher-cwdIcon > svg {
+  height: 16px;
+  width: 16px;
+}
+
+.jp-Launcher-cwdIcon > svg [stroke] {
+  stroke: currentcolor;
+}
+
+.jp-Launcher-cwd code {
+  background: transparent;
+  color: var(--jp-ui-font-color1);
+  font-family: inherit;
+  font-size: inherit;
+  padding: 0;
 }
 
 .jp-NewLauncher-OtherItems {
+  align-items: center;
   display: flex;
-  gap: 4px;
+  gap: 6px;
+  position: absolute;
+  right: 28px;
+  top: 20px;
+  z-index: 1;
 }
 
 .jp-NewLauncher-OtherItems .jp-LauncherCard-label {
@@ -27,360 +174,745 @@
 }
 
 .jp-NewLauncher-OtherItems .jp-Launcher-TypeCard {
-  width: unset;
-  min-height: unset;
-  flex-direction: row;
-  margin: 0;
-  box-shadow: none;
-  border-color: var(--jp-border-color0);
+  background: var(--jp-layout-color1);
+  border: var(--jp-border-width) solid var(--jp-launchpad-border);
+  border-radius: 2px;
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  min-height: 28px;
+  width: 28px;
 }
 
-.jp-NewLauncher-OtherItems .jp-LauncherCard-icon {
+[data-jp-theme-light='false'] .jp-NewLauncher-OtherItems .jp-Launcher-TypeCard {
+  border-color: var(--jp-border-color1);
+}
+
+.jp-NewLauncher-OtherItems .jp-Launcher-TypeCard:hover,
+.jp-NewLauncher-OtherItems .jp-Launcher-TypeCard:focus-visible {
+  background: var(--jp-launchpad-neutral-100);
+  border-color: var(--jp-brand-color1);
+}
+
+[data-jp-theme-light='false']
+  .jp-NewLauncher-OtherItems
+  .jp-Launcher-TypeCard:hover,
+[data-jp-theme-light='false']
+  .jp-NewLauncher-OtherItems
+  .jp-Launcher-TypeCard:focus-visible {
+  background: var(--jp-layout-color2);
+}
+
+.jp-NewLauncher-OtherItems .jp-Launcher-TypeCard .jp-LauncherCard-icon,
+.jp-NewLauncher-OtherItems .jp-Launcher-TypeCard:hover .jp-LauncherCard-icon {
+  background: transparent;
+  box-shadow: none;
   height: 24px;
+  margin: 0;
+  transform: none;
+  width: 24px;
 }
 
 .jp-NewLauncher-OtherItems .jp-Launcher-TypeCard > .jp-LauncherCard-icon svg {
-  width: 24px;
   height: 16px;
+  width: 16px;
 }
 
-.jp-NewLauncher-TopBar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-}
-
-.jp-Launcher-searchBox input {
-  /* (no longer needed in lab 4.2+) */
-  box-shadow: none;
-}
-
-.jp-Launcher-searchBox input,
-.jp-Launcher-searchBox jp-search::part(root) {
-  border: var(--jp-border-width) solid var(--jp-border-color1);
-}
-
-.jp-Launcher-searchBox .jp-FilterBox {
+.jp-NewLauncher-Header > .jp-Launcher-searchBox {
+  max-width: 420px;
   width: 100%;
 }
 
+.jp-NewLauncher-table > .jp-Launcher-searchBox {
+  margin: 0 0 8px;
+  max-width: 420px;
+  width: 100%;
+}
+
+.jp-Launcher-searchBox .jp-FilterBox {
+  color: var(--jp-launchpad-neutral-500);
+  height: 32px;
+  width: 100%;
+}
+
+.jp-Launcher-searchBox {
+  position: relative;
+}
+
+.jp-Launcher-searchIcon {
+  height: 16px;
+  left: 10px;
+  pointer-events: none;
+  position: absolute;
+  top: 9px;
+  width: 16px;
+  z-index: 1;
+}
+
+.jp-Launcher-searchIcon .jp-icon3[fill] {
+  fill: var(--jp-ui-font-color2);
+}
+
+.jp-Launcher-searchBox jp-search::part(root) {
+  align-items: center;
+  background: var(--jp-launchpad-neutral-100);
+  border: var(--jp-border-width) solid var(--jp-launchpad-border-strong);
+  border-radius: 6px;
+  box-shadow: none;
+  box-sizing: border-box;
+  color: var(--jp-ui-font-color1);
+  display: flex;
+  gap: 8px;
+  min-height: 32px;
+  padding: 6px 12px 6px 25px;
+}
+
+[data-jp-theme-light='false'] .jp-Launcher-searchBox jp-search::part(root) {
+  background: var(--jp-layout-color2);
+  border-color: var(--jp-border-color2);
+}
+
+.jp-Launcher-searchBox jp-search::part(input-wrapper) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.jp-Launcher-searchBox jp-search::part(control) {
+  color: var(--jp-ui-font-color1);
+  padding: 0;
+}
+
+.jp-Launcher-searchBox jp-search::part(control)::placeholder {
+  color: var(--jp-launchpad-neutral-500);
+  opacity: 1;
+}
+
+[data-jp-theme-light='false'] .jp-Launcher-searchBox .jp-FilterBox {
+  color: var(--jp-ui-font-color1);
+}
+
+[data-jp-theme-light='false']
+  .jp-Launcher-searchBox
+  jp-search::part(control)::placeholder {
+  color: var(--jp-ui-font-color1);
+}
+
+.jp-CollapsibleSection {
+  --jp-animation-time: 150ms;
+
+  margin: 0 0 24px;
+}
+
 .jp-CollapsibleSection > summary {
+  align-items: center;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: var(--jp-ui-font-color1);
   cursor: pointer;
-  transition: margin var(--jp-animation-time) ease-out;
+  display: inline-flex;
+  gap: 8px;
   list-style: none;
-  display: inline-block; /* contain the clickable area */
-  padding-right: 12px; /* but extend it a little */
-  min-width: 185px;
+  min-height: 32px;
+  padding: 4px 8px 4px 0;
+  transition: margin var(--jp-animation-time) ease-out;
 }
 
 .jp-CollapsibleSection > summary::-webkit-details-marker {
-  /* Safari/GNOME Web/Opera */
   display: none;
 }
 
-.jp-CollapsibleSection > summary:hover {
-  background-color: var(--jp-layout-color2);
+.jp-CollapsibleSection:not(.jp-mod-empty) > summary:hover {
+  background: var(--jp-launchpad-neutral-100);
+}
+
+[data-jp-theme-light='false']
+  .jp-CollapsibleSection:not(.jp-mod-empty)
+  > summary:hover {
+  background: var(--jp-layout-color2);
 }
 
 .jp-CollapsibleSection[open] > summary {
-  margin-bottom: var(--jp-animation-depth);
-}
-
-.jp-CollapsibleSection-CollapserIcon > svg {
-  transition: transform var(--jp-animation-time) ease-out;
-  width: var(--jp-title-height);
-  height: var(--jp-title-height);
-}
-
-.jp-CollapsibleSection[open] .jp-CollapsibleSection-CollapserIcon > svg {
-  transform: rotate(90deg);
-}
-
-.jp-CollapsibleSection-CollapserIconWrapper {
-  display: inline-block;
-}
-
-.jp-CollapsibleSection-CategoryIcon > svg {
-  width: 24px;
-  height: 24px;
-  margin-left: 4px;
-  margin-right: 8px;
-}
-
-.jp-CollapsibleSection-Title {
-  display: inline-block;
-  line-height: var(--jp-title-height);
-  vertical-align: top;
-  margin: 0;
-  user-select: none;
-  font-weight: normal;
-}
-
-.jp-LauncherBody {
-  padding: 0 24px;
-  height: 100%;
-  overflow-y: auto;
-}
-
-.jp-NewLauncher-table {
-  --jp-icon-size: 16px;
-
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.jp-NewLauncher-table .jp-sortable-table {
-  border: var(--jp-border-width) solid var(--jp-border-color2);
-  border-top: 0;
-}
-
-.jp-NewLauncher-table .jp-Launcher-kernelIcon {
-  width: var(--jp-icon-size);
-  height: var(--jp-icon-size);
-}
-
-.jp-NewLauncher-table .jp-LauncherCard-noKernelIcon {
-  font-size: var(--jp-icon-size);
-  line-height: var(--jp-icon-size);
-}
-
-.jp-NewLauncher-table .jp-LauncherCard-icon {
-  height: var(--jp-icon-size);
-  width: var(--jp-icon-size);
-  display: inline-block;
-}
-
-.jp-TableKernelItem {
-  line-height: var(--jp-icon-size);
-}
-
-.jp-TableKernelItem > .jp-LauncherCard-icon {
-  margin-right: 4px;
-  vertical-align: top;
-  height: var(--jp-icon-size);
-}
-
-.jp-TableKernelItem-label {
-  vertical-align: top;
-}
-
-.jp-NebiIndicator,
-.jp-NebiVersion {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--jp-ui-font-color1);
-}
-
-.jp-NebiIndicator-icon {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 14px;
-  color: inherit;
-}
-
-.jp-NebiIndicator-icon > svg > .jp-icon3 {
-  fill: currentcolor;
-}
-
-.jp-NebiStatus-ready,
-.jp-NebiVersion.jp-mod-latest {
-  color: var(--jp-success-color1);
-  font-weight: 600;
-}
-
-.jp-NebiStatus-outdated {
-  color: var(--jp-warn-color1);
-}
-
-.jp-NebiStatus-not-pulled,
-.jp-NebiStatus-not-installed,
-.jp-NebiStatus-missing-deps {
-  color: var(--jp-error-color1);
-}
-
-.jp-NebiVersionLatest {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--jp-success-color1);
-}
-
-.jp-KernelActions {
-  display: inline-flex;
-  gap: 4px;
-}
-
-.jp-KernelActionButton {
-  font-size: var(--jp-ui-font-size0);
-  line-height: 18px;
-  min-height: 20px;
-  padding: 0 6px;
-  color: var(--jp-ui-font-color1);
-  background: var(--jp-layout-color1);
-  border: var(--jp-border-width) solid var(--jp-border-color2);
-  cursor: pointer;
-}
-
-.jp-KernelActionButton:hover,
-.jp-KernelActionButton:focus-visible {
-  background: var(--jp-layout-color2);
-  border-color: var(--jp-brand-color1);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.jp-NewLauncher-table th[data-id='icon'],
-.jp-NewLauncher-table th[data-id='star'] {
-  width: var(--jp-icon-size);
-}
-
-.jp-NewLauncher-table .jp-starIcon {
-  width: var(--jp-icon-size);
-  height: var(--jp-icon-size);
-}
-
-.jp-starIconButton:hover > .jp-starIcon {
-  border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--jp-layout-color3);
-  background: var(--jp-layout-color1);
-}
-
-.jp-NewLauncher-table-scroller {
-  overflow: auto;
-  margin-top: 4px;
-}
-
-.jp-starIconButton {
-  --jp-transition-transform: rotate(72deg);
-
-  border: 0;
-  margin: 0;
-  padding: 0 6px;
-  background: transparent;
-  cursor: pointer;
-}
-
-.jp-starIcon .jp-star-filled {
-  opacity: 0;
-}
-
-.jp-starIcon .jp-star-filled,
-.jp-starIcon .jp-star-border {
-  transition-property: opacity, transform;
-  transition-duration: 0.2s;
-  transition-timing-function: ease-out;
-  transform-origin: center;
-}
-
-.jp-starIconButton.jp-mod-starred .jp-star-filled {
-  opacity: 1;
-  transform: var(--jp-transition-transform);
-}
-
-.jp-starIconButton.jp-mod-starred .jp-star-border {
-  opacity: 0;
-  transform: var(--jp-transition-transform);
-}
-
-.jp-KernelSelector-Dialog > .jp-Dialog-content {
-  max-height: 80%;
-  max-width: unset;
-}
-
-.jp-KernelSelector-Dialog > .jp-Dialog-content > .jp-Dialog-header {
-  display: none;
-}
-
-.jp-KernelSelector-Dialog > .jp-Dialog-content > .jp-Dialog-body {
-  /* overwrite the default column flex layout to make sure that both tables are visible */
-  display: grid;
-}
-
-.jp-KernelSelector-SelectButton {
-  display: none;
-}
-
-.jp-KernelSelector-Dialog .jp-NewLauncher-table {
   margin-bottom: 8px;
 }
 
-.jp-KernelSelector-Section {
-  margin: 0;
-  margin-bottom: 4px;
+.jp-CollapsibleSection.jp-mod-empty > summary {
+  background: var(--jp-layout-color1);
+  border-radius: 0;
+  box-sizing: border-box;
+  width: 240px;
 }
 
-/* Styles for scenario where full row is clickable  */
+.jp-CollapsibleSection-CollapserIconWrapper {
+  align-items: center;
+  display: inline-flex;
+  height: 16px;
+  justify-content: center;
+  width: 16px;
+  margin: 3px;
+}
+
+.jp-CollapsibleSection-CollapserIcon {
+  color: var(--jp-ui-font-color1);
+  height: 16px;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: transform var(--jp-animation-time) ease-out;
+  width: 16px;
+}
+
+.jp-CollapsibleSection-CollapserIcon > svg {
+  height: 16px;
+  width: 16px;
+}
+
+.jp-CollapsibleSection-CollapserIcon > svg .jp-icon3 {
+  fill: currentcolor;
+}
+
+.jp-CollapsibleSection[open] .jp-CollapsibleSection-CollapserIcon {
+  transform: rotate(0deg);
+}
+
+.jp-CollapsibleSection-Title {
+  color: var(--jp-ui-font-color1);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  margin: 0;
+}
+
+.jp-CollapsibleSection-Info {
+  align-items: center;
+  color: var(--jp-ui-font-color1);
+  display: inline-flex;
+  height: 16px;
+  justify-content: center;
+  width: 16px;
+}
+
+.jp-CollapsibleSection-InfoIcon {
+  color: currentcolor;
+  display: inline-flex;
+  height: 16px;
+  width: 16px;
+}
+
+.jp-CollapsibleSection-InfoIcon > svg {
+  height: 16px;
+  width: 16px;
+}
+
+.jp-CollapsibleSection-InfoIcon > svg .jp-icon3,
+.jp-CollapsibleSection-InfoIcon > svg [fill] {
+  fill: currentcolor;
+}
+
+.jp-Launcher-CardGroup {
+  align-items: flex-start;
+  gap: 22px;
+  justify-content: flex-start;
+}
+
+.jp-Launcher-openByKernel > .jp-Launcher-cardContainer {
+  display: block;
+}
+
+.jp-Launcher-openByType > .jp-Launcher-cardContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+}
+
+.jp-Launcher-SectionEmptyState {
+  align-items: center;
+  background: var(--jp-launchpad-neutral-100);
+  box-sizing: border-box;
+  color: var(--jp-ui-font-color2);
+  display: flex;
+  font-size: 16px;
+  height: 102px;
+  justify-content: center;
+  width: 240px;
+}
+
+[data-jp-theme-light='false'] .jp-Launcher-SectionEmptyState {
+  background: var(--jp-launchpad-neutral-900);
+}
+
+.jp-Launcher-TypeCard {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: var(--jp-ui-font-color1);
+  margin: 0;
+  min-height: 102px;
+  user-select: none;
+  width: 100px;
+}
+
+.jp-Launcher-TypeCard:hover {
+  background: transparent;
+  box-shadow: none;
+}
+
+.jp-Launcher-openByType .jp-Launcher-TypeCard:focus {
+  border: 0;
+  box-shadow: none;
+  outline: none;
+}
+
+.jp-Launcher-openByType
+  .jp-Launcher-TypeCard:focus-visible
+  .jp-LauncherCard-icon {
+  outline: auto;
+  outline-offset: 2px;
+}
+
+.jp-Launcher-TypeCard .jp-LauncherCard-icon {
+  background: var(--jp-launchpad-neutral-200);
+  border-radius: 16px;
+  height: 70px;
+  margin: 0 0 8px;
+  transition:
+    background-color 120ms ease-out,
+    box-shadow 120ms ease-out,
+    transform 120ms ease-out;
+  width: 70px;
+}
+
+[data-jp-theme-light='false'] .jp-Launcher-TypeCard .jp-LauncherCard-icon {
+  background: var(--jp-launchpad-neutral-900);
+}
+
+.jp-Launcher-TypeCard:hover .jp-LauncherCard-icon {
+  box-shadow: 0 0 0 2px var(--jp-layout-color3);
+  transform: translateY(-1px);
+}
+
+.jp-Launcher-TypeCard > .jp-LauncherCard-icon svg,
+.jp-Launcher-TypeCard .jp-Launcher-kernelIcon {
+  height: 40px;
+  max-height: 40px;
+  max-width: 40px;
+  object-fit: contain;
+  width: 40px;
+}
+
+.jp-Launcher-TypeCard[data-command='notebook:create-new']
+  .jp-LauncherCard-icon {
+  background: var(--jp-launchpad-card-notebook-bg);
+}
+
+.jp-Launcher-TypeCard[data-command='fileeditor:create-new-markdown-file']
+  .jp-LauncherCard-icon,
+.jp-Launcher-TypeCard[data-label^='Nebi'] .jp-LauncherCard-icon {
+  background: var(--jp-launchpad-card-markdown-bg);
+}
+
+.jp-Launcher-TypeCard[data-command='fileeditor:create-new']
+  .jp-LauncherCard-icon,
+.jp-Launcher-TypeCard[data-label^='VS Code'] .jp-LauncherCard-icon {
+  background: var(--jp-launchpad-card-neutral-bg);
+}
+
+.jp-Launcher-TypeCard[data-command='terminal:create-new']
+  .jp-LauncherCard-icon {
+  background: var(--jp-launchpad-card-terminal-bg);
+}
+
+.jp-Launcher-TypeCard[data-command='console:create'] .jp-LauncherCard-icon {
+  background: var(--jp-launchpad-card-console-bg);
+}
+
+.jp-Launcher-TypeCard[data-label='Python File' i] .jp-LauncherCard-icon {
+  background: var(--jp-launchpad-card-python-bg);
+}
+
+[data-jp-theme-light='false']
+  .jp-Launcher-TypeCard[data-command='notebook:create-new']
+  .jp-LauncherCard-icon {
+  background: var(--jp-launchpad-card-notebook-bg);
+}
+
+[data-jp-theme-light='false']
+  .jp-Launcher-TypeCard[data-command='fileeditor:create-new-markdown-file']
+  .jp-LauncherCard-icon,
+[data-jp-theme-light='false']
+  .jp-Launcher-TypeCard[data-label^='Nebi']
+  .jp-LauncherCard-icon {
+  background: var(--jp-launchpad-card-markdown-bg);
+}
+
+[data-jp-theme-light='false']
+  .jp-Launcher-TypeCard[data-command='fileeditor:create-new']
+  .jp-LauncherCard-icon,
+[data-jp-theme-light='false']
+  .jp-Launcher-TypeCard[data-command='terminal:create-new']
+  .jp-LauncherCard-icon,
+[data-jp-theme-light='false']
+  .jp-Launcher-TypeCard[data-label^='VS Code']
+  .jp-LauncherCard-icon {
+  background: var(--jp-launchpad-card-neutral-bg);
+}
+
+[data-jp-theme-light='false']
+  .jp-Launcher-TypeCard[data-command='console:create']
+  .jp-LauncherCard-icon {
+  background: var(--jp-launchpad-card-console-bg);
+}
+
+[data-jp-theme-light='false']
+  .jp-Launcher-TypeCard[data-label='Python File' i]
+  .jp-LauncherCard-icon {
+  background: var(--jp-launchpad-card-python-bg);
+}
+
+.jp-LauncherCard-label {
+  min-height: 20px;
+}
+
+.jp-LauncherCard-label p {
+  line-height: 20px;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jp-NewLauncher-table {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.jp-NewLauncher-table-scrollerWrapper {
+  border: var(--jp-border-width) solid var(--jp-launchpad-border);
+  border-radius: 6px;
+  max-width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+[data-jp-theme-light='false'] .jp-NewLauncher-table-scrollerWrapper {
+  border-color: var(--jp-border-color1);
+}
+
+.jp-Launcher-launchNotebook .jp-NewLauncher-table-scrollerWrapper::after,
+.jp-Launcher-launchConsole .jp-NewLauncher-table-scrollerWrapper::after,
+.jp-KernelSelector-Dialog .jp-NewLauncher-table-scrollerWrapper::after {
+  background: linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 0%),
+    var(--jp-layout-color1) 78%
+  );
+  border-radius: 0 0 5px 5px;
+  bottom: 0;
+  content: '';
+  height: 46px;
+  left: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  transition: opacity 180ms ease-out;
+  z-index: 3;
+}
+
+.jp-Launcher-launchNotebook
+  .jp-NewLauncher-table-scrollerWrapper.jp-mod-hasMoreBelow::after,
+.jp-Launcher-launchConsole
+  .jp-NewLauncher-table-scrollerWrapper.jp-mod-hasMoreBelow::after,
+.jp-KernelSelector-Dialog
+  .jp-NewLauncher-table-scrollerWrapper.jp-mod-hasMoreBelow::after {
+  opacity: 1;
+}
+
+.jp-NewLauncher-table-scroller {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: auto;
+}
+
+.jp-Launcher-launchNotebook .jp-NewLauncher-table-scroller,
+.jp-Launcher-launchConsole .jp-NewLauncher-table-scroller,
+.jp-KernelSelector-Dialog .jp-NewLauncher-table-scroller {
+  max-height: 60vh;
+}
+
+.jp-NewLauncher-table .jp-sortable-table {
+  color: var(--jp-ui-font-color1);
+  font-size: 14px;
+  line-height: 20px;
+  min-width: 100%;
+}
+
+.jp-NewLauncher-table .jp-sortable-table > thead {
+  box-shadow: none;
+}
+
+.jp-NewLauncher-table .jp-sortable-table-tr > th,
+.jp-NewLauncher-table .jp-sortable-table-tr > td {
+  border: 0;
+  border-bottom: var(--jp-border-width) solid var(--jp-launchpad-border);
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 12px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.jp-NewLauncher-table .jp-sortable-table-tr:last-child > td {
+  border-bottom: 0;
+}
+
+[data-jp-theme-light='false'] .jp-NewLauncher-table .jp-sortable-table-tr > th,
+[data-jp-theme-light='false'] .jp-NewLauncher-table .jp-sortable-table-tr > td {
+  border-bottom-color: var(--jp-border-color1);
+}
+
+.jp-NewLauncher-table .jp-sortable-table-tr > th {
+  background: var(--jp-launchpad-neutral-100);
+  overflow: hidden;
+}
+
+.jp-NewLauncher-table .jp-sortable-table-tr:not(.jp-mod-empty):hover > td {
+  background: var(--jp-launchpad-neutral-100);
+}
+
+[data-jp-theme-light='false'] .jp-NewLauncher-table .jp-sortable-table-tr > th,
+[data-jp-theme-light='false']
+  .jp-NewLauncher-table
+  .jp-sortable-table-tr:not(.jp-mod-empty):hover
+  > td {
+  background: var(--jp-layout-color2);
+}
+
+.jp-NewLauncher-table .jp-sortable-table-tr > td::before,
+.jp-NewLauncher-table .jp-sortable-table-tr > th::before {
+  display: none;
+}
+
+.jp-NewLauncher-table .jp-sortable-table-th-wrapper {
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  width: 100%;
+}
+
+.jp-NewLauncher-table .jp-sortable-table-th-wrapper > label {
+  line-height: 20px;
+  overflow: hidden;
+}
+
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th.jp-mod-empty-label
+  .jp-sortable-table-th-wrapper {
+  justify-content: center;
+}
+
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th.jp-mod-empty-label
+  .jp-sortable-table-th-wrapper
+  > label {
+  display: none;
+}
+
+.jp-NewLauncher-table .jp-sort-iconButton {
+  align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--jp-ui-font-color2);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 24px;
+  font: inherit;
+  height: 24px;
+  justify-content: center;
+  line-height: 0;
+  margin: 0;
+  padding: 0;
+  width: 24px;
+}
+
+.jp-NewLauncher-table .jp-sort-icon {
+  height: 24px;
+  opacity: 1;
+  width: 24px;
+}
+
+/* Hide inactive sort controls until the header is hovered or focused. */
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th:not(.jp-sorted-header)
+  .jp-sort-iconButton {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Restore inactive sort controls for mouse and keyboard interaction. */
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th:not(.jp-sorted-header):hover
+  .jp-sort-iconButton,
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th:not(.jp-sorted-header):focus-within
+  .jp-sort-iconButton,
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th:not(.jp-sorted-header)
+  .jp-sort-iconButton:focus,
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th:not(.jp-sorted-header)
+  .jp-sort-iconButton:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th:not(.jp-sorted-header):hover
+  .jp-sort-icon,
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th:not(.jp-sorted-header):focus-within
+  .jp-sort-icon,
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th:not(.jp-sorted-header)
+  .jp-sort-iconButton:focus
+  .jp-sort-icon,
+.jp-NewLauncher-table
+  .jp-sortable-table-tr
+  > th:not(.jp-sorted-header)
+  .jp-sort-iconButton:focus-visible
+  .jp-sort-icon,
+.jp-NewLauncher-table .jp-sorted-header .jp-sort-icon {
+  opacity: 1;
+}
+
+.jp-NewLauncher-table .jp-sort-icon > svg {
+  display: block;
+  height: 24px;
+  width: 24px;
+}
+
+.jp-NewLauncher-table
+  .jp-sort-iconButton[data-sort-direction='ascending']
+  .jp-sort-icon,
+.jp-NewLauncher-table
+  .jp-sort-iconButton[data-sort-direction='descending']
+  .jp-sort-icon,
+.jp-NewLauncher-table
+  .jp-sort-iconButton[data-sort-direction='ascending']
+  .jp-sort-icon
+  > svg,
+.jp-NewLauncher-table
+  .jp-sort-iconButton[data-sort-direction='descending']
+  .jp-sort-icon
+  > svg {
+  height: 14px;
+  width: 14px;
+}
+
+.jp-NewLauncher-table .jp-sort-icon > svg .jp-icon3,
+.jp-NewLauncher-table .jp-sort-icon > svg [fill] {
+  fill: currentcolor;
+}
+
+.jp-NewLauncher-table .jp-sort-icon > svg [stroke] {
+  stroke: currentcolor;
+}
+
+.jp-NewLauncher-table .jp-sorted-header .jp-sort-iconButton {
+  color: var(--jp-ui-font-color1);
+}
+
+.jp-NewLauncher-table .jp-sort-iconButton:hover,
+.jp-NewLauncher-table .jp-sort-iconButton:focus-visible {
+  background: var(--jp-layout-color2);
+  outline: none;
+}
+
+.jp-NewLauncher-table th[data-id='star'],
+.jp-NewLauncher-table td[data-id='star'] {
+  min-width: 36px;
+  padding: 0;
+  text-align: center;
+  width: 36px;
+}
+
+.jp-NewLauncher-table th[data-id='actions'],
+.jp-NewLauncher-table td[data-id='actions'] {
+  min-width: 180px;
+}
 
 .jp-NewLauncher-table tr {
   cursor: pointer;
 }
 
-.jp-Launcher-TypeCard {
-  user-select: none;
+.jp-NewLauncher-table .jp-sortable-table-tr.jp-mod-empty {
+  color: var(--jp-ui-font-color2);
+  cursor: default;
 }
 
-.jp-Launcher-TypeCard > .jp-LauncherCard-icon svg {
-  align-items: center;
-  display: flex;
-  height: 52px;
-  width: 52px;
+.jp-NewLauncher-table .jp-sortable-table-tr.jp-mod-empty > td {
+  background: var(--jp-launchpad-neutral-100);
+  font-size: 16px;
+  text-align: center;
+  vertical-align: middle;
 }
 
-.jp-NewLauncher-table .jp-sortable-table-tr > td {
-  white-space: nowrap;
+[data-jp-theme-light='false']
+  .jp-NewLauncher-table
+  .jp-sortable-table-tr.jp-mod-empty
+  > td {
+  background: var(--jp-launchpad-neutral-900);
 }
 
-.jp-sortable-table-tr > td.jp-mod-col-resized > .jp-ellipsis-wrapper {
-  white-space: nowrap;
-  position: absolute;
-  inset: 0;
+.jp-Launcher-launchNotebook
+  .jp-NewLauncher-table
+  .jp-sortable-table-tr.jp-mod-empty
+  > td,
+.jp-Launcher-launchConsole
+  .jp-NewLauncher-table
+  .jp-sortable-table-tr.jp-mod-empty
+  > td {
+  height: 100px;
 }
 
 .jp-sortable-table-tr
   > td.jp-mod-col-resized
-  > .jp-ellipsis-wrapper
+  > .jp-LaunchpadTooltipAnchor.jp-ellipsis-tooltip {
+  align-items: center;
+  display: flex;
+  inset: 0;
+  position: absolute;
+  white-space: nowrap;
+}
+
+.jp-sortable-table-tr
+  > td.jp-mod-col-resized
+  > .jp-LaunchpadTooltipAnchor.jp-ellipsis-tooltip
   > .jp-ellipsis {
-  white-space: nowrap;
   overflow: hidden;
+  padding: 10px 12px;
   text-overflow: ellipsis;
-
-  /* TODO share values for padding and height from `.jp-sortable-table-tr > td` via variable; not top padding is a sum of bottom and top in plain td to align text. */
-  padding: 5px 12px 1px;
-}
-
-.jp-sortable-table-tr > td > .jp-starIconButton {
   white-space: nowrap;
 }
-
-.jp-sortable-table-tr > th,
-.jp-sortable-table-tr > td {
-  padding: 3px 12px;
-}
-
-td > .jp-starIconButton {
-  position: relative;
-  top: 1px;
-}
-
-/* To contribute upstream  */
 
 .jp-sortable-table-resize-handle {
-  width: 4px;
+  cursor: ew-resize;
+  height: 100%;
   position: absolute;
   right: 0;
   top: 0;
-  height: 100%;
-  cursor: ew-resize;
-}
-
-.jp-sortable-table-tr > th {
-  overflow: hidden;
-  box-sizing: border-box;
-  height: 24px;
-  padding: 0;
-  -webkit-user-select: none;
+  width: 4px;
 }
 
 .jp-sortable-table-resize-handle:hover {
@@ -399,23 +931,530 @@ body.jp-mod-resize-table .jp-sortable-table {
   pointer-events: none;
 }
 
-/*
-This will likely be needed upstream when no ellipsis wrapping is used.
-.jp-sortable-table-tr > td > * {
-  white-space: normal;
+.jp-TableKernelItem {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+  line-height: 20px;
+  max-width: 100%;
+  min-width: 0;
 }
-*/
 
-.jp-sortable-table-th-wrapper > label {
-  overflow: hidden;
+.jp-TableKernelItem > .jp-LauncherCard-icon {
+  align-items: center;
+  display: inline-flex;
+  height: 16px;
+  justify-content: center;
+  width: 16px;
+}
+
+.jp-NewLauncher-table .jp-Launcher-kernelIcon,
+.jp-NewLauncher-table .jp-LauncherCard-noKernelIcon {
+  align-items: center;
+  color: var(--jp-ui-font-color2);
+  display: inline-flex;
+  height: 16px;
+  justify-content: center;
+  line-height: 16px;
+  width: 16px;
+}
+
+.jp-NewLauncher-table .jp-LauncherCard-noKernelIcon {
+  font-size: var(--jp-ui-font-size1);
   font-weight: 500;
 }
 
-.jp-sortable-table-th-wrapper {
-  width: inherit;
-  box-sizing: border-box;
-  padding: 4px 12px 2px;
+.jp-TableKernelItem-label {
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
-  /* fill-available is only needed when heading does not collapse
-  /* min-width: -webkit-fill-available; */
+.jp-starIconButton {
+  --jp-transition-transform: rotate(72deg);
+
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  height: 24px;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  top: 1px;
+  width: 24px;
+}
+
+.jp-starIconButton:hover,
+.jp-starIconButton:focus-visible {
+  background: var(--jp-launchpad-neutral-200);
+  outline: none;
+}
+
+[data-jp-theme-light='false'] .jp-starIconButton:hover,
+[data-jp-theme-light='false'] .jp-starIconButton:focus-visible {
+  background: var(--jp-launchpad-neutral-900);
+}
+
+.jp-starIconButton > .jp-starIcon {
+  color: var(--jp-ui-font-color1);
+  height: 16px;
+  width: 16px;
+}
+
+.jp-starIconButton.jp-mod-starred > .jp-starIcon {
+  color: var(--jp-launchpad-star-color);
+}
+
+.jp-starIcon .jp-star-filled {
+  opacity: 0;
+}
+
+.jp-starIcon .jp-star-filled,
+.jp-starIcon .jp-star-border {
+  fill: currentcolor;
+  transform-origin: center;
+  transition-property: opacity, transform;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-out;
+}
+
+.jp-starIconButton.jp-mod-starred .jp-star-filled {
+  opacity: 1;
+  transform: var(--jp-transition-transform);
+}
+
+.jp-starIconButton.jp-mod-starred .jp-star-border {
+  opacity: 0;
+  transform: var(--jp-transition-transform);
+}
+
+.jp-NebiIndicator {
+  align-items: center;
+  border: var(--jp-border-width) solid currentcolor;
+  border-radius: 9999px;
+  box-sizing: border-box;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 500;
+  gap: 5px;
+  line-height: 16px;
+  min-height: 20px;
+  padding: 1px 7px;
+  vertical-align: middle;
+}
+
+.jp-NebiIndicator-icon {
+  color: inherit;
+  display: inline-flex;
+  flex: 0 0 13px;
+  height: 13px;
+  width: 13px;
+}
+
+.jp-NebiIndicator-compactIcon {
+  color: inherit;
+  display: none;
+  flex: 0 0 13px;
+  height: 13px;
+  width: 13px;
+}
+
+.jp-NebiVersionUpdateIcon {
+  color: var(--jp-ui-font-color2);
+  display: none;
+  flex: 0 0 24px;
+  height: 16px;
+  width: 24px;
+}
+
+.jp-NebiIndicator-compactIcon > svg {
+  height: 13px;
+  width: 13px;
+}
+
+.jp-NebiVersionUpdateIcon > svg {
+  height: 16px;
+  width: 24px;
+}
+
+.jp-NebiIndicator-compactTooltip,
+.jp-NebiVersionUpdateIconTooltip {
+  display: none;
+}
+
+.jp-NebiIndicator-compactIcon > svg .jp-icon3,
+.jp-NebiIndicator-compactIcon > svg [fill],
+.jp-NebiVersionUpdateIcon > svg .jp-icon3,
+.jp-NebiVersionUpdateIcon > svg [fill] {
+  fill: currentcolor;
+}
+
+.jp-NebiIndicator-compactIcon > svg [stroke],
+.jp-NebiVersionUpdateIcon > svg [stroke] {
+  stroke: currentcolor;
+}
+
+.jp-NebiIndicator-icon > svg {
+  height: 13px;
+  width: 13px;
+}
+
+.jp-NebiIndicator-icon > svg .jp-icon3,
+.jp-NebiIndicator-icon > svg [fill] {
+  fill: currentcolor;
+}
+
+.jp-NebiStatus-ready {
+  background: var(--jp-launchpad-ready-bg);
+  color: var(--jp-launchpad-ready-fg);
+  font-weight: 500;
+}
+
+.jp-NebiStatus-not-installed {
+  background: var(--jp-launchpad-info-bg);
+  color: var(--jp-launchpad-info-fg);
+}
+
+.jp-NebiStatus-outdated,
+.jp-NebiStatus-missing-deps {
+  background: var(--jp-launchpad-warn-bg);
+  color: var(--jp-launchpad-warn-fg);
+}
+
+.jp-NebiStatus-not-pulled,
+.jp-NebiStatus-failed,
+.jp-NebiStatus-unknown {
+  background: var(--jp-launchpad-error-bg);
+  color: var(--jp-launchpad-error-fg);
+}
+
+.jp-NebiLocation,
+.jp-NebiVersion {
+  color: var(--jp-ui-font-color1);
+}
+
+.jp-NebiVersion {
+  align-items: center;
+  display: inline-flex;
+  font-weight: 400;
+  gap: 4px;
+}
+
+.jp-NebiVersionSeparator,
+.jp-NebiVersionUpdate {
+  color: var(--jp-ui-font-color2);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.jp-KernelActions {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.jp-NewLauncher-table .jp-KernelActionButton {
+  align-items: center;
+  background: var(--jp-launchpad-neutral-200);
+  border: var(--jp-border-width) solid transparent;
+  border-radius: 6px;
+  box-sizing: border-box;
+  color: var(--jp-ui-font-color1);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 500;
+  gap: 4px;
+  justify-content: center;
+  line-height: 16px;
+  min-height: 24px;
+  padding: 4px 8px;
+}
+
+[data-jp-theme-light='false'] .jp-NewLauncher-table .jp-KernelActionButton {
+  background: var(--jp-launchpad-neutral-900);
+}
+
+.jp-NewLauncher-table .jp-KernelActionButton:disabled {
+  cursor: default;
+}
+
+.jp-NewLauncher-table
+  .jp-KernelActionButton[data-action='nebi-install-environment'] {
+  background: var(--jp-launchpad-primary);
+  color: var(--jp-ui-inverse-font-color0);
+}
+
+.jp-NewLauncher-table .jp-KernelActionButton[data-action='nebi-pull'],
+.jp-NewLauncher-table
+  .jp-KernelActionButton[data-action='nebi-install-dependencies'] {
+  background: var(--jp-launchpad-primary);
+  color: var(--jp-ui-inverse-font-color0);
+}
+
+.jp-NewLauncher-table .jp-KernelActionButton:hover,
+.jp-NewLauncher-table .jp-KernelActionButton:focus-visible {
+  background: var(--jp-launchpad-neutral-300);
+  text-decoration: none;
+}
+
+[data-jp-theme-light='false']
+  .jp-NewLauncher-table
+  .jp-KernelActionButton:hover,
+[data-jp-theme-light='false']
+  .jp-NewLauncher-table
+  .jp-KernelActionButton:focus-visible {
+  background: var(--jp-launchpad-neutral-900);
+  border-color: var(--jp-launchpad-neutral-500);
+}
+
+.jp-NewLauncher-table .jp-KernelActionButton[data-action='nebi-pull']:hover,
+.jp-NewLauncher-table
+  .jp-KernelActionButton[data-action='nebi-pull']:focus-visible,
+.jp-NewLauncher-table
+  .jp-KernelActionButton[data-action='nebi-install-environment']:hover,
+.jp-NewLauncher-table
+  .jp-KernelActionButton[data-action='nebi-install-environment']:focus-visible,
+.jp-NewLauncher-table
+  .jp-KernelActionButton[data-action='nebi-install-dependencies']:hover,
+.jp-NewLauncher-table
+  .jp-KernelActionButton[data-action='nebi-install-dependencies']:focus-visible {
+  background: var(--jp-launchpad-primary-hover);
+  border-color: transparent;
+  color: var(--jp-ui-inverse-font-color0);
+}
+
+[data-jp-theme-light='false']
+  .jp-NewLauncher-table
+  .jp-KernelActionButton[data-action='nebi-pull'],
+[data-jp-theme-light='false']
+  .jp-NewLauncher-table
+  .jp-KernelActionButton[data-action='nebi-install-environment'],
+[data-jp-theme-light='false']
+  .jp-NewLauncher-table
+  .jp-KernelActionButton[data-action='nebi-install-dependencies'] {
+  color: var(--jp-ui-font-color0);
+}
+
+.jp-NewLauncher-table .jp-KernelActionButton.jp-mod-loading,
+.jp-NewLauncher-table .jp-KernelActionButton.jp-mod-loading:hover,
+.jp-NewLauncher-table .jp-KernelActionButton.jp-mod-loading:focus-visible {
+  background: var(--jp-launchpad-neutral-200);
+  border-color: transparent;
+  color: var(--jp-launchpad-neutral-700);
+}
+
+.jp-NewLauncher-table .jp-KernelActionButton-spinner {
+  animation: jp-launchpad-spin 900ms linear infinite;
+  border: 2px solid currentcolor;
+  border-radius: 50%;
+  border-right-color: transparent;
+  box-sizing: border-box;
+  color: var(--jp-launchpad-neutral-500);
+  flex: 0 0 16px;
+  height: 16px;
+  width: 16px;
+}
+
+.jp-KernelActionButton-compactIcon {
+  color: currentcolor;
+  display: none;
+  height: 14px;
+  width: 14px;
+}
+
+.jp-KernelActionButton-compactIcon > svg {
+  height: 14px;
+  width: 14px;
+}
+
+.jp-KernelActionButton-compactIcon > svg .jp-icon3,
+.jp-KernelActionButton-compactIcon > svg [fill] {
+  fill: currentcolor;
+}
+
+@keyframes jp-launchpad-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jp-NewLauncher-table .jp-KernelActionButton-spinner {
+    animation: none;
+  }
+}
+
+.jp-ellipsis {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable .jp-sortable-table-tr > th,
+.jp-NewLauncher-table.jp-mod-compactTable .jp-sortable-table-tr > td {
+  padding: 0 8px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable .jp-sortable-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+/* In cramped compact headers, swap the label for the inactive sort icon on hover/focus. */
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-sortable-table-tr
+  > th.jp-mod-sort-icon-only:not(.jp-sorted-header)
+  .jp-sort-iconButton {
+  flex-basis: 0;
+  overflow: hidden;
+  width: 0;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-sortable-table-tr
+  > th.jp-mod-sort-icon-only:not(.jp-sorted-header):hover
+  .jp-sortable-table-th-wrapper
+  > label,
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-sortable-table-tr
+  > th.jp-mod-sort-icon-only:not(.jp-sorted-header):focus-within
+  .jp-sortable-table-th-wrapper
+  > label {
+  display: none;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-sortable-table-tr
+  > th.jp-mod-sort-icon-only:not(.jp-sorted-header):hover
+  .jp-sort-iconButton,
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-sortable-table-tr
+  > th.jp-mod-sort-icon-only:not(.jp-sorted-header):focus-within
+  .jp-sort-iconButton,
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-sortable-table-tr
+  > th.jp-mod-sort-icon-only:not(.jp-sorted-header)
+  .jp-sort-iconButton:focus,
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-sortable-table-tr
+  > th.jp-mod-sort-icon-only:not(.jp-sorted-header)
+  .jp-sort-iconButton:focus-visible {
+  flex-basis: 24px;
+  overflow: visible;
+  width: 24px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable th[data-id='star'],
+.jp-NewLauncher-table.jp-mod-compactTable td[data-id='star'] {
+  width: 36px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable th[data-id='kernel'],
+.jp-NewLauncher-table.jp-mod-compactTable td[data-id='kernel'] {
+  width: 130px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable th[data-id='nebi_version'],
+.jp-NewLauncher-table.jp-mod-compactTable td[data-id='nebi_version'] {
+  width: 80px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable th[data-id='nebi_status'],
+.jp-NewLauncher-table.jp-mod-compactTable td[data-id='nebi_status'] {
+  width: 56px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable th[data-id='actions'],
+.jp-NewLauncher-table.jp-mod-compactTable td[data-id='actions'] {
+  min-width: 116px;
+  width: 116px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable th[data-id='last-used'],
+.jp-NewLauncher-table.jp-mod-compactTable td[data-id='last-used'] {
+  width: 70px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiIndicator {
+  gap: 0;
+  justify-content: center;
+  min-width: 24px;
+  padding: 1px 5px;
+}
+
+/* Compact tables replace long Nebi status/version labels with icons. */
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiIndicator-label,
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiIndicator-infoTooltip,
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiIndicator-icon,
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiVersionSeparator,
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiVersionUpdateTextTooltip {
+  display: none;
+}
+
+/* Show the tooltip-enabled compact icons that replace the hidden labels. */
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiIndicator-compactTooltip,
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiIndicator-compactIcon,
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiVersionUpdateIconTooltip,
+.jp-NewLauncher-table.jp-mod-compactTable .jp-NebiVersionUpdateIcon {
+  display: inline-flex;
+}
+
+/* In compact multi-action rows, collapse the secondary Open in Nebi action to its icon. */
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-KernelActions.jp-mod-multipleActions
+  .jp-KernelActionButton[data-action='nebi-open-overview'] {
+  min-width: 28px;
+  padding: 4px 6px;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-KernelActions.jp-mod-multipleActions
+  .jp-KernelActionButton[data-action='nebi-open-overview']
+  .jp-KernelActionButton-label {
+  display: none;
+}
+
+.jp-NewLauncher-table.jp-mod-compactTable
+  .jp-KernelActions.jp-mod-multipleActions
+  .jp-KernelActionButton[data-action='nebi-open-overview']
+  .jp-KernelActionButton-compactIcon {
+  display: inline-flex;
+}
+
+.jp-KernelSelector-Dialog > .jp-Dialog-content {
+  max-height: 80%;
+  max-width: calc(100vw - 32px);
+
+  /* Size independently of the responsive table to avoid a resize feedback loop. */
+  width: 1000px;
+}
+
+.jp-KernelSelector-Dialog > .jp-Dialog-content > .jp-Dialog-header {
+  display: none;
+}
+
+.jp-KernelSelector-Dialog > .jp-Dialog-content > .jp-Dialog-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.jp-KernelSelector-SelectButton {
+  display: none;
+}
+
+.jp-KernelSelector-Dialog .jp-NewLauncher-table {
+  margin-bottom: 8px;
+}
+
+.jp-KernelSelector-Section {
+  margin: 0 0 4px;
 }

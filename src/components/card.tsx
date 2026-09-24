@@ -1,20 +1,30 @@
 // Copyright (c) Nebari Development Team.
 // Distributed under the terms of the Modified BSD License.
-import { TranslationBundle } from '@jupyterlab/translation';
 import { classes, LabIcon } from '@jupyterlab/ui-components';
 import * as React from 'react';
 import { IItem } from '../types';
 
-export function TypeCard(props: {
-  trans: TranslationBundle;
-  item: IItem;
-}): React.ReactElement {
+export function TypeCard(props: { item: IItem }): React.ReactElement {
   const { item } = props;
+  const label = item.label;
+  const execute = () => {
+    item.execute();
+  };
+
   return (
     <div
-      onClick={() => item.execute()}
+      onClick={execute}
+      onKeyDown={event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          execute();
+        }
+      }}
       className="jp-Launcher-TypeCard jp-LauncherCard"
-      title={item.caption || item.label}
+      title={item.caption || label}
+      data-command={item.command}
+      data-label={label}
+      role="button"
       tabIndex={0}
     >
       <div className="jp-LauncherCard-icon">
@@ -22,7 +32,7 @@ export function TypeCard(props: {
           <img
             src={item.kernelIconUrl}
             className="jp-Launcher-kernelIcon"
-            alt={item.label}
+            alt={label}
           />
         ) : (
           <LabIcon.resolveReact
@@ -32,7 +42,7 @@ export function TypeCard(props: {
         )}
       </div>
       <div className="jp-LauncherCard-label">
-        <p>{item.label}</p>
+        <p>{label}</p>
       </div>
     </div>
   );

@@ -1,18 +1,22 @@
 // Copyright (c) Nebari Development Team.
 // Distributed under the terms of the Modified BSD License.
-import { classes, LabIcon, caretRightIcon } from '@jupyterlab/ui-components';
+import { caretDownEmptyThinIcon, classes } from '@jupyterlab/ui-components';
 import * as React from 'react';
+import { infoCircleIcon } from '../icons';
+import { LaunchpadTooltip } from './tooltip';
 
 export function CollapsibleSection(
   props: React.PropsWithChildren<{
     title: string;
     className: string;
-    icon: LabIcon;
     open: boolean;
+    description?: string;
+    emptyMessage?: string;
     onToggled?: (open: boolean) => void;
   }>
 ) {
   const [open, setOpen] = React.useState<boolean>(props.open);
+  const hasChildren = React.Children.count(props.children) > 0;
 
   const handleToggle = (event: { currentTarget: { open: boolean } }) => {
     setOpen(event.currentTarget.open);
@@ -24,7 +28,11 @@ export function CollapsibleSection(
   return (
     <details
       onToggle={handleToggle}
-      className={classes(props.className, 'jp-CollapsibleSection')}
+      className={classes(
+        props.className,
+        'jp-CollapsibleSection',
+        hasChildren ? '' : 'jp-mod-empty'
+      )}
       open={open}
     >
       <summary>
@@ -32,16 +40,30 @@ export function CollapsibleSection(
           className="jp-CollapsibleSection-CollapserIconWrapper"
           aria-hidden="true"
         >
-          <caretRightIcon.react className="jp-CollapsibleSection-CollapserIcon" />
+          <caretDownEmptyThinIcon.react className="jp-CollapsibleSection-CollapserIcon" />
         </div>
-        <props.icon.react
-          tag="span"
-          className="jp-CollapsibleSection-CategoryIcon"
-        />
         <h3 className="jp-CollapsibleSection-Title">{props.title}</h3>
+        {props.description ? (
+          <LaunchpadTooltip
+            className="jp-CollapsibleSection-Info"
+            label={props.description}
+          >
+            <infoCircleIcon.react
+              className="jp-CollapsibleSection-InfoIcon"
+              tag="span"
+              aria-hidden="true"
+            />
+          </LaunchpadTooltip>
+        ) : null}
       </summary>
       <div className="jp-Launcher-CardGroup jp-Launcher-cardContainer">
-        {props.children}
+        {hasChildren ? (
+          props.children
+        ) : props.emptyMessage ? (
+          <div className="jp-Launcher-SectionEmptyState">
+            {props.emptyMessage}
+          </div>
+        ) : null}
       </div>
     </details>
   );

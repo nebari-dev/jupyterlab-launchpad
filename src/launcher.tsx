@@ -5,11 +5,7 @@ import type { ISignal } from '@lumino/signaling';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ILauncher, Launcher } from '@jupyterlab/launcher';
 import { TranslationBundle } from '@jupyterlab/translation';
-import {
-  FilterBox,
-  notebookIcon,
-  consoleIcon
-} from '@jupyterlab/ui-components';
+import { FilterBox, searchIcon } from '@jupyterlab/ui-components';
 
 import * as React from 'react';
 import { NewModel } from './model';
@@ -22,7 +18,7 @@ import {
   ISectionOptions,
   ILaunchpadKernelTable
 } from './types';
-import { fileIcon, starIcon } from './icons';
+import { folderOutlineIcon } from './icons';
 import { Item } from './item';
 import { KernelTable } from './components/table';
 import { CollapsibleSection } from './components/section';
@@ -114,39 +110,20 @@ function LauncherBody(props: {
     };
   });
 
-  if (favouritesChanged) {
-    const updateIfNeeded = () => {
-      if (showCreateEmpty) {
-        forceUpdate();
-      }
-      if (showStarred) {
-        forceUpdate();
-      }
-      if (showNotebookLauncher) {
-        forceUpdate();
-      }
-      if (showConsole) {
-        forceUpdate();
-      }
-    };
-    React.useEffect(() => {
-      favouritesChanged.connect(updateIfNeeded);
-      return () => {
-        favouritesChanged.disconnect(updateIfNeeded);
-      };
-    });
-  }
+  // A favourites change can affect several visible sections, but one forced
+  // render is enough to refresh all of them.
+  const updateIfNeeded = () => {
+    if (showCreateEmpty || showStarred || showNotebookLauncher || showConsole) {
+      forceUpdate();
+    }
+  };
 
-  const metadataAvailable = new Set<string>();
-  for (const item of props.notebookItems) {
-    const kernelMetadata = item.metadata?.kernel;
-    if (!kernelMetadata) {
-      continue;
-    }
-    for (const key of Object.keys(kernelMetadata)) {
-      metadataAvailable.add(key);
-    }
-  }
+  React.useEffect(() => {
+    favouritesChanged.connect(updateIfNeeded);
+    return () => {
+      favouritesChanged.disconnect(updateIfNeeded);
+    };
+  });
 
   const starred = [...props.notebookItems, ...props.consoleItems].filter(
     item => item.starred
@@ -154,30 +131,30 @@ function LauncherBody(props: {
 
   const startCollapsed = props.settings.composite
     .collapsedSections as ISettingsLayout['collapsedSections'];
+  const itemKey = (item: IItem) => item.command + JSON.stringify(item.args);
+  const lowerCaseQuery = query.toLowerCase();
 
   const builtinSections: ISectionOptions[] = [];
   if (showCreateEmpty) {
     builtinSections.push({
       className: 'jp-Launcher-openByType',
-      title: trans.__('Create Empty'),
-      icon: fileIcon,
+      title: trans.__('Create or Launch'),
       id: 'create-empty',
       rank: 1,
       render: () =>
         typeItems
           .filter(
             item =>
-              !query ||
-              item.label.toLowerCase().indexOf(query.toLowerCase()) !== -1
+              !lowerCaseQuery ||
+              item.label.toLowerCase().includes(lowerCaseQuery)
           )
-          .map(item => <TypeCard item={item} trans={trans} />)
+          .map(item => <TypeCard key={itemKey(item)} item={item} />)
     });
   }
   if (showStarred) {
     builtinSections.push({
       className: 'jp-Launcher-openByKernel',
       title: trans.__('Starred'),
-      icon: starIcon,
       id: 'starred',
       rank: 2,
       render: () =>
@@ -186,6 +163,9 @@ function LauncherBody(props: {
             items={starred}
             commands={props.commands}
             showSearchBox={!searchAll}
+            searchPlaceholder={trans.__(
+              'Search starred kernels and environments'
+            )}
             showWidgetType={true}
             query={query}
             settings={props.settings}
@@ -203,8 +183,7 @@ function LauncherBody(props: {
   if (showNotebookLauncher) {
     builtinSections.push({
       className: 'jp-Launcher-openByKernel jp-Launcher-launchNotebook',
-      title: trans.__('Launch New Notebook'),
-      icon: notebookIcon,
+      title: trans.__('Create a new Notebook'),
       id: 'launch-notebook',
       rank: 3,
       render: () => (
@@ -212,6 +191,10 @@ function LauncherBody(props: {
           items={props.notebookItems}
           commands={props.commands}
           showSearchBox={!searchAll}
+          searchPlaceholder={trans.__(
+            'Search notebook kernels and environments'
+          )}
+          blankMessage={trans.__('No matching kernels found')}
           query={query}
           settings={props.settings}
           trans={trans}
@@ -226,8 +209,10 @@ function LauncherBody(props: {
   if (showConsole) {
     builtinSections.push({
       className: 'jp-Launcher-openByKernel jp-Launcher-launchConsole',
-      title: trans.__('Launch New Console'),
-      icon: consoleIcon,
+      title: trans.__('Launch a new Console'),
+      description: trans.__(
+        'Start an interactive console session using any available kernel or environment'
+      ),
       id: 'launch-console',
       rank: 5,
       render: () => (
@@ -235,6 +220,10 @@ function LauncherBody(props: {
           items={props.consoleItems}
           commands={props.commands}
           showSearchBox={!searchAll}
+          searchPlaceholder={trans.__(
+            'Search console kernels and environments'
+          )}
+          blankMessage={trans.__('No matching consoles found')}
           query={query}
           settings={props.settings}
           trans={trans}
@@ -250,38 +239,58 @@ function LauncherBody(props: {
 
   return (
     <div className="jp-LauncherBody">
-      <div className="jp-NewLauncher-TopBar">
-        <div className="jp-Launcher-cwd">
-          <h3>
-            {trans.__('Current folder:')} <code>{cwd ? cwd : '/'}</code>
-          </h3>
+      <div className="jp-NewLauncher-Header">
+        <div className="jp-NewLauncher-TopBar">
+          <div
+            className="jp-Launcher-cwd"
+            title={trans.__('New files save to: %1', cwd ? cwd : '/')}
+          >
+            <folderOutlineIcon.react
+              className="jp-Launcher-cwdIcon"
+              tag="span"
+              aria-hidden="true"
+            />
+            <span>
+              {trans.__('New files save to:')} <code>{cwd ? cwd : '/'}</code>
+            </span>
+          </div>
         </div>
-        <div className="jp-NewLauncher-OtherItems">
-          {otherItems.map(item => (
-            <TypeCard item={item} trans={trans} />
-          ))}
-          <QuickSettings commands={commands} trans={trans} />
-        </div>
+        {searchAll ? (
+          <div className="jp-Launcher-searchBox">
+            <searchIcon.react
+              className="jp-Launcher-searchIcon"
+              tag="span"
+              aria-hidden="true"
+            />
+            <FilterBox
+              placeholder={trans.__(
+                'Search kernels, environments and applications'
+              )}
+              updateFilter={(_, query) => {
+                updateQuery(query ?? '');
+              }}
+              initialQuery={''}
+              showIcon={false}
+              useFuzzyFilter={false}
+            />
+          </div>
+        ) : null}
       </div>
-      {searchAll ? (
-        <div className="jp-Launcher-searchBox">
-          <FilterBox
-            placeholder={trans.__('Filter')}
-            updateFilter={(_, query) => {
-              updateQuery(query ?? '');
-            }}
-            initialQuery={''}
-            useFuzzyFilter={false}
-          />
-        </div>
-      ) : null}
+      <div className="jp-NewLauncher-OtherItems">
+        {otherItems.map(item => (
+          <TypeCard key={itemKey(item)} item={item} />
+        ))}
+        <QuickSettings commands={commands} trans={trans} />
+      </div>
       {allSections
         .sort((a, b) => a.rank - b.rank)
         .map(section => (
           <CollapsibleSection
             className={section.className}
             title={section.title}
-            icon={section.icon}
+            description={section.description}
+            emptyMessage={trans.__('No matches found')}
+            key={section.id}
             open={startCollapsed[section.id] !== 'collapsed'}
           >
             {section.render()}
@@ -302,6 +311,7 @@ export namespace NewLauncher {
 }
 
 const SERVER_PROXY_COMMAND = 'server-proxy:open';
+const DEFAULT_TYPE_COMMAND_RANK = Number.POSITIVE_INFINITY;
 
 export class NewLauncher extends Launcher {
   constructor(options: NewLauncher.IOptions) {
@@ -389,7 +399,11 @@ export class NewLauncher extends Launcher {
         rank: 4
       },
       ...nonKernelItems
-    ].sort((a, b) => (a?.rank ?? 0) - (b?.rank ?? 0));
+    ].sort(
+      (a, b) =>
+        (a.rank ?? DEFAULT_TYPE_COMMAND_RANK) -
+        (b.rank ?? DEFAULT_TYPE_COMMAND_RANK)
+    );
 
     const notebookItems = items
       .filter(

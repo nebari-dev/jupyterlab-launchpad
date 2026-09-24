@@ -9,6 +9,31 @@ import {
   ILaunchpadKernelTable
 } from './types';
 
+export function compareKernelActionLists(
+  aActions: readonly IKernelAction[],
+  bActions: readonly IKernelAction[]
+): number {
+  if (aActions.length === 0 || bActions.length === 0) {
+    return Number(aActions.length === 0) - Number(bActions.length === 0);
+  }
+
+  const aPrimaryAction = aActions[0];
+  const bPrimaryAction = bActions[0];
+  const rankCompare =
+    (aPrimaryAction.rank ?? Number.MAX_SAFE_INTEGER) -
+    (bPrimaryAction.rank ?? Number.MAX_SAFE_INTEGER);
+  if (rankCompare !== 0) {
+    return rankCompare;
+  }
+
+  const actionIdCompare = aPrimaryAction.id.localeCompare(bPrimaryAction.id);
+  if (actionIdCompare !== 0) {
+    return actionIdCompare;
+  }
+
+  return aActions.length - bActions.length;
+}
+
 export class LaunchpadKernelTable implements ILaunchpadKernelTable {
   get changed(): ISignal<ILaunchpadKernelTable, void> {
     return this._changed;
@@ -25,6 +50,12 @@ export class LaunchpadKernelTable implements ILaunchpadKernelTable {
 
   getMetadataColumn(id: string): IKernelMetadataColumn | undefined {
     return this._metadataColumns.get(id);
+  }
+
+  // Expose all registered metadata columns so tables can include default
+  // columns even when a particular row does not provide that metadata.
+  getMetadataColumns(): IKernelMetadataColumn[] {
+    return [...this._metadataColumns.values()];
   }
 
   registerAction(action: IKernelAction): void {

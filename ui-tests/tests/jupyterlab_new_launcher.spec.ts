@@ -82,8 +82,25 @@ test.describe('Filter individual', () => {
 
   test('search in individual sections', async ({ page }) => {
     const launcher = page.locator('.jp-LauncherBody');
-    expect(await launcher.screenshot()).toMatchSnapshot(
-      'launcher-search-in-individual.png'
+    const notebookSearchBox = launcher
+      .locator('.jp-Launcher-launchNotebook .jp-Launcher-searchBox')
+      .getByRole('searchbox');
+
+    await expect(notebookSearchBox).toBeVisible();
+    await expect(notebookSearchBox).toHaveAttribute(
+      'placeholder',
+      'Search notebook kernels and environments'
+    );
+
+    await launcher.locator('.jp-Launcher-launchConsole summary').click();
+    const consoleSearchBox = launcher
+      .locator('.jp-Launcher-launchConsole .jp-Launcher-searchBox')
+      .getByRole('searchbox');
+
+    await expect(consoleSearchBox).toBeVisible();
+    await expect(consoleSearchBox).toHaveAttribute(
+      'placeholder',
+      'Search console kernels and environments'
     );
   });
 });
@@ -113,10 +130,12 @@ test.describe('Quick Settings', () => {
     const launcher = page.locator('.jp-LauncherBody');
     await page.locator('.jp-Launcher-QuickSettings').click();
     await page
-      .locator('.lm-Menu-itemLabel:text(\'Show "Launch New Console" Section\')')
+      .locator(
+        '.lm-Menu-itemLabel:text(\'Show "Launch a new Console" Section\')'
+      )
       .click();
     const starredSection = page.locator(
-      '.jp-CollapsibleSection-Title:has-text("Launch New Console")'
+      '.jp-CollapsibleSection-Title:has-text("Launch a new Console")'
     );
     await expect(starredSection).toHaveCount(0);
   });

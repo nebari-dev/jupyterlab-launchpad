@@ -2,6 +2,7 @@
 // Distributed under the terms of the Modified BSD License.
 import type { ILauncher } from '@jupyterlab/launcher';
 import type { TranslationBundle } from '@jupyterlab/translation';
+import type { LabIcon } from '@jupyterlab/ui-components';
 import type {
   ReadonlyJSONObject,
   ReadonlyPartialJSONObject
@@ -9,7 +10,6 @@ import type {
 import type { VirtualElement } from '@lumino/virtualdom';
 import type { ISignal } from '@lumino/signaling';
 import { Token } from '@lumino/coreutils';
-import type { LabIcon } from '@jupyterlab/ui-components';
 import type * as React from 'react';
 
 export const MAIN_PLUGIN_ID = 'jupyterlab-launchpad:plugin';
@@ -22,7 +22,7 @@ export interface ISectionOptions {
   id: string;
   title: string;
   className: string;
-  icon: LabIcon;
+  description?: string;
   render: () => React.ReactNode;
   rank: number;
 }
@@ -68,14 +68,13 @@ export interface IItem extends ILauncher.IItemOptions {
   markAsUsedNow: () => Promise<void>;
 }
 
-export interface IKernelItem extends IItem {
-  //kernel: string;
-}
+export type IKernelItem = IItem;
 
 export interface ILaunchpadKernelTable {
   readonly changed: ISignal<ILaunchpadKernelTable, void>;
   registerMetadataColumn(column: IKernelMetadataColumn): void;
   getMetadataColumn(id: string): IKernelMetadataColumn | undefined;
+  getMetadataColumns(): IKernelMetadataColumn[];
   registerAction(action: IKernelAction): void;
   getActions(options: IKernelActionOptions): IKernelAction[];
   registerIconFallbackTitleProvider(
@@ -89,8 +88,18 @@ export interface ILaunchpadKernelTable {
 export interface IKernelMetadataColumn {
   id: string;
   label?: string;
-  title?(options: IKernelMetadataRenderOptions): string | undefined;
+  /**
+   * Include registered virtual columns even when rows do not expose metadata
+   * with the same id. For example, `nebi_version` renders from
+   * `nebi_local_version`, and `nebi_status` can render from `nebi_state`.
+   */
+  isVisibleByDefault?: boolean;
+  title?(options: IKernelMetadataRenderOptions): string | null | undefined;
   render?(options: IKernelMetadataRenderOptions): React.ReactNode | undefined;
+  sort?(
+    a: IKernelMetadataRenderOptions,
+    b: IKernelMetadataRenderOptions
+  ): number | undefined;
 }
 
 export interface IKernelMetadataRenderOptions {
@@ -104,6 +113,8 @@ export interface IKernelMetadataRenderOptions {
 export interface IKernelAction {
   id: string;
   label: string;
+  compactIcon?: LabIcon;
+  pendingLabel?: string;
   command: string;
   title?: string;
   rank?: number;

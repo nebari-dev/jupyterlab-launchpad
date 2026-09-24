@@ -82,7 +82,7 @@ export function addCommands(
       return settings.composite
         .createEmptySection as ISettingsLayout['createEmptySection'];
     },
-    label: trans.__('Show "Create Empty" Section'),
+    label: trans.__('Show "Create or Launch" Section'),
     execute: async () => {
       const createEmptySection = settings.composite
         .createEmptySection as ISettingsLayout['createEmptySection'];
@@ -108,7 +108,7 @@ export function addCommands(
       return settings.composite
         .launchNotebookSection as ISettingsLayout['launchNotebookSection'];
     },
-    label: trans.__('Show "Launch New Notebook" Section'),
+    label: trans.__('Show "Create a new Notebook" Section'),
     execute: async () => {
       const launchNotebookSection = settings.composite
         .launchNotebookSection as ISettingsLayout['launchNotebookSection'];
@@ -121,7 +121,7 @@ export function addCommands(
       return settings.composite
         .launchConsoleSection as ISettingsLayout['launchConsoleSection'];
     },
-    label: trans.__('Show "Launch New Console" Section'),
+    label: trans.__('Show "Launch a new Console" Section'),
     execute: async () => {
       const launchConsoleSection = settings.composite
         .launchConsoleSection as ISettingsLayout['launchConsoleSection'];
