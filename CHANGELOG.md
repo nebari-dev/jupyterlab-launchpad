@@ -4,6 +4,10 @@
 
 <!-- <END NEW CHANGELOG ENTRY> -->
 
+## `v1.2.0`
+
+- Redesign Launchpad launcher experience https://github.com/nebari-dev/jupyterlab-launchpad/pull/87
+
 ## `v1.1.1`
 
 - Refresh Launchpad kernels after Nebi workspace jobs complete https://github.com/nebari-dev/jupyterlab-launchpad/pull/87
