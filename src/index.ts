@@ -103,7 +103,7 @@ function activate(
   }
 
   settingRegistry.load(MAIN_PLUGIN_ID).then(settings => {
-    addCommands(app, trans, settings);
+    addCommands(app, trans, settings, kernelTable);
   });
 
   // Detect kernels started outside of the launcher, e.g. automatically due to having notebooks open from previous session

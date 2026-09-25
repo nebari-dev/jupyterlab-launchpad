@@ -39,6 +39,18 @@ export class LaunchpadKernelTable implements ILaunchpadKernelTable {
     return this._changed;
   }
 
+  getColumnDefaultVisibility(id: string): boolean {
+    return this._columnDefaultVisibility.get(id) ?? true;
+  }
+
+  setColumnDefaultVisibility(id: string, visible: boolean): void {
+    if (this.getColumnDefaultVisibility(id) === visible) {
+      return;
+    }
+    this._columnDefaultVisibility.set(id, visible);
+    this._changed.emit();
+  }
+
   registerMetadataColumn(column: IKernelMetadataColumn): void {
     if (!column.id) {
       throw new Error('Kernel metadata column id is required.');
@@ -96,6 +108,7 @@ export class LaunchpadKernelTable implements ILaunchpadKernelTable {
     return undefined;
   }
 
+  private _columnDefaultVisibility = new Map<string, boolean>();
   private _metadataColumns = new Map<string, IKernelMetadataColumn>();
   private _actions = new Map<string, IKernelAction>();
   private _iconFallbackTitleProviders = new Map<
