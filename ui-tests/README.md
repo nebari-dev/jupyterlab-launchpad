@@ -87,6 +87,20 @@ jlpm playwright test -u
 > type `please update playwright snapshots` to trigger the update by a bot on the CI.
 > Once the bot has computed new snapshots, it will commit them to the PR branch.
 
+## Update the README screenshots
+
+After the setup above, regenerate the README images from the repository root:
+
+```sh
+cd ui-tests
+jlpm playwright test --project=readme --update-snapshots
+jlpm playwright test --project=readme
+```
+
+Use Linux and Playwright's installed Chromium to match CI rendering. Review and
+commit `docs/images/launcher.png` and `docs/images/dialog.png`. These images also
+serve as the baselines when the tests run without `--update-snapshots`.
+
 ## Create tests
 
 > All commands are assumed to be executed from the root directory
