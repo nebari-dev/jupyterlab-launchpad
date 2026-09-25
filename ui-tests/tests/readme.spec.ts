@@ -1,6 +1,6 @@
 import { expect, galata, test } from '@jupyterlab/galata';
 import { readFileSync } from 'fs';
-import type { Locator } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 // Recreate the kernel mix, favourites and usage history in the original README.
 const threeHoursAgo = '2026-01-01T09:00:00Z';
@@ -135,6 +135,11 @@ async function expectKernelFeatures(
   table: Locator,
   nebi: boolean
 ): Promise<void> {
+  for (const name of ['Version', 'Status', 'Actions']) {
+    await expect(
+      table.getByRole('columnheader', { name: new RegExp(`^${name}\\b`) })
+    ).toHaveCount(nebi ? 1 : 0);
+  }
   if (nebi) {
     for (const status of [
       'ready',
@@ -178,6 +183,59 @@ async function expectKernelFeatures(
         )
       )
       .toBe(true);
+  }
+}
+
+async function expectColumnToggles(
+  page: Page,
+  table: Locator,
+  nebi: boolean
+): Promise<void> {
+  for (const [id, name] of [
+    ['nebi_version', 'Version'],
+    ['nebi_status', 'Status'],
+    ['actions', 'Actions']
+  ]) {
+    const header = table.getByRole('columnheader', {
+      name: new RegExp(`^${name}\\b`)
+    });
+    // The context menu and command must agree with the effective default.
+    expect(
+      await page.evaluate(
+        id =>
+          window.jupyterapp.commands.isToggled(
+            'launchpad:table-toggle-column',
+            { id }
+          ),
+        id
+      )
+    ).toBe(nebi);
+    await page.evaluate(
+      id =>
+        window.jupyterapp.commands.execute('launchpad:table-toggle-column', {
+          id
+        }),
+      id
+    );
+    await expect(header).toHaveCount(nebi ? 0 : 1);
+    expect(
+      await page.evaluate(
+        id =>
+          window.jupyterapp.commands.isToggled(
+            'launchpad:table-toggle-column',
+            { id }
+          ),
+        id
+      )
+    ).toBe(!nebi);
+    await page.evaluate(
+      id =>
+        window.jupyterapp.commands.execute('launchpad:table-toggle-column', {
+          id
+        }),
+      id
+    );
+    await expect(header).toHaveCount(nebi ? 1 : 0);
   }
 }
 
@@ -318,6 +376,7 @@ for (const nebi of [false, true]) {
       await expect(launcher).toHaveScreenshot(
         nebi ? 'launcher-nebi.png' : 'launcher.png'
       );
+      await expectColumnToggles(page, notebooks, nebi);
     });
 
     test('kernel selection dialog screenshot for the README', async ({
@@ -431,6 +490,14 @@ for (const nebi of [false, true]) {
       await expect(dialog).toHaveScreenshot(
         nebi ? 'dialog-nebi.png' : 'dialog.png'
       );
+      await expectColumnToggles(
+        page,
+        dialog.locator('.jp-NewLauncher-table').first(),
+        nebi
+      );
+      await expect(
+        dialog.getByRole('columnheader', { name: /^State\b/ })
+      ).toBeVisible();
     });
   });
 }
