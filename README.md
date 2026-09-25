@@ -3,7 +3,9 @@
 [![Github Actions Status](https://github.com/nebari-dev/jupyterlab-launchpad/workflows/Build/badge.svg)](https://github.com/nebari-dev/jupyterlab-launchpad/actions/workflows/build.yml)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/nebari-dev/jupyterlab-launchpad/main?urlpath=lab)
 
-A redesigned JupyterLab launcher
+A redesigned JupyterLab launcher.
+
+With a plain installation:
 
 ![new launcher][launcher]
 
@@ -11,6 +13,14 @@ Kernel selection dialog:
 
 ![new dialog][dialog]
 
+With Nebi and `nb-nebi-kernels` installed:
+
+![launcher with Nebi][launcher-nebi]
+
+![kernel selection dialog with Nebi][dialog-nebi]
+
+[launcher-nebi]: https://raw.githubusercontent.com/nebari-dev/jupyterlab-launchpad/main/docs/images/launcher-nebi.png
+[dialog-nebi]: https://raw.githubusercontent.com/nebari-dev/jupyterlab-launchpad/main/docs/images/dialog-nebi.png
 [launcher]: https://raw.githubusercontent.com/nebari-dev/jupyterlab-launchpad/main/docs/images/launcher.png
 [dialog]: https://raw.githubusercontent.com/nebari-dev/jupyterlab-launchpad/main/docs/images/dialog.png
 
@@ -25,6 +35,18 @@ To install the extension, execute:
 ```bash
 pip install jupyterlab-launchpad
 ```
+
+For Nebi integration (Python >= 3.11), install the optional dependencies:
+
+```bash
+pip install "jupyterlab-launchpad[nebi]"
+```
+
+Install the [Nebi CLI](https://nebi.nebari.dev/installation/) and
+[Pixi](https://pixi.sh/latest/installation/) separately and keep both on the
+Jupyter server's `PATH`. See [nb-nebi-kernels](https://github.com/nebari-dev/nb-nebi-kernels)
+for workspace setup. The **Open in Nebi** action also requires a configured
+`nebi` entry in Jupyter Server Proxy.
 
 After installation you should restart JupyterLab (or jupyter server if using a remove server in JupyterLab Desktop).
 

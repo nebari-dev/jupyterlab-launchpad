@@ -98,8 +98,8 @@ jlpm playwright test --project=readme
 ```
 
 Use Linux and Playwright's installed Chromium to match CI rendering. Review and
-commit `docs/images/launcher.png` and `docs/images/dialog.png`. These images also
-serve as the baselines when the tests run without `--update-snapshots`.
+commit the plain (`launcher.png`, `dialog.png`) and Nebi (`launcher-nebi.png`,
+`dialog-nebi.png`) images in `docs/images/`. These images also serve as the baselines when the tests run without `--update-snapshots`.
 
 ## Create tests
 

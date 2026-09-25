@@ -131,33 +131,40 @@ const notebookKey = (name: string) =>
   'notebook:create-new_' +
   JSON.stringify({ isLauncher: true, kernelName: name });
 
-async function expectDemoFeatures(table: Locator): Promise<void> {
-  for (const status of [
-    'ready',
-    'outdated',
-    'missing-deps',
-    'not-installed',
-    'not-pulled',
-    'failed'
-  ]) {
+async function expectKernelFeatures(
+  table: Locator,
+  nebi: boolean
+): Promise<void> {
+  if (nebi) {
+    for (const status of [
+      'ready',
+      'outdated',
+      'missing-deps',
+      'not-installed',
+      'not-pulled',
+      'failed'
+    ]) {
+      await expect(
+        table.locator(`[data-status="${status}"]`).first()
+      ).toBeVisible();
+    }
+    for (const action of [
+      'nebi-pull',
+      'nebi-install-environment',
+      'nebi-install-dependencies',
+      'nebi-open-overview'
+    ]) {
+      await expect(
+        table.locator(`[data-action="${action}"]`).first()
+      ).toBeVisible();
+    }
+    await expect(table.getByText('3.12.0', { exact: true })).toBeVisible();
     await expect(
-      table.locator(`[data-status="${status}"]`).first()
+      table.getByText('update available', { exact: true }).first()
     ).toBeVisible();
+  } else {
+    await expect(table.locator('[data-action]')).toHaveCount(0);
   }
-  for (const action of [
-    'nebi-pull',
-    'nebi-install-environment',
-    'nebi-install-dependencies',
-    'nebi-open-overview'
-  ]) {
-    await expect(
-      table.locator(`[data-action="${action}"]`).first()
-    ).toBeVisible();
-  }
-  await expect(table.getByText('3.12.0', { exact: true })).toBeVisible();
-  await expect(
-    table.getByText('update available', { exact: true }).first()
-  ).toBeVisible();
   for (const label of ['JavaScript (Node.js)', 'Rust']) {
     const icon = table
       .getByRole('row')
@@ -186,192 +193,244 @@ test.use({
   }
 });
 
-test.beforeEach(async ({ page }) => {
-  await page.clock.setFixedTime(new Date('2026-01-01T12:00:00Z'));
-  await page.route('**/api/kernelspecs*', route =>
-    route.fulfill({
-      json: {
-        default: 'python3',
-        kernelspecs: Object.fromEntries(
-          environments.map(
-            ({ name, displayName, language, version, status = 'ready' }) => [
-              name,
-              {
-                name,
-                resources: icons[language]
-                  ? { 'logo-svg': icons[language] }
-                  : {},
-                spec: {
-                  argv: [],
-                  display_name: displayName,
+for (const nebi of [false, true]) {
+  test.describe(nebi ? 'with Nebi' : 'plain', () => {
+    test.beforeEach(async ({ page }) => {
+      await page.clock.setFixedTime(new Date('2026-01-01T12:00:00Z'));
+      await page.route('**/api/kernelspecs*', route =>
+        route.fulfill({
+          json: {
+            default: 'python3',
+            kernelspecs: Object.fromEntries(
+              environments.map(
+                ({
+                  name,
+                  displayName,
                   language,
-                  metadata: {
-                    debugger: language === 'python',
-                    nebi_status: status,
-                    nebi_location: status === 'not-pulled' ? 'remote' : 'local',
-                    nebi_local_version:
-                      status === 'not-pulled' ? null : version,
-                    nebi_remote_version:
-                      status === 'outdated' ? '3.0.0' : version,
-                    nebi_outdated: status === 'outdated',
-                    nebi_workspace: `demo/${name}`,
-                    nebi_workspace_path:
-                      status === 'not-pulled' ? '' : `/srv/${name}`,
-                    pixi_environment: 'default',
-                    ...(status === 'missing-deps'
-                      ? { nebi_missing_dependencies: ['ipykernel'] }
-                      : {})
+                  version,
+                  status = 'ready'
+                }) => [
+                  name,
+                  {
+                    name,
+                    resources: icons[language]
+                      ? { 'logo-svg': icons[language] }
+                      : {},
+                    spec: {
+                      argv: [],
+                      display_name: displayName,
+                      language,
+                      metadata: {
+                        debugger: language === 'python',
+                        ...(nebi
+                          ? {
+                              nebi_status: status,
+                              nebi_location:
+                                status === 'not-pulled' ? 'remote' : 'local',
+                              nebi_local_version:
+                                status === 'not-pulled' ? null : version,
+                              nebi_remote_version:
+                                status === 'outdated' ? '3.0.0' : version,
+                              nebi_outdated: status === 'outdated',
+                              nebi_workspace: `demo/${name}`,
+                              nebi_workspace_path:
+                                status === 'not-pulled' ? '' : `/srv/${name}`,
+                              pixi_environment: 'default',
+                              ...(status === 'missing-deps'
+                                ? { nebi_missing_dependencies: ['ipykernel'] }
+                                : {})
+                            }
+                          : {})
+                      }
+                    }
                   }
-                }
-              }
-            ]
-          )
+                ]
+              )
+            )
+          }
+        })
+      );
+      await page.route('**/jupyterlab-launchpad/nebi/capabilities*', route =>
+        route.fulfill({ json: { nebi, pixi: nebi } })
+      );
+      await page.route('**/server-proxy/servers-info*', route =>
+        route.fulfill({
+          json: {
+            server_processes: nebi
+              ? [
+                  {
+                    name: 'nebi',
+                    launcher_entry: { path_info: 'nebi/workspaces' }
+                  }
+                ]
+              : []
+          }
+        })
+      );
+      // Launchpad stores these separately from JupyterLab's mocked state database.
+      const databases: Record<string, Record<string, string | boolean>> = {
+        favorites: Object.fromEntries(
+          environments
+            .filter(item => item.starred)
+            .map(item => [notebookKey(item.name), true])
+        ),
+        'last-used': Object.fromEntries(
+          environments
+            .filter(item => item.lastUsed)
+            .map(item => [notebookKey(item.name), item.lastUsed!])
         )
-      }
-    })
-  );
-  await page.route('**/jupyterlab-launchpad/nebi/capabilities*', route =>
-    route.fulfill({ json: { nebi: true, pixi: true } })
-  );
-  await page.route('**/server-proxy/servers-info*', route =>
-    route.fulfill({
-      json: {
-        server_processes: [
-          { name: 'nebi', launcher_entry: { path_info: 'nebi/workspaces' } }
-        ]
-      }
-    })
-  );
-  // Launchpad stores these separately from JupyterLab's mocked state database.
-  const databases: Record<string, Record<string, string | boolean>> = {
-    favorites: Object.fromEntries(
-      environments
-        .filter(item => item.starred)
-        .map(item => [notebookKey(item.name), true])
-    ),
-    'last-used': Object.fromEntries(
-      environments
-        .filter(item => item.lastUsed)
-        .map(item => [notebookKey(item.name), item.lastUsed!])
-    )
-  };
-  await page.route('**/jupyterlab-launchpad/database/*', async route => {
-    const name = new URL(route.request().url()).pathname.split('/').pop()!;
-    if (route.request().method() === 'POST') {
-      databases[name] = route.request().postDataJSON();
-      await route.fulfill({ status: 204 });
-    } else {
-      await route.fulfill({ json: databases[name] });
-    }
-  });
-  await page.goto();
-  await page.sidebar.close();
-  await expect(
-    page.locator('.jp-Launcher-launchNotebook tbody tr')
-  ).toHaveCount(environments.length);
-});
-
-test('launcher screenshot for the README', async ({ page }) => {
-  const launcher = page.locator('.jp-LauncherBody');
-  const notebooks = launcher.locator('.jp-Launcher-launchNotebook');
-  await expect(
-    notebooks.getByRole('button', {
-      name: 'Click to remove the kernel from favourites'
-    })
-  ).toHaveCount(2);
-  await expect(notebooks.getByText('3 hours ago', { exact: true })).toHaveCount(
-    6
-  );
-  await expect(notebooks.getByText('7 days ago', { exact: true })).toHaveCount(
-    1
-  );
-  await expect(notebooks.getByText('Rust', { exact: true })).toBeInViewport();
-  await expectDemoFeatures(notebooks);
-  await page.mouse.move(0, 0);
-  await expect(launcher).toHaveScreenshot('launcher.png');
-});
-
-test('kernel selection dialog screenshot for the README', async ({
-  page,
-  tmpPath
-}) => {
-  const notebookPath = `${tmpPath}/Example.ipynb`;
-  await page.contents.uploadContent(
-    JSON.stringify({
-      cells: [],
-      metadata: {},
-      nbformat: 4,
-      nbformat_minor: 5
-    }),
-    'text',
-    notebookPath
-  );
-  await page.evaluate(async path => {
-    await window.jupyterapp.commands.execute('docmanager:open', {
-      path,
-      kernelPreference: { shouldStart: false }
+      };
+      await page.route('**/jupyterlab-launchpad/database/*', async route => {
+        const name = new URL(route.request().url()).pathname.split('/').pop()!;
+        if (route.request().method() === 'POST') {
+          databases[name] = route.request().postDataJSON();
+          await route.fulfill({ status: 204 });
+        } else {
+          await route.fulfill({ json: databases[name] });
+        }
+      });
+      await page.goto();
+      await page.sidebar.close();
+      await expect(
+        page.locator('.jp-Launcher-launchNotebook tbody tr')
+      ).toHaveCount(environments.length);
     });
-  }, notebookPath);
 
-  // Show the original idle Python and starting R sessions without real kernels.
-  const kernels = [
-    {
-      id: 'readme-python',
-      name: 'python3',
-      execution_state: 'idle',
-      connections: 1
-    },
-    { id: 'readme-r', name: 'ir', execution_state: 'starting', connections: 1 }
-  ];
-  await page.routeWebSocket(/\/api\/kernels\/readme-[^/]+\/channels/, () => {});
-  await page.route(/\/api\/kernels\/readme-[^/?]+(\?.*)?$/, route =>
-    route.fulfill({
-      json: kernels.find(kernel =>
-        new URL(route.request().url()).pathname.endsWith('/' + kernel.id)
-      )
-    })
-  );
-  await page.route(/\/api\/kernels(\?.*)?$/, route =>
-    route.fulfill({ json: kernels })
-  );
-  await page.route(/\/api\/sessions(\?.*)?$/, route =>
-    route.fulfill({
-      json: kernels.map((kernel, index) => ({
-        id: `readme-session-${index}`,
-        path: `Untitled${45 - index}.ipynb`,
-        name: `Untitled${45 - index}.ipynb`,
-        type: 'notebook',
-        kernel
-      }))
-    })
-  );
-  await page.evaluate(async () => {
-    const { kernels, sessions } = window.jupyterapp.serviceManager;
-    await Promise.all([kernels.refreshRunning(), sessions.refreshRunning()]);
+    test('launcher screenshot for the README', async ({ page }) => {
+      const launcher = page.locator('.jp-LauncherBody');
+      const notebooks = launcher.locator('.jp-Launcher-launchNotebook');
+      await expect(
+        notebooks.getByRole('button', {
+          name: 'Click to remove the kernel from favourites'
+        })
+      ).toHaveCount(2);
+      await expect(
+        notebooks.getByText('3 hours ago', { exact: true })
+      ).toHaveCount(6);
+      await expect(
+        notebooks.getByText('7 days ago', { exact: true })
+      ).toHaveCount(1);
+      await expect(
+        notebooks.getByText('Rust', { exact: true })
+      ).toBeInViewport();
+      await expectKernelFeatures(notebooks, nebi);
+      await page.mouse.move(0, 0);
+      await expect(launcher).toHaveScreenshot(
+        nebi ? 'launcher-nebi.png' : 'launcher.png'
+      );
+    });
+
+    test('kernel selection dialog screenshot for the README', async ({
+      page,
+      tmpPath
+    }) => {
+      const notebookPath = `${tmpPath}/Example.ipynb`;
+      await page.contents.uploadContent(
+        JSON.stringify({
+          cells: [],
+          metadata: {},
+          nbformat: 4,
+          nbformat_minor: 5
+        }),
+        'text',
+        notebookPath
+      );
+      await page.evaluate(async path => {
+        await window.jupyterapp.commands.execute('docmanager:open', {
+          path,
+          kernelPreference: { shouldStart: false }
+        });
+      }, notebookPath);
+
+      // Show the original idle Python and starting R sessions without real kernels.
+      const kernels = [
+        {
+          id: 'readme-python',
+          name: 'python3',
+          execution_state: 'idle',
+          connections: 1
+        },
+        {
+          id: 'readme-r',
+          name: 'ir',
+          execution_state: 'starting',
+          connections: 1
+        }
+      ];
+      await page.routeWebSocket(
+        /\/api\/kernels\/readme-[^/]+\/channels/,
+        () => {}
+      );
+      await page.route(/\/api\/kernels\/readme-[^/?]+(\?.*)?$/, route =>
+        route.fulfill({
+          json: kernels.find(kernel =>
+            new URL(route.request().url()).pathname.endsWith('/' + kernel.id)
+          )
+        })
+      );
+      await page.route(/\/api\/kernels(\?.*)?$/, route =>
+        route.fulfill({ json: kernels })
+      );
+      await page.route(/\/api\/sessions(\?.*)?$/, route =>
+        route.fulfill({
+          json: kernels.map((kernel, index) => ({
+            id: `readme-session-${index}`,
+            path: `Untitled${45 - index}.ipynb`,
+            name: `Untitled${45 - index}.ipynb`,
+            type: 'notebook',
+            kernel
+          }))
+        })
+      );
+      await page.evaluate(async () => {
+        const { kernels, sessions } = window.jupyterapp.serviceManager;
+        await Promise.all([
+          kernels.refreshRunning(),
+          sessions.refreshRunning()
+        ]);
+      });
+      await page
+        .getByRole('button', { name: 'No Kernel', exact: true })
+        .click();
+      const dialog = page.locator(
+        '.jp-KernelSelector-Dialog .jp-Dialog-content'
+      );
+      await expect(dialog.locator('tbody tr')).toHaveCount(
+        environments.length + 2
+      );
+      await expect(
+        dialog.getByText('Start a new kernel for "Example.ipynb"', {
+          exact: true
+        })
+      ).toBeVisible();
+      await expect(
+        dialog.getByText('Untitled45.ipynb', { exact: true })
+      ).toBeVisible();
+      await expect(
+        dialog.getByText('Untitled44.ipynb', { exact: true })
+      ).toBeInViewport();
+      await expect(dialog.getByText('idle', { exact: true })).toBeVisible();
+      await expect(dialog.getByText('starting', { exact: true })).toBeVisible();
+      await expect(
+        dialog.getByRole('button', {
+          name: 'Click to remove the kernel from favourites'
+        })
+      ).toHaveCount(2);
+      await expect(
+        dialog.getByText('3 hours ago', { exact: true })
+      ).toHaveCount(6);
+      await expect(dialog.getByText('7 days ago', { exact: true })).toHaveCount(
+        1
+      );
+      await expect(dialog.getByText('Rust', { exact: true })).toBeInViewport();
+      await expectKernelFeatures(
+        dialog.locator('.jp-NewLauncher-table').first(),
+        nebi
+      );
+      await page.mouse.move(0, 0);
+      await expect(dialog).toHaveScreenshot(
+        nebi ? 'dialog-nebi.png' : 'dialog.png'
+      );
+    });
   });
-  await page.getByRole('button', { name: 'No Kernel', exact: true }).click();
-  const dialog = page.locator('.jp-KernelSelector-Dialog .jp-Dialog-content');
-  await expect(dialog.locator('tbody tr')).toHaveCount(environments.length + 2);
-  await expect(
-    dialog.getByText('Start a new kernel for "Example.ipynb"', { exact: true })
-  ).toBeVisible();
-  await expect(
-    dialog.getByText('Untitled45.ipynb', { exact: true })
-  ).toBeVisible();
-  await expect(
-    dialog.getByText('Untitled44.ipynb', { exact: true })
-  ).toBeInViewport();
-  await expect(dialog.getByText('idle', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('starting', { exact: true })).toBeVisible();
-  await expect(
-    dialog.getByRole('button', {
-      name: 'Click to remove the kernel from favourites'
-    })
-  ).toHaveCount(2);
-  await expect(dialog.getByText('3 hours ago', { exact: true })).toHaveCount(6);
-  await expect(dialog.getByText('7 days ago', { exact: true })).toHaveCount(1);
-  await expect(dialog.getByText('Rust', { exact: true })).toBeInViewport();
-  await expectDemoFeatures(dialog.locator('.jp-NewLauncher-table').first());
-  await page.mouse.move(0, 0);
-  await expect(dialog).toHaveScreenshot('dialog.png');
-});
+}
