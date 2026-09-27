@@ -180,10 +180,25 @@ def _resolve_workspace_dir(server_app, workspace_path: str) -> Path:
     try:
         resolved_dir.relative_to(root_path)
     except ValueError:
-        raise tornado.web.HTTPError(
-            400,
-            reason="Workspace path is outside the Jupyter file browser root",
-        )
+        # Nebi workspaces may live on a separate volume from the file browser.
+        # Trust only an exact path from server-side discovery, not request metadata.
+        manager = getattr(server_app, "kernel_spec_manager", None)
+        specs = manager.get_all_specs() if manager is not None else {}
+        for kernel in specs.values():
+            metadata = kernel["spec"].get("metadata", {})
+            path = metadata.get("nebi_workspace_path")
+            if (
+                isinstance(path, str)
+                and Path(path).is_absolute()
+                and Path(path).resolve() == resolved_dir
+            ):
+                break
+        else:
+            raise tornado.web.HTTPError(
+                400,
+                reason="Workspace path is outside the Jupyter file browser root "
+                "and is not a discovered Nebi workspace",
+            )
 
     if not resolved_dir.is_dir():
         raise tornado.web.HTTPError(400, reason="Workspace path does not exist")
