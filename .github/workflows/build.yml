@@ -33,6 +33,7 @@ jobs:
     - name: Test the extension
       run: |
         set -eux
+        python -m unittest discover -s tests
         jlpm run test
 
     - name: Build the extension
