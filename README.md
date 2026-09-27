@@ -5,7 +5,7 @@
 
 A redesigned JupyterLab launcher.
 
-With a plain installation:
+### Standalone
 
 ![new launcher][launcher]
 
@@ -13,7 +13,9 @@ Kernel selection dialog:
 
 ![new dialog][dialog]
 
-With Nebi and `nb-nebi-kernels` installed:
+### With Nebi
+
+With `nb-nebi-kernels` installed:
 
 ![launcher with Nebi][launcher-nebi]
 
