@@ -118,6 +118,11 @@ class NebiActionHandler(APIHandler):
             if isinstance(item, str) and item
         ]
 
+        if body.get("repair") is True and not dependencies:
+            raise tornado.web.HTTPError(
+                400, reason="No automatic repair is available. Open this environment in Nebi."
+            )
+
         if dependencies:
             cmd = ["pixi", "add", "--manifest-path", str(manifest)]
             environment = _string_field(body, "environment")
@@ -126,6 +131,9 @@ class NebiActionHandler(APIHandler):
             cmd.extend(dependencies)
         else:
             cmd = ["pixi", "install", "--manifest-path", str(manifest)]
+            environment = _string_field(body, "environment")
+            if environment:
+                cmd.extend(["-e", environment])
 
         result = _run_command(cmd, cwd=workspace_dir)
         self.finish(json.dumps(result))

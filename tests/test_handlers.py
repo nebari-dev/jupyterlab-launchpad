@@ -45,29 +45,53 @@ class NebiWorkspaceTests(unittest.TestCase):
     def test_both_actions_accept_discovered_external_workspace(self):
         self.discover(str(self.workspace))
         for dependencies, operation in (([], "install"), (["ipykernel"], "add")):
-            with self.subTest(operation=operation):
-                handler = Mock(spec=NebiActionHandler)
-                handler.server_app = self.server
-                with patch(
-                    "jupyterlab_launchpad.handlers._run_command",
-                    return_value={"ok": True},
-                ) as run:
-                    NebiActionHandler._install_dependencies(
-                        handler,
-                        {
-                            "workspacePath": str(self.workspace),
-                            "environment": "default",
-                            "missingDependencies": dependencies,
-                        },
+            for environment in ("default", "analysis"):
+                with self.subTest(operation=operation, environment=environment):
+                    handler = Mock(spec=NebiActionHandler)
+                    handler.server_app = self.server
+                    with patch(
+                        "jupyterlab_launchpad.handlers._run_command",
+                        return_value={"ok": True},
+                    ) as run:
+                        NebiActionHandler._install_dependencies(
+                            handler,
+                            {
+                                "workspacePath": str(self.workspace),
+                                "environment": environment,
+                                "missingDependencies": dependencies,
+                                "repair": bool(dependencies),
+                            },
+                        )
+                    environment_args = (
+                        ["-e", environment]
+                        if operation == "install" or environment != "default"
+                        else []
                     )
-                run.assert_called_once_with(
-                    ["pixi", operation, "--manifest-path", str(self.manifest)]
-                    + dependencies,
-                    cwd=self.workspace,
+                    run.assert_called_once_with(
+                        ["pixi", operation, "--manifest-path", str(self.manifest)]
+                        + environment_args
+                        + dependencies,
+                        cwd=self.workspace,
+                    )
+                    self.assertEqual(
+                        json.loads(handler.finish.call_args.args[0]), {"ok": True}
+                    )
+
+    def test_unknown_repair_does_not_run_install(self):
+        self.discover(str(self.workspace))
+        handler = Mock(spec=NebiActionHandler)
+        handler.server_app = self.server
+        with patch("jupyterlab_launchpad.handlers._run_command") as run:
+            with self.assertRaisesRegex(HTTPError, "No automatic repair"):
+                NebiActionHandler._install_dependencies(
+                    handler,
+                    {
+                        "workspacePath": str(self.workspace),
+                        "repair": True,
+                        "missingDependencies": [],
+                    },
                 )
-                self.assertEqual(
-                    json.loads(handler.finish.call_args.args[0]), {"ok": True}
-                )
+            run.assert_not_called()
 
     def test_both_actions_reject_undiscovered_external_workspace(self):
         for dependencies in ([], ["ipykernel"]):
