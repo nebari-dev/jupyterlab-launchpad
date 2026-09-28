@@ -45,7 +45,7 @@ class NebiWorkspaceTests(unittest.TestCase):
     def test_both_actions_accept_discovered_external_workspace(self):
         self.discover(str(self.workspace))
         for dependencies, operation in (([], "install"), (["ipykernel"], "add")):
-            for environment in ("default", "analysis"):
+            for environment in ("", "default", "analysis"):
                 with self.subTest(operation=operation, environment=environment):
                     handler = Mock(spec=NebiActionHandler)
                     handler.server_app = self.server
@@ -63,8 +63,8 @@ class NebiWorkspaceTests(unittest.TestCase):
                             },
                         )
                     environment_args = (
-                        ["-e", environment]
-                        if operation == "install" or environment != "default"
+                        ["-e", environment or "default"]
+                        if operation == "add" or environment
                         else []
                     )
                     run.assert_called_once_with(
@@ -76,6 +76,37 @@ class NebiWorkspaceTests(unittest.TestCase):
                     self.assertEqual(
                         json.loads(handler.finish.call_args.args[0]), {"ok": True}
                     )
+
+    def test_repair_targets_default_environment_without_shared_feature(self):
+        self.manifest.write_text(
+            '[workspace]\nname = "demo"\n'
+            '[feature.python.dependencies]\npython = "3.12.*"\n'
+            '[environments]\n'
+            'default = { features = ["python"], no-default-feature = true }\n'
+            'other = ["python"]\n'
+        )
+        self.discover(str(self.workspace))
+        handler = Mock(spec=NebiActionHandler)
+        handler.server_app = self.server
+        with patch(
+            "jupyterlab_launchpad.handlers._run_command", return_value={"ok": True}
+        ) as run:
+            NebiActionHandler._install_dependencies(
+                handler,
+                {
+                    "workspacePath": str(self.workspace),
+                    "environment": "default",
+                    "repair": True,
+                    "missingDependencies": ["ipykernel"],
+                },
+            )
+        run.assert_called_once_with(
+            [
+                "pixi", "add", "--manifest-path", str(self.manifest),
+                "-e", "default", "ipykernel",
+            ],
+            cwd=self.workspace,
+        )
 
     def test_unknown_repair_does_not_run_install(self):
         self.discover(str(self.workspace))

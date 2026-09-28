@@ -125,9 +125,9 @@ class NebiActionHandler(APIHandler):
 
         if dependencies:
             cmd = ["pixi", "add", "--manifest-path", str(manifest)]
-            environment = _string_field(body, "environment")
-            if environment and environment != "default":
-                cmd.extend(["-e", environment])
+            # The default environment is distinct from the shared default feature.
+            environment = _string_field(body, "environment") or "default"
+            cmd.extend(["-e", environment])
             cmd.extend(dependencies)
         else:
             cmd = ["pixi", "install", "--manifest-path", str(manifest)]
