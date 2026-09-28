@@ -28,6 +28,7 @@ dependencies = [
 dynamic = ["version", "description", "authors", "urls", "keywords"]
 
 [project.optional-dependencies]
+nebi = ["nb-nebi-kernels>=0.3", "jupyter-server-proxy"]
 test = ["jupyter-server-proxy"]
 
 [tool.hatch.version]

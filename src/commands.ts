@@ -2,12 +2,13 @@ import { JupyterFrontEnd } from '@jupyterlab/application';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { TranslationBundle } from '@jupyterlab/translation';
 import { CommandIDs } from './types';
-import { ISettingsLayout } from './types';
+import { ISettingsLayout, ILaunchpadKernelTable } from './types';
 
 export function addCommands(
   app: JupyterFrontEnd,
   trans: TranslationBundle,
-  settings: ISettingRegistry.ISettings
+  settings: ISettingRegistry.ISettings,
+  kernelTable: ILaunchpadKernelTable
 ) {
   app.commands.addCommand(CommandIDs.toggleColumn, {
     label: args => {
@@ -29,7 +30,10 @@ export function addCommands(
         (settings.composite.hiddenColumns as
           | ISettingsLayout['hiddenColumns']
           | undefined) ?? {};
-      if (columns[id] === 'visible' || !columns[id]) {
+      const visible = columns[id]
+        ? columns[id] === 'visible'
+        : kernelTable.getColumnDefaultVisibility(id);
+      if (visible) {
         columns[id] = 'hidden';
       } else {
         columns[id] = 'visible';
@@ -47,8 +51,13 @@ export function addCommands(
         (settings.composite.hiddenColumns as
           | ISettingsLayout['hiddenColumns']
           | undefined) ?? {};
-      return columns[id] !== 'hidden';
+      return columns[id]
+        ? columns[id] === 'visible'
+        : kernelTable.getColumnDefaultVisibility(id);
     }
+  });
+  kernelTable.changed.connect(() => {
+    app.commands.notifyCommandChanged(CommandIDs.toggleColumn);
   });
   app.commands.addCommand(CommandIDs.moveColumn, {
     label: args => {

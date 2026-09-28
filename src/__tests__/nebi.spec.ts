@@ -94,6 +94,36 @@ function activateNebiPlugin(registry: LaunchpadKernelTable) {
 }
 
 describe('LaunchpadKernelTable', () => {
+  it.each([false, true])(
+    'uses Nebi availability (%s) for column defaults',
+    async nebi => {
+      (requestAPI as jest.Mock).mockResolvedValueOnce({ nebi, pixi: true });
+      const registry = new LaunchpadKernelTable();
+      activateNebiPlugin(registry);
+      await settlePromises();
+
+      expect(registry.getColumnDefaultVisibility('nebi_status')).toBe(nebi);
+      expect(registry.getColumnDefaultVisibility('actions')).toBe(nebi);
+      expect(registry.getColumnDefaultVisibility('nebi_version')).toBe(nebi);
+      expect(registry.getColumnDefaultVisibility('state')).toBe(true);
+    }
+  );
+
+  it('keeps Nebi columns hidden when capability lookup fails', async () => {
+    (requestAPI as jest.Mock).mockRejectedValueOnce(new Error('Unavailable'));
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const registry = new LaunchpadKernelTable();
+      activateNebiPlugin(registry);
+      await settlePromises();
+      expect(registry.getColumnDefaultVisibility('nebi_version')).toBe(false);
+      expect(registry.getColumnDefaultVisibility('nebi_status')).toBe(false);
+      expect(registry.getColumnDefaultVisibility('actions')).toBe(false);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it('registers metadata columns', () => {
     const registry = new LaunchpadKernelTable();
     const column = { id: 'state', label: 'State' };

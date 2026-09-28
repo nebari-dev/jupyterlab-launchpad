@@ -72,6 +72,9 @@ export type IKernelItem = IItem;
 
 export interface ILaunchpadKernelTable {
   readonly changed: ISignal<ILaunchpadKernelTable, void>;
+  /** Default visibility used when the user has not configured a column. */
+  getColumnDefaultVisibility(id: string): boolean;
+  setColumnDefaultVisibility(id: string, visible: boolean): void;
   registerMetadataColumn(column: IKernelMetadataColumn): void;
   getMetadataColumn(id: string): IKernelMetadataColumn | undefined;
   getMetadataColumns(): IKernelMetadataColumn[];

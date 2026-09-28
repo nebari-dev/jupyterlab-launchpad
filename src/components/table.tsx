@@ -686,7 +686,11 @@ export function KernelTable(props: {
       };
     });
   const visibleColumns = columns
-    .filter(column => hiddenColumns[column.id] !== 'hidden')
+    .filter(column =>
+      hiddenColumns[column.id]
+        ? hiddenColumns[column.id] === 'visible'
+        : props.kernelTable.getColumnDefaultVisibility(column.id)
+    )
     .map(column => {
       const rank = columnOrder.indexOf(column.id);
       return {

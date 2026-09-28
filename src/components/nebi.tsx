@@ -708,9 +708,16 @@ async function getNebiServerProxyPath(): Promise<string | null> {
 
 function registerNebiActionCommands(
   app: JupyterFrontEnd,
-  trans: ReturnType<ITranslator['load']>
+  trans: ReturnType<ITranslator['load']>,
+  kernelTable: ILaunchpadKernelTable
 ): void {
   const { commands } = app;
+  const updateColumnDefaults = (nebi: boolean) => {
+    kernelTable.setColumnDefaultVisibility('nebi_version', nebi);
+    kernelTable.setColumnDefaultVisibility('nebi_status', nebi);
+    kernelTable.setColumnDefaultVisibility('actions', nebi);
+  };
+  updateColumnDefaults(false);
   let capabilities: INebiActionCapabilities = {
     nebi: false,
     pixi: false
@@ -725,6 +732,7 @@ function registerNebiActionCommands(
   void requestAPI<INebiActionCapabilities>('nebi/capabilities')
     .then(value => {
       capabilities = value;
+      updateColumnDefaults(value.nebi);
       refreshActionCommands();
     })
     .catch(error => {
@@ -850,7 +858,7 @@ export const nebiKernelTablePlugin: JupyterFrontEndPlugin<void> = {
     const trans = translator.load('jupyterlab-launchpad');
     // Registered for the lifetime of the Nebi plugin.
     addKernelRefreshMessageListener(app, [NEBI_JOB_COMPLETED_MESSAGE]);
-    registerNebiActionCommands(app, trans);
+    registerNebiActionCommands(app, trans, kernelTable);
     kernelTable.registerIconFallbackTitleProvider(
       nebiIconFallbackTitleProvider
     );
