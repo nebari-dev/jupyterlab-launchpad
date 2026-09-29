@@ -1363,11 +1363,6 @@ body.jp-mod-resize-table .jp-sortable-table {
   width: 130px;
 }
 
-.jp-NewLauncher-table.jp-mod-compactTable th[data-id='nebi_version'],
-.jp-NewLauncher-table.jp-mod-compactTable td[data-id='nebi_version'] {
-  width: 80px;
-}
-
 .jp-NewLauncher-table.jp-mod-compactTable th[data-id='nebi_status'],
 .jp-NewLauncher-table.jp-mod-compactTable td[data-id='nebi_status'] {
   width: 56px;

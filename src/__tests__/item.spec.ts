@@ -58,9 +58,9 @@ describe('Item', () => {
     });
 
     expect(item.metadata?.kernel).toMatchObject({
-      nebi_version: 'Built in',
       nebi_status: 'ready'
     });
+    expect(item.metadata?.kernel).not.toHaveProperty('nebi_version');
   });
 
   it('keeps real Nebi metadata unchanged', () => {

@@ -90,7 +90,7 @@ export class Item implements IItem {
       }
     }
     // Built-in JupyterLab kernel items do not carry Nebi metadata, but the
-    // redesigned table still presents them in the Version and Status columns.
+    // table still presents them in the Status column.
     if (isKernelLauncherItem(item)) {
       const kernelMetadata = isJSONObject(this.metadata['kernel'])
         ? this.metadata['kernel']
@@ -99,7 +99,6 @@ export class Item implements IItem {
         this.metadata = {
           ...this.metadata,
           kernel: {
-            nebi_version: 'Built in',
             nebi_status: 'ready',
             ...kernelMetadata
           }
