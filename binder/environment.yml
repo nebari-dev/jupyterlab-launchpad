@@ -28,3 +28,4 @@ dependencies:
       - nb-nebi-kernels @ git+https://github.com/nebari-dev/nb-nebi-kernels.git@01b69406eddcd09e9d1dd541dc642d6267fbd177
       - jupyter-server-proxy
       - jupyter-vscode-proxy
+      - jupyterlab-gallery
