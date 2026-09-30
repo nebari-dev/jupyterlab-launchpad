@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from tornado.web import HTTPError
+from traitlets.config import Config
 
 from jupyterlab_launchpad.handlers import NebiActionHandler, _resolve_workspace_dir
 
@@ -24,7 +25,7 @@ class NebiWorkspaceTests(unittest.TestCase):
         self.manager = Mock()
         self.manager.get_all_specs.return_value = {}
         self.server = SimpleNamespace(
-            root_dir=str(self.root), kernel_spec_manager=self.manager
+            root_dir=str(self.root), kernel_spec_manager=self.manager, config=Config()
         )
 
     def discover(self, path):
@@ -44,11 +45,12 @@ class NebiWorkspaceTests(unittest.TestCase):
 
     def test_both_actions_accept_discovered_external_workspace(self):
         self.discover(str(self.workspace))
+        self.server.config.NebiConfig.kernel_dependencies = ["custom-kernel"]
         for dependencies, operation in (([], "install"), (["ipykernel"], "add")):
-            for environment in ("", "default", "analysis"):
+            for environment in ("", "default"):
                 with self.subTest(operation=operation, environment=environment):
                     handler = Mock(spec=NebiActionHandler)
-                    handler.server_app = self.server
+                    NebiActionHandler.initialize(handler, "install-dependencies", self.server)
                     with patch(
                         "jupyterlab_launchpad.handlers._run_command",
                         return_value={"ok": True},
@@ -62,14 +64,8 @@ class NebiWorkspaceTests(unittest.TestCase):
                                 "repair": bool(dependencies),
                             },
                         )
-                    environment_args = (
-                        ["-e", environment or "default"]
-                        if operation == "add" or environment
-                        else []
-                    )
                     run.assert_called_once_with(
                         ["pixi", operation, "--manifest-path", str(self.manifest)]
-                        + environment_args
                         + dependencies,
                         cwd=self.workspace,
                     )
@@ -77,41 +73,59 @@ class NebiWorkspaceTests(unittest.TestCase):
                         json.loads(handler.finish.call_args.args[0]), {"ok": True}
                     )
 
-    def test_repair_targets_default_environment_without_shared_feature(self):
-        self.manifest.write_text(
-            '[workspace]\nname = "demo"\n'
-            '[feature.python.dependencies]\npython = "3.12.*"\n'
-            '[environments]\n'
-            'default = { features = ["python"], no-default-feature = true }\n'
-            'other = ["python"]\n'
-        )
+    def test_named_environment_does_not_modify_default_environment(self):
         self.discover(str(self.workspace))
-        handler = Mock(spec=NebiActionHandler)
-        handler.server_app = self.server
-        with patch(
-            "jupyterlab_launchpad.handlers._run_command", return_value={"ok": True}
-        ) as run:
-            NebiActionHandler._install_dependencies(
-                handler,
-                {
+        for dependencies in ([], ["ipykernel"]):
+            with self.subTest(dependencies=dependencies):
+                handler = Mock(spec=NebiActionHandler)
+                NebiActionHandler.initialize(handler, "install-dependencies", self.server)
+                with patch("jupyterlab_launchpad.handlers._run_command") as run:
+                    with self.assertRaisesRegex(HTTPError, "only supports the default"):
+                        NebiActionHandler._install_dependencies(
+                            handler,
+                            {
+                                "workspacePath": str(self.workspace),
+                                "environment": "analysis",
+                                "missingDependencies": dependencies,
+                            },
+                        )
+                    run.assert_not_called()
+
+    def test_missing_kernel_uses_server_configuration(self):
+        self.discover(str(self.workspace))
+        for configured in (None, ["custom-kernel", "sandbox-package"], []):
+            with self.subTest(configured=configured):
+                self.server.config = Config()
+                if configured is not None:
+                    self.server.config.NebiConfig.kernel_dependencies = configured
+                handler = Mock(spec=NebiActionHandler)
+                NebiActionHandler.initialize(handler, "install-dependencies", self.server)
+                body = {
                     "workspacePath": str(self.workspace),
-                    "environment": "default",
                     "repair": True,
+                    "notReadyReason": "kernel-not-installed",
+                    # Stale frontend defaults must not override server configuration.
                     "missingDependencies": ["ipykernel"],
-                },
-            )
-        run.assert_called_once_with(
-            [
-                "pixi", "add", "--manifest-path", str(self.manifest),
-                "-e", "default", "ipykernel",
-            ],
-            cwd=self.workspace,
-        )
+                }
+                with patch(
+                    "jupyterlab_launchpad.handlers._run_command", return_value={"ok": True}
+                ) as run:
+                    if configured == []:
+                        with self.assertRaisesRegex(HTTPError, "No automatic repair"):
+                            NebiActionHandler._install_dependencies(handler, body)
+                        run.assert_not_called()
+                    else:
+                        NebiActionHandler._install_dependencies(handler, body)
+                        run.assert_called_once_with(
+                            ["pixi", "add", "--manifest-path", str(self.manifest)]
+                            + (configured if configured is not None else ["ipykernel"]),
+                            cwd=self.workspace,
+                        )
 
     def test_unknown_repair_does_not_run_install(self):
         self.discover(str(self.workspace))
         handler = Mock(spec=NebiActionHandler)
-        handler.server_app = self.server
+        NebiActionHandler.initialize(handler, "install-dependencies", self.server)
         with patch("jupyterlab_launchpad.handlers._run_command") as run:
             with self.assertRaisesRegex(HTTPError, "No automatic repair"):
                 NebiActionHandler._install_dependencies(
@@ -128,7 +142,7 @@ class NebiWorkspaceTests(unittest.TestCase):
         for dependencies in ([], ["ipykernel"]):
             with self.subTest(dependencies=dependencies):
                 handler = Mock(spec=NebiActionHandler)
-                handler.server_app = self.server
+                NebiActionHandler.initialize(handler, "install-dependencies", self.server)
                 with patch("jupyterlab_launchpad.handlers._run_command") as run:
                     with self.assertRaises(HTTPError) as error:
                         NebiActionHandler._install_dependencies(

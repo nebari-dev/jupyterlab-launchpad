@@ -494,7 +494,7 @@ describe('LaunchpadKernelTable', () => {
   });
 
   it.each([
-    ['kernel-not-installed', [], ['ipykernel'], true],
+    ['kernel-not-installed', [], [], true],
     ['missing-dependencies', ['numpy'], ['numpy'], true],
     ['environment-not-installed', [], [], false]
   ])('selects the repair for %s', (reason, dependencies, expected, repair) => {
@@ -505,7 +505,7 @@ describe('LaunchpadKernelTable', () => {
       metadata: {
         nebi_state: repair ? 'local-missing-deps' : 'local-not-installed',
         nebi_workspace_path: '/tmp/demo',
-        pixi_environment: 'analysis',
+        pixi_environment: 'default',
         nebi_not_ready_reason: reason,
         nebi_missing_dependencies: dependencies
       } as ReadonlyJSONObject,
@@ -513,10 +513,13 @@ describe('LaunchpadKernelTable', () => {
     };
     const action = registry.getActions(options)[0];
     expect(action.args?.(options)).toMatchObject({
-      environment: 'analysis',
+      environment: 'default',
       missingDependencies: expected
     });
     expect(action.args?.(options)?.['repair']).toBe(repair || undefined);
+    if (repair) {
+      expect(action.args?.(options)?.['notReadyReason']).toBe(reason);
+    }
     if (reason === 'kernel-not-installed') {
       expect(
         registry.getMetadataColumn('nebi_missing_dependencies')?.title?.({
@@ -524,16 +527,16 @@ describe('LaunchpadKernelTable', () => {
           value: dependencies,
           metadataKey: 'nebi_missing_dependencies'
         })
-      ).toContain('Python kernel (ipykernel)');
+      ).toContain('configured kernel dependencies');
     }
   });
 
   it.each([
-    ['ready', 'analysis', true],
-    ['outdated', 'analysis', true],
-    ['local-missing-deps', 'analysis', false],
+    ['ready', 'default', true],
+    ['outdated', 'default', true],
+    ['local-missing-deps', 'default', false],
     ['ready', 'another-environment', false],
-    [undefined, 'analysis', false]
+    [undefined, 'default', false]
   ])(
     'verifies repair with state %s in %s',
     async (state, environment, success) => {
@@ -567,11 +570,14 @@ describe('LaunchpadKernelTable', () => {
       try {
         await command.execute({
           workspacePath: '/tmp/demo',
-          environment: 'analysis',
-          missingDependencies: ['ipykernel'],
+          environment: 'default',
+          missingDependencies: [],
+          notReadyReason: 'kernel-not-installed',
           repair: true
         });
-        const [operation] = (Notification.promise as jest.Mock).mock.calls[0];
+        const [operation, messages] = (Notification.promise as jest.Mock).mock
+          .calls[0];
+        expect(messages.pending.message).toBe('Installing dependencies...');
         if (success) {
           await expect(operation).resolves.toBeNull();
         } else {

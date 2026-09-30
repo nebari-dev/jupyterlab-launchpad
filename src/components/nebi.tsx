@@ -273,7 +273,7 @@ function missingDependenciesTitle(
 ): string | undefined {
   if (metadata?.['nebi_not_ready_reason'] === 'kernel-not-installed') {
     return trans.__(
-      'This environment has no Jupyter kernel. Use Attempt fix to install the Python kernel (ipykernel).'
+      'This environment has no Jupyter kernel. Use Attempt fix to install the configured kernel dependencies.'
     );
   }
   const value = metadata?.['nebi_missing_dependencies'];
@@ -611,10 +611,7 @@ function createNebiActions(
       args: options => ({
         ...actionArgs(options),
         repair: true,
-        missingDependencies:
-          options.metadata?.['nebi_not_ready_reason'] === 'kernel-not-installed'
-            ? ['ipykernel']
-            : options.metadata?.['nebi_missing_dependencies']
+        notReadyReason: options.metadata?.['nebi_not_ready_reason']
       })
     },
     {
@@ -809,7 +806,8 @@ function registerNebiActionCommands(
       if (!capabilities.pixi) {
         return;
       }
-      const installingDependencies = hasMissingDependencies(args);
+      const installingDependencies =
+        args['repair'] === true || hasMissingDependencies(args);
       try {
         await notifyAction(
           requestAPI('nebi/install-dependencies', commandBody(args)).then(
