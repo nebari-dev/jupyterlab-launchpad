@@ -561,7 +561,7 @@ export function KernelTable(props: {
               onKeyDown={event => {
                 // TODO memoize func defs for perf
                 if (event.key === 'Enter') {
-                  row.execute();
+                  props.onClick(row);
                 }
               }}
               tabIndex={0}
