@@ -35,7 +35,6 @@ const KERNEL_ITEM_CLASS = 'jp-TableKernelItem';
 const COLUMN_MIN_WIDTHS: Record<string, number> = {
   star: 36,
   kernel: 130,
-  nebi_version: 80,
   'widget-type': 96,
   conda_env_name: 150,
   Namespace: 140,
