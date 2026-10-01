@@ -9,6 +9,8 @@ from jupyter_server.base.handlers import APIHandler
 from jupyter_server.utils import url_path_join
 import tornado
 
+from .config import NebiConfig
+
 
 _NEBI_WORKSPACE_RE = re.compile(r"^(?!-)[A-Za-z0-9._/@:+-]+$")
 _NEBI_VERSION_RE = re.compile(r"^(?!-)[A-Za-z0-9._+-]+$")
@@ -72,6 +74,7 @@ class NebiActionHandler(APIHandler):
     def initialize(self, action: str, server_app):
         self.action = action
         self.server_app = server_app
+        self.nebi_config = NebiConfig(config=server_app.config)
 
     @tornado.web.authenticated
     def post(self):
@@ -112,17 +115,32 @@ class NebiActionHandler(APIHandler):
         if not manifest.exists():
             raise tornado.web.HTTPError(400, reason="Workspace manifest does not exist")
 
+        # Nebi currently runs only the default environment in each workspace.
+        if _string_field(body, "environment") not in ("", "default"):
+            raise tornado.web.HTTPError(
+                400,
+                reason="Nebi only supports the default environment. "
+                "Open this workspace in Nebi.",
+            )
+
         dependencies = [
             item
             for item in body.get("missingDependencies", [])
             if isinstance(item, str) and item
         ]
+        if (
+            body.get("repair") is True
+            and _string_field(body, "notReadyReason") == "kernel-not-installed"
+        ):
+            dependencies = self.nebi_config.kernel_dependencies
+
+        if body.get("repair") is True and not dependencies:
+            raise tornado.web.HTTPError(
+                400, reason="No automatic repair is available. Open this environment in Nebi."
+            )
 
         if dependencies:
             cmd = ["pixi", "add", "--manifest-path", str(manifest)]
-            environment = _string_field(body, "environment")
-            if environment and environment != "default":
-                cmd.extend(["-e", environment])
             cmd.extend(dependencies)
         else:
             cmd = ["pixi", "install", "--manifest-path", str(manifest)]

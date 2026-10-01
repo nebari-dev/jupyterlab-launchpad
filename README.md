@@ -50,6 +50,18 @@ Jupyter server's `PATH`. See [nb-nebi-kernels](https://github.com/nebari-dev/nb-
 for workspace setup. The **Open in Nebi** action also requires a configured
 `nebi` entry in Jupyter Server Proxy.
 
+Nebi actions support the workspace's default environment. When a workspace has
+no Jupyter kernel, **Attempt fix** installs the packages configured on the server
+with `NebiConfig.kernel_dependencies` (default: `["ipykernel"]`). To use a different
+kernel package, set this list in `jupyter_server_config.py`:
+
+```python
+c.NebiConfig.kernel_dependencies = ["your-kernel-package"]
+```
+
+An empty list disables automatic repair for a missing kernel. Missing dependencies
+reported by discovery continue to be installed as reported.
+
 After installation you should restart JupyterLab (or jupyter server if using a remove server in JupyterLab Desktop).
 
 ## Uninstall

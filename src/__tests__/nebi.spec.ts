@@ -85,6 +85,9 @@ function activateNebiPlugin(registry: LaunchpadKernelTable) {
         baseUrl: 'http://example.com/user/demo/'
       },
       kernelspecs: {
+        specs: {
+          kernelspecs: {} as Record<string, { metadata: ReadonlyJSONObject }>
+        },
         refreshSpecs: jest.fn()
       }
     }
@@ -437,6 +440,102 @@ describe('LaunchpadKernelTable', () => {
       NEBI_JOB_COMPLETED_MESSAGE
     ]);
   });
+
+  it.each([
+    ['kernel-not-installed', [], [], true],
+    ['missing-dependencies', ['numpy'], ['numpy'], true],
+    ['environment-not-installed', [], [], false]
+  ])('selects the repair for %s', (reason, dependencies, expected, repair) => {
+    const registry = new LaunchpadKernelTable();
+    activateNebiPlugin(registry);
+    const options = {
+      item: {} as IKernelItem,
+      metadata: {
+        nebi_state: repair ? 'local-missing-deps' : 'local-not-installed',
+        nebi_workspace_path: '/tmp/demo',
+        pixi_environment: 'default',
+        nebi_not_ready_reason: reason,
+        nebi_missing_dependencies: dependencies
+      } as ReadonlyJSONObject,
+      trans: null as never
+    };
+    const action = registry.getActions(options)[0];
+    expect(action.args?.(options)).toMatchObject({
+      environment: 'default',
+      missingDependencies: expected
+    });
+    expect(action.args?.(options)?.['repair']).toBe(repair || undefined);
+    if (repair) {
+      expect(action.args?.(options)?.['notReadyReason']).toBe(reason);
+    }
+    if (reason === 'kernel-not-installed') {
+      expect(
+        registry.getMetadataColumn('nebi_missing_dependencies')?.title?.({
+          ...options,
+          value: dependencies,
+          metadataKey: 'nebi_missing_dependencies'
+        })
+      ).toContain('configured kernel dependencies');
+    }
+  });
+
+  it.each([
+    ['ready', 'default', true],
+    ['outdated', 'default', true],
+    ['local-missing-deps', 'default', false],
+    ['ready', 'another-environment', false],
+    [undefined, 'default', false]
+  ])(
+    'verifies repair with state %s in %s',
+    async (state, environment, success) => {
+      jest.clearAllMocks();
+      const consoleError = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      (Notification.promise as jest.Mock).mockImplementationOnce(
+        (promise: Promise<unknown>) => promise.catch(() => undefined)
+      );
+      const registry = new LaunchpadKernelTable();
+      const app = activateNebiPlugin(registry);
+      await settlePromises();
+      app.serviceManager.kernelspecs.refreshSpecs.mockImplementationOnce(() => {
+        // Discovery replaces the placeholder with a differently named real kernel.
+        app.serviceManager.kernelspecs.specs.kernelspecs = state
+          ? {
+              'new-python-kernel': {
+                metadata: {
+                  nebi_workspace_path: '/tmp/demo',
+                  pixi_environment: environment,
+                  nebi_state: state
+                }
+              }
+            }
+          : {};
+      });
+      const command = (app.commands.addCommand as jest.Mock).mock.calls.find(
+        ([id]) => id === NebiCommandIDs.installDependencies
+      )![1];
+      try {
+        await command.execute({
+          workspacePath: '/tmp/demo',
+          environment: 'default',
+          missingDependencies: [],
+          notReadyReason: 'kernel-not-installed',
+          repair: true
+        });
+        const [operation, messages] = (Notification.promise as jest.Mock).mock
+          .calls[0];
+        expect(messages.pending.message).toBe('Installing dependencies...');
+        if (success) {
+          await expect(operation).resolves.toBeNull();
+        } else {
+          await expect(operation).rejects.toThrow('still unavailable');
+        }
+      } finally {
+        consoleError.mockRestore();
+      }
+    }
+  );
 
   it('shows progress notifications for Nebi install actions', async () => {
     jest.clearAllMocks();

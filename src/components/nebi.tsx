@@ -271,6 +271,11 @@ function missingDependenciesTitle(
   metadata: ReadonlyJSONObject | undefined,
   trans: ReturnType<ITranslator['load']>
 ): string | undefined {
+  if (metadata?.['nebi_not_ready_reason'] === 'kernel-not-installed') {
+    return trans.__(
+      'This environment has no Jupyter kernel. Use Attempt fix to install the configured kernel dependencies.'
+    );
+  }
   const value = metadata?.['nebi_missing_dependencies'];
   if (!Array.isArray(value)) {
     return undefined;
@@ -354,7 +359,10 @@ function nebiStatusTitle(
     case 'not-installed':
       return trans.__("Packages haven't been set up yet");
     case 'missing-deps':
-      return trans.__('Can’t launch in Jupyter');
+      return (
+        missingDependenciesTitle(metadata, trans) ??
+        trans.__('Can’t launch in Jupyter')
+      );
     case 'failed':
       return trans.__('This workspace is broken');
   }
@@ -561,7 +569,11 @@ function createNebiActions(
         statusFromMetadata(options.metadata) === 'missing-deps' &&
         typeof options.metadata?.['nebi_workspace_path'] === 'string' &&
         options.metadata['nebi_workspace_path'].length > 0,
-      args: actionArgs
+      args: options => ({
+        ...actionArgs(options),
+        repair: true,
+        notReadyReason: options.metadata?.['nebi_not_ready_reason']
+      })
     },
     {
       id: 'nebi-open-overview',
@@ -754,11 +766,37 @@ function registerNebiActionCommands(
       if (!capabilities.pixi) {
         return;
       }
-      const installingDependencies = hasMissingDependencies(args);
+      const installingDependencies =
+        args['repair'] === true || hasMissingDependencies(args);
       try {
         await notifyAction(
-          requestAPI('nebi/install-dependencies', commandBody(args)).then(() =>
-            refreshKernelSpecs(app)
+          requestAPI('nebi/install-dependencies', commandBody(args)).then(
+            async () => {
+              await refreshKernelSpecs(app);
+              if (args['repair'] === true) {
+                const specs = app.serviceManager.kernelspecs.specs?.kernelspecs;
+                const repaired = Object.values(specs ?? {}).some(spec => {
+                  const metadata = spec?.metadata;
+                  const status =
+                    normalizeStatus(metadata?.['nebi_status']) ??
+                    normalizeStatus(metadata?.['nebi_state']);
+                  return (
+                    metadata?.['nebi_workspace_path'] ===
+                      args['workspacePath'] &&
+                    metadata?.['pixi_environment'] ===
+                      (args['environment'] || 'default') &&
+                    (status === 'ready' || status === 'outdated')
+                  );
+                });
+                if (!repaired) {
+                  throw new Error(
+                    trans.__(
+                      'The environment is still unavailable. Open it in Nebi to resolve the remaining problem.'
+                    )
+                  );
+                }
+              }
+            }
           ),
           {
             pending: installingDependencies
@@ -767,9 +805,14 @@ function registerNebiActionCommands(
             success: installingDependencies
               ? trans.__('Dependencies installed')
               : trans.__('Environment installed'),
-            error: installingDependencies
-              ? trans.__('Could not install dependencies')
-              : trans.__('Could not install environment')
+            error:
+              args['repair'] === true
+                ? trans.__(
+                    'Could not repair the environment. Open it in Nebi to resolve the remaining problem.'
+                  )
+                : installingDependencies
+                  ? trans.__('Could not install dependencies')
+                  : trans.__('Could not install environment')
           }
         );
       } catch (error) {
