@@ -132,7 +132,7 @@ class NebiActionHandler(APIHandler):
             body.get("repair") is True
             and _string_field(body, "notReadyReason") == "kernel-not-installed"
         ):
-            dependencies = self.nebi_config.kernel_dependencies
+            dependencies += self.nebi_config.kernel_dependencies
 
         if body.get("repair") is True and not dependencies:
             raise tornado.web.HTTPError(

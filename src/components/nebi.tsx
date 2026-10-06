@@ -671,7 +671,10 @@ function notifyAction<T>(
         options: { autoClose: 3000 }
       },
       error: {
-        message: () => messages.error,
+        message: reason =>
+          reason instanceof Error
+            ? `${reason.message}\n${messages.error}`
+            : messages.error,
         options: { autoClose: false }
       }
     }

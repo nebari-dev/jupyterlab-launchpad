@@ -94,33 +94,41 @@ class NebiWorkspaceTests(unittest.TestCase):
     def test_missing_kernel_uses_server_configuration(self):
         self.discover(str(self.workspace))
         for configured in (None, ["custom-kernel", "sandbox-package"], []):
-            with self.subTest(configured=configured):
-                self.server.config = Config()
-                if configured is not None:
-                    self.server.config.NebiConfig.kernel_dependencies = configured
-                handler = Mock(spec=NebiActionHandler)
-                NebiActionHandler.initialize(handler, "install-dependencies", self.server)
-                body = {
-                    "workspacePath": str(self.workspace),
-                    "repair": True,
-                    "notReadyReason": "kernel-not-installed",
-                    # Stale frontend defaults must not override server configuration.
-                    "missingDependencies": ["ipykernel"],
-                }
-                with patch(
-                    "jupyterlab_launchpad.handlers._run_command", return_value={"ok": True}
-                ) as run:
-                    if configured == []:
-                        with self.assertRaisesRegex(HTTPError, "No automatic repair"):
+            for missing in ([], ["numpy"]):
+                with self.subTest(configured=configured, missing=missing):
+                    self.server.config = Config()
+                    if configured is not None:
+                        self.server.config.NebiConfig.kernel_dependencies = configured
+                    handler = Mock(spec=NebiActionHandler)
+                    NebiActionHandler.initialize(handler, "install-dependencies", self.server)
+                    body = {
+                        "workspacePath": str(self.workspace),
+                        "repair": True,
+                        "notReadyReason": "kernel-not-installed",
+                        "missingDependencies": missing.copy(),
+                    }
+                    expected = missing + (
+                        configured if configured is not None else ["ipykernel"]
+                    )
+                    with patch(
+                        "jupyterlab_launchpad.handlers._run_command", return_value={"ok": True}
+                    ) as run:
+                        if not expected:
+                            with self.assertRaisesRegex(HTTPError, "No automatic repair"):
+                                NebiActionHandler._install_dependencies(handler, body)
+                            run.assert_not_called()
+                        else:
                             NebiActionHandler._install_dependencies(handler, body)
-                        run.assert_not_called()
-                    else:
-                        NebiActionHandler._install_dependencies(handler, body)
-                        run.assert_called_once_with(
-                            ["pixi", "add", "--manifest-path", str(self.manifest)]
-                            + (configured if configured is not None else ["ipykernel"]),
-                            cwd=self.workspace,
-                        )
+                            run.assert_called_once_with(
+                                ["pixi", "add", "--manifest-path", str(self.manifest)]
+                                + expected,
+                                cwd=self.workspace,
+                            )
+                    self.assertEqual(body["missingDependencies"], missing)
+                    self.assertEqual(
+                        handler.nebi_config.kernel_dependencies,
+                        configured if configured is not None else ["ipykernel"],
+                    )
 
     def test_unknown_repair_does_not_run_install(self):
         self.discover(str(self.workspace))

@@ -299,6 +299,102 @@ test.describe('Nebi kernel metadata', () => {
   });
 });
 
+test.describe('Nebi repair notifications', () => {
+  test.use({
+    autoGoto: false,
+    mockSettings: nebiMetadataMockSettings,
+    waitForApplication: async ({}, use) => {
+      await use(async page => {
+        await page.evaluate(() => window.jupyterapp.restored);
+        await page.locator('.jp-LauncherBody').waitFor();
+      });
+    }
+  });
+
+  for (const scenario of [
+    {
+      name: 'the repair request fails',
+      status: 400,
+      response: { message: 'Pixi could not install the dependencies.' },
+      detail: 'Pixi could not install the dependencies.'
+    },
+    {
+      name: 'the environment is still unavailable after repair',
+      status: 200,
+      response: { ok: true },
+      detail:
+        'The environment is still unavailable. Open it in Nebi to resolve the remaining problem.'
+    }
+  ]) {
+    test(`shows an error notification when ${scenario.name}`, async ({
+      page,
+      tmpPath
+    }) => {
+      await mockNebiEndpoints(page);
+      let finishInstall!: () => void;
+      const installation = new Promise<void>(resolve => {
+        finishInstall = resolve;
+      });
+      await page.route(
+        '**/jupyterlab-launchpad/nebi/install-dependencies*',
+        async route => {
+          await installation;
+          await route.fulfill({
+            status: scenario.status,
+            contentType: 'application/json',
+            body: JSON.stringify(scenario.response)
+          });
+        }
+      );
+      await page.route(
+        '**/jupyterlab-launchpad/kernels/refresh*',
+        async route => {
+          await route.fulfill({ json: { invalidated: true } });
+        }
+      );
+      await page.goto(`tree/${tmpPath}?reset`);
+
+      const row = page
+        .locator('.jp-Launcher-launchNotebook tbody tr')
+        .filter({ hasText: 'Nebi R Missing Deps' });
+      const request = page.waitForRequest(
+        '**/jupyterlab-launchpad/nebi/install-dependencies*'
+      );
+      await row
+        .getByRole('button', {
+          name: 'Install missing dependencies',
+          exact: true
+        })
+        .click();
+      expect((await request).postDataJSON()).toMatchObject({
+        workspacePath: '/srv/nebari/demo-r',
+        missingDependencies: ['r-irkernel'],
+        repair: true
+      });
+      await expect(
+        page
+          .getByRole('alert')
+          .filter({ hasText: 'Installing dependencies...' })
+      ).toBeVisible();
+      finishInstall();
+      await expect(
+        page.getByRole('alert').filter({
+          hasText: scenario.detail
+        })
+      ).toBeVisible();
+      await expect(
+        row.getByRole('button', {
+          name: 'Install missing dependencies',
+          exact: true
+        })
+      ).toBeEnabled();
+      await expect(
+        page.getByText('Dependencies installed', { exact: true })
+      ).toHaveCount(0);
+    });
+  }
+});
+
 test.describe('Nebi kernel metadata responsive layout', () => {
   test.use({
     autoGoto: false,
