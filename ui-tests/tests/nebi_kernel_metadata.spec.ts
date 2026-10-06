@@ -38,7 +38,6 @@ const commonHiddenColumns = {
 const tableColumnOrder = [
   'star',
   'kernel',
-  'nebi_version',
   'nebi_status',
   'actions',
   'last-used'
@@ -272,6 +271,9 @@ test.describe('Nebi kernel metadata', () => {
     const notebookSection = launcher.locator('.jp-Launcher-launchNotebook');
 
     await expect(notebookSection.locator('tbody tr')).toHaveCount(21);
+    await expect(
+      notebookSection.getByRole('columnheader', { name: /^Version\b/ })
+    ).toHaveCount(0);
     await expect(
       notebookSection.getByText('Ready', { exact: true }).first()
     ).toBeVisible();

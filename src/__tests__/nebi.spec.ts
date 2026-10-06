@@ -114,7 +114,7 @@ describe('LaunchpadKernelTable', () => {
 
       expect(registry.getColumnDefaultVisibility('nebi_status')).toBe(nebi);
       expect(registry.getColumnDefaultVisibility('actions')).toBe(nebi);
-      expect(registry.getColumnDefaultVisibility('nebi_version')).toBe(nebi);
+      expect(registry.getMetadataColumn('nebi_version')).toBeUndefined();
       expect(registry.getColumnDefaultVisibility('state')).toBe(true);
     }
   );
@@ -126,7 +126,6 @@ describe('LaunchpadKernelTable', () => {
       const registry = new LaunchpadKernelTable();
       activateNebiPlugin(registry);
       await settlePromises();
-      expect(registry.getColumnDefaultVisibility('nebi_version')).toBe(false);
       expect(registry.getColumnDefaultVisibility('nebi_status')).toBe(false);
       expect(registry.getColumnDefaultVisibility('actions')).toBe(false);
     } finally {
@@ -171,14 +170,12 @@ describe('LaunchpadKernelTable', () => {
         .getMetadataColumns()
         .filter(column => column.isVisibleByDefault)
         .map(column => column.id)
-    ).toEqual(['nebi_version', 'nebi_status']);
+    ).toEqual(['nebi_status']);
 
-    const version = registry.getMetadataColumn('nebi_version');
     const state = registry.getMetadataColumn('nebi_state');
     const source = registry.getMetadataColumn('nebi_source');
     const remoteVersion = registry.getMetadataColumn('nebi_remote_version');
 
-    expect(version?.label).toBe('Version');
     expect(state?.label).toBe('Nebi status');
     expect(source?.label).toBe('Location');
     expect(
@@ -259,18 +256,11 @@ describe('LaunchpadKernelTable', () => {
       trans: null as never
     };
 
-    const version = registry.getMetadataColumn('nebi_version')?.render?.({
-      ...options,
-      metadataKey: 'nebi_version'
-    });
     const status = registry.getMetadataColumn('nebi_status')?.render?.({
       ...options,
       metadataKey: 'nebi_status'
     });
 
-    expect(React.isValidElement(version) && version.props['aria-label']).toBe(
-      'v1 update available'
-    );
     expect(React.isValidElement(status) && status.props['data-status']).toBe(
       'outdated'
     );
@@ -289,12 +279,6 @@ describe('LaunchpadKernelTable', () => {
       trans: null as never
     };
 
-    expect(
-      registry.getMetadataColumn('nebi_version')?.render?.({
-        ...options,
-        metadataKey: 'nebi_version'
-      })
-    ).toBe('-');
     const status = registry.getMetadataColumn('nebi_status')?.render?.({
       ...options,
       metadataKey: 'nebi_status'
@@ -349,42 +333,6 @@ describe('LaunchpadKernelTable', () => {
       ]);
     }
   );
-
-  it('sorts versions from upstream metadata, with missing local versions last', () => {
-    const registry = new LaunchpadKernelTable();
-    activateNebiPlugin(registry);
-    const version = registry.getMetadataColumn('nebi_version');
-    if (!version?.sort) {
-      throw new Error('Version column must sort derived values');
-    }
-    const options = (metadata: ReadonlyJSONObject) => ({
-      item: {} as IKernelItem,
-      metadataKey: 'nebi_version',
-      value: metadata['nebi_version'],
-      metadata,
-      trans: nullTranslator.load('jupyterlab-launchpad')
-    });
-    const remote = options({ nebi_remote_version: '9.0.0' });
-    const older = options({ nebi_local_version: '1.2.0' });
-    const newer = options({ nebi_local_version: '1.10.0' });
-    const builtin = options({ nebi_version: 'Built in' });
-    const rows = [remote, newer, builtin, older];
-    const sort = version.sort;
-
-    expect([...rows].sort((a, b) => sort(a, b) ?? 0)).toEqual([
-      older,
-      newer,
-      builtin,
-      remote
-    ]);
-    expect([...rows].sort((a, b) => sort(b, a) ?? 0)).toEqual([
-      remote,
-      builtin,
-      newer,
-      older
-    ]);
-    expect(version.sort(remote, options({ nebi_local_version: null }))).toBe(0);
-  });
 
   it('sorts Nebi action lists by primary action', () => {
     const registry = new LaunchpadKernelTable();

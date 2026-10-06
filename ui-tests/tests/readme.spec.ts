@@ -135,7 +135,10 @@ async function expectKernelFeatures(
   table: Locator,
   nebi: boolean
 ): Promise<void> {
-  for (const name of ['Version', 'Status', 'Actions']) {
+  await expect(
+    table.getByRole('columnheader', { name: /^Version\b/ })
+  ).toHaveCount(0);
+  for (const name of ['Status', 'Actions']) {
     await expect(
       table.getByRole('columnheader', { name: new RegExp(`^${name}\\b`) })
     ).toHaveCount(nebi ? 1 : 0);
@@ -163,10 +166,6 @@ async function expectKernelFeatures(
         table.locator(`[data-action="${action}"]`).first()
       ).toBeVisible();
     }
-    await expect(table.getByText('3.12.0', { exact: true })).toBeVisible();
-    await expect(
-      table.getByText('update available', { exact: true }).first()
-    ).toBeVisible();
   } else {
     await expect(table.locator('[data-action]')).toHaveCount(0);
   }
@@ -192,7 +191,6 @@ async function expectColumnToggles(
   nebi: boolean
 ): Promise<void> {
   for (const [id, name] of [
-    ['nebi_version', 'Version'],
     ['nebi_status', 'Status'],
     ['actions', 'Actions']
   ]) {

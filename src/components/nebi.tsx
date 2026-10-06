@@ -299,20 +299,6 @@ function missingDependenciesTitle(
       );
 }
 
-function localVersionFromMetadata(
-  metadata: ReadonlyJSONObject | undefined,
-  fallback?: unknown
-): string | undefined {
-  if (typeof fallback === 'string' && fallback.length > 0) {
-    return fallback;
-  }
-
-  const localVersion = metadata?.['nebi_local_version'];
-  return typeof localVersion === 'string' && localVersion.length > 0
-    ? localVersion
-    : undefined;
-}
-
 function renderNebiVersion(
   version: string,
   options: { updateAvailable?: boolean } = {},
@@ -406,31 +392,6 @@ function createNebiColumns(
   trans: ReturnType<ITranslator['load']>
 ): IKernelMetadataColumn[] {
   return [
-    {
-      // Launchpad display column derived from nb-nebi-kernels' local version.
-      // Ordinary kernels supply the explicit value "Built in" in Item.
-      id: 'nebi_version',
-      label: trans.__('Version'),
-      isVisibleByDefault: true,
-      sort: (a, b) => {
-        const aVersion = localVersionFromMetadata(a.metadata, a.value);
-        const bVersion = localVersionFromMetadata(b.metadata, b.value);
-        if (!aVersion || !bVersion) {
-          return Number(!aVersion) - Number(!bVersion);
-        }
-        return aVersion.localeCompare(bVersion, undefined, { numeric: true });
-      },
-      render: ({ value, metadata }) => {
-        const version = localVersionFromMetadata(metadata, value);
-        return version
-          ? renderNebiVersion(
-              version,
-              { updateAvailable: metadata?.['nebi_outdated'] === true },
-              trans
-            )
-          : '-';
-      }
-    },
     {
       id: 'nebi_state',
       label: trans.__('Nebi status'),
@@ -731,7 +692,6 @@ function registerNebiActionCommands(
 ): void {
   const { commands } = app;
   const updateColumnDefaults = (nebi: boolean) => {
-    kernelTable.setColumnDefaultVisibility('nebi_version', nebi);
     kernelTable.setColumnDefaultVisibility('nebi_status', nebi);
     kernelTable.setColumnDefaultVisibility('actions', nebi);
   };
