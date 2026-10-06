@@ -311,6 +311,77 @@ test.describe('Nebi repair notifications', () => {
     }
   });
 
+  test('uses the current user kernel packages when attempting a repair', async ({
+    page,
+    tmpPath
+  }) => {
+    await mockNebiEndpoints(page, {
+      specs: {
+        default: 'missing-kernel',
+        kernelspecs: {
+          'missing-kernel': {
+            name: 'missing-kernel',
+            resources: {},
+            spec: {
+              argv: [],
+              display_name: 'Workspace without kernel',
+              language: 'python',
+              metadata: {
+                nebi_state: 'local-missing-deps',
+                nebi_not_ready_reason: 'kernel-not-installed',
+                nebi_workspace_path: '/srv/nebari/demo',
+                nebi_missing_dependencies: ['numpy'],
+                pixi_environment: 'default'
+              }
+            }
+          }
+        }
+      }
+    });
+    await page.route(
+      '**/jupyterlab-launchpad/nebi/install-dependencies*',
+      route => route.fulfill({ json: { ok: true } })
+    );
+    await page.route('**/jupyterlab-launchpad/kernels/refresh*', route =>
+      route.fulfill({ json: { invalidated: true } })
+    );
+    await page.goto(`tree/${tmpPath}?reset`);
+    const repair = page
+      .locator('.jp-Launcher-launchNotebook tbody tr')
+      .filter({ hasText: 'Workspace without kernel' })
+      .getByRole('button', {
+        name: 'Install missing dependencies',
+        exact: true
+      });
+
+    // A saved change takes effect on the next attempt without reloading the page.
+    for (const packages of [[], ['r-irkernel'], []]) {
+      await page.evaluate(
+        async ({ plugin, packages }) => {
+          const registry = await window.galata.getPlugin(
+            '@jupyterlab/apputils-extension:settings'
+          );
+          await registry!.set(plugin, 'nebiKernelDependencies', packages);
+        },
+        { plugin: SETTINGS_ID, packages }
+      );
+      const request = page.waitForRequest(
+        '**/jupyterlab-launchpad/nebi/install-dependencies*'
+      );
+      await repair.click();
+      expect((await request).postDataJSON()).toMatchObject({
+        kernelDependencies: packages,
+        missingDependencies: ['numpy'],
+        notReadyReason: 'kernel-not-installed',
+        repair: true
+      });
+      await expect(repair).toBeEnabled();
+      await page.evaluate(() =>
+        window.jupyterapp.commands.execute('apputils:dismiss-notification')
+      );
+    }
+  });
+
   for (const scenario of [
     {
       name: 'the repair request fails',

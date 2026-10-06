@@ -8,5 +8,6 @@ class NebiConfig(Configurable):
         default_value=["ipykernel"],
         config=True,
         help="Conda packages to install when a Nebi workspace has no Jupyter kernel. "
-        "Set to an empty list to disable automatic kernel repair.",
+        "Used when the user has not supplied a kernel package override. "
+        "Set to an empty list to disable kernel installation by default.",
     )

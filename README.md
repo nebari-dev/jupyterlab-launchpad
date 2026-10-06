@@ -59,8 +59,14 @@ kernel package, set this list in `jupyter_server_config.py`:
 c.NebiConfig.kernel_dependencies = ["your-kernel-package"]
 ```
 
-An empty list disables automatic repair for a missing kernel. Missing dependencies
-reported by discovery continue to be installed as reported.
+Users can override these packages in **Settings → Settings Editor → Launchpad →
+Nebi kernel packages**, for example with `["r-irkernel"]`. The user setting
+`nebiKernelDependencies` defaults to an empty list, which uses the server default.
+The override applies only when a workspace has no Jupyter kernel; other missing
+dependencies reported by discovery are still installed alongside these packages.
+
+An empty server list disables automatic kernel installation unless a user supplies
+an override. Missing dependencies reported by discovery continue to be installed.
 
 After installation you should restart JupyterLab (or jupyter server if using a remove server in JupyterLab Desktop).
 

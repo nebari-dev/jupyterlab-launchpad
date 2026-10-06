@@ -34,6 +34,16 @@
   "description": "jupyterlab-launchpad settings.",
   "type": "object",
   "properties": {
+    "nebiKernelDependencies": {
+      "title": "Nebi kernel packages",
+      "description": "Conda packages to install when Attempt fix repairs a workspace with no Jupyter kernel (for example, r-irkernel). An empty list uses the server default. Other missing dependencies are still installed.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "default": []
+    },
     "hiddenColumns": {
       "title": "Hidden columns",
       "type": "object",

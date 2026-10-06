@@ -72,7 +72,10 @@ async function settlePromises() {
   await Promise.resolve();
 }
 
-function activateNebiPlugin(registry: LaunchpadKernelTable) {
+function activateNebiPlugin(
+  registry: LaunchpadKernelTable,
+  kernelDependencies: string[] = []
+) {
   const app = {
     commands: {
       addCommand: jest.fn(),
@@ -92,7 +95,11 @@ function activateNebiPlugin(registry: LaunchpadKernelTable) {
       }
     }
   };
-  nebiKernelTablePlugin.activate(app as never, nullTranslator, registry);
+  nebiKernelTablePlugin.activate(app as never, nullTranslator, registry, {
+    load: jest.fn().mockResolvedValue({
+      get: () => ({ composite: kernelDependencies })
+    })
+  });
   return app;
 }
 
@@ -530,6 +537,45 @@ describe('LaunchpadKernelTable', () => {
       ).toContain('configured kernel dependencies');
     }
   });
+
+  it.each([
+    ['kernel-not-installed', true, ['r-irkernel'], ['r-irkernel']],
+    ['kernel-not-installed', true, [], []],
+    ['missing-dependencies', true, ['r-irkernel'], undefined],
+    ['kernel-not-installed', false, ['r-irkernel'], undefined]
+  ])(
+    'sends the user kernel packages for reason %s and repair %s',
+    async (reason, repair, packages, expected) => {
+      jest.clearAllMocks();
+      const app = activateNebiPlugin(new LaunchpadKernelTable(), packages);
+      await settlePromises();
+      app.serviceManager.kernelspecs.specs.kernelspecs = {
+        python: {
+          metadata: {
+            nebi_workspace_path: '/tmp/demo',
+            pixi_environment: 'default',
+            nebi_state: 'ready'
+          }
+        }
+      };
+      const command = app.commands.addCommand.mock.calls.find(
+        ([id]) => id === NebiCommandIDs.installDependencies
+      )![1];
+      await command.execute({
+        workspacePath: '/tmp/demo',
+        environment: 'default',
+        notReadyReason: reason,
+        missingDependencies: ['numpy'],
+        repair
+      });
+      const [, init] = (requestAPI as jest.Mock).mock.calls.find(
+        ([endpoint]) => endpoint === 'nebi/install-dependencies'
+      )!;
+      const body = JSON.parse(init.body);
+      expect(body.kernelDependencies).toEqual(expected);
+      expect(body.missingDependencies).toEqual(['numpy']);
+    }
+  );
 
   it.each([
     ['ready', 'default', true],

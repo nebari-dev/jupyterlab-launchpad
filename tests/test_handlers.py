@@ -130,6 +130,68 @@ class NebiWorkspaceTests(unittest.TestCase):
                         configured if configured is not None else ["ipykernel"],
                     )
 
+    def test_user_kernel_packages_override_server_default(self):
+        self.discover(str(self.workspace))
+        for configured in (["ipykernel"], []):
+            for override in ([], ["r-irkernel"]):
+                with self.subTest(configured=configured, override=override):
+                    self.server.config.NebiConfig.kernel_dependencies = configured
+                    handler = Mock(spec=NebiActionHandler)
+                    NebiActionHandler.initialize(handler, "install-dependencies", self.server)
+                    with patch(
+                        "jupyterlab_launchpad.handlers._run_command", return_value={"ok": True}
+                    ) as run:
+                        NebiActionHandler._install_dependencies(handler, {
+                            "workspacePath": str(self.workspace),
+                            "repair": True,
+                            "notReadyReason": "kernel-not-installed",
+                            "missingDependencies": ["numpy"],
+                            "kernelDependencies": override,
+                        })
+                    run.assert_called_once_with(
+                        ["pixi", "add", "--manifest-path", str(self.manifest), "numpy"]
+                        + (override or configured),
+                        cwd=self.workspace,
+                    )
+                    self.assertEqual(handler.nebi_config.kernel_dependencies, configured)
+
+    def test_invalid_user_kernel_packages_do_not_run_install(self):
+        self.discover(str(self.workspace))
+        for override in (None, "ipykernel", {}, [1], [""], ["  "], ["--manifest-path"], [" -f"]):
+            with self.subTest(override=override):
+                handler = Mock(spec=NebiActionHandler)
+                NebiActionHandler.initialize(handler, "install-dependencies", self.server)
+                with patch("jupyterlab_launchpad.handlers._run_command") as run:
+                    with self.assertRaisesRegex(HTTPError, "kernelDependencies must be"):
+                        NebiActionHandler._install_dependencies(handler, {
+                            "workspacePath": str(self.workspace),
+                            "repair": True,
+                            "notReadyReason": "kernel-not-installed",
+                            "kernelDependencies": override,
+                        })
+                    run.assert_not_called()
+
+    def test_kernel_override_does_not_affect_other_install_actions(self):
+        self.discover(str(self.workspace))
+        for repair, reason in ((True, "missing-dependencies"), (False, "kernel-not-installed")):
+            with self.subTest(repair=repair, reason=reason):
+                handler = Mock(spec=NebiActionHandler)
+                NebiActionHandler.initialize(handler, "install-dependencies", self.server)
+                with patch(
+                    "jupyterlab_launchpad.handlers._run_command", return_value={"ok": True}
+                ) as run:
+                    NebiActionHandler._install_dependencies(handler, {
+                        "workspacePath": str(self.workspace),
+                        "repair": repair,
+                        "notReadyReason": reason,
+                        "missingDependencies": ["numpy"],
+                        "kernelDependencies": ["r-irkernel"],
+                    })
+                run.assert_called_once_with(
+                    ["pixi", "add", "--manifest-path", str(self.manifest), "numpy"],
+                    cwd=self.workspace,
+                )
+
     def test_unknown_repair_does_not_run_install(self):
         self.discover(str(self.workspace))
         handler = Mock(spec=NebiActionHandler)
