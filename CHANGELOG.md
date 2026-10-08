@@ -4,6 +4,13 @@
 
 <!-- <END NEW CHANGELOG ENTRY> -->
 
+## `v1.2.1`
+
+- Fix Attempt fix for Nebi environments without a kernel, add configurable kernel packages, and improve repair error notifications https://github.com/nebari-dev/jupyterlab-launchpad/pull/100
+- Remove the workspace Version column https://github.com/nebari-dev/jupyterlab-launchpad/pull/103
+- Hide Nebi columns by default when Nebi is unavailable, add a `nebi` installation extra, and refresh README screenshots with reproducible UI tests https://github.com/nebari-dev/jupyterlab-launchpad/pull/96
+- Fix Nebi installation for discovered workspaces outside Jupyter's file browser root https://github.com/nebari-dev/jupyterlab-launchpad/pull/98
+
 ## `v1.2.0`
 
 - Redesign Launchpad launcher experience https://github.com/nebari-dev/jupyterlab-launchpad/pull/87
