@@ -51,8 +51,8 @@ def configure_nebi_fixtures(c):
         f"#!{sys.executable}\n"
         "import json, pathlib, sys\n"
         "pathlib.Path('pixi-invocation.json').write_text(json.dumps(sys.argv[1:]))\n"
-        "if 'test-failing-kernel' in sys.argv:\n"
-        "    sys.stderr.write('Could not install test-failing-kernel.\\nPackage is unavailable.\\n')\n"
+        "if 'example-kernel' in sys.argv:\n"
+        "    sys.stderr.write('Could not install example-kernel.\\nPackage is unavailable.\\n')\n"
         "    sys.exit(1)\n"
     )
     pixi.chmod(0o755)

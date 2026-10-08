@@ -647,10 +647,9 @@ describe('LaunchpadKernelTable', () => {
         missingDependencies: ['ipykernel']
       });
 
-      expect(Notification.error).toHaveBeenCalledWith(
-        'Pixi failed\nCould not install dependencies',
-        { autoClose: false }
-      );
+      expect(Notification.error).toHaveBeenCalledWith('Pixi failed', {
+        autoClose: false
+      });
       expect(Notification.dismiss).toHaveBeenCalledWith('pending-id');
       expect(Notification.success).not.toHaveBeenCalled();
       expect(showErrorMessage).not.toHaveBeenCalled();

@@ -635,8 +635,8 @@ async function notifyAction<T>(
     // Use a new notification: a fast response can arrive before the progress
     // toast mounts, causing an update to that toast to be lost.
     Notification.error(
-      reason instanceof Error
-        ? `${reason.message}\n${messages.error}`
+      reason instanceof Error && reason.message
+        ? reason.message
         : messages.error,
       { autoClose: false }
     );

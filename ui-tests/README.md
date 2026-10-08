@@ -17,6 +17,9 @@ tests do not install packages or require a Nebi service. No repair or discovery
 HTTP responses are intercepted. Run them with `jlpm playwright test nebi_repair.spec.ts`
 from this directory. Make sure the server imports the Python package under test;
 for a local checkout, set `PYTHONPATH=..` when starting the tests.
+Two cropped notification snapshots cover the installation error and the
+environment that remains unavailable after repair, so truncated or clipped
+messages can be reviewed visually. Generate these baselines on Linux to match CI.
 
 The default configuration will produce video for failing tests and an HTML report.
 

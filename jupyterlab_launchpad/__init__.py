@@ -7,7 +7,6 @@ except ImportError:
     import warnings
     warnings.warn("Importing 'jupyterlab_launchpad' outside a proper installation.")
     __version__ = "dev"
-from .config import NebiConfig
 from .handlers import setup_handlers
 
 
@@ -30,8 +29,6 @@ def _load_jupyter_server_extension(server_app):
     server_app: jupyterlab.labapp.LabApp
         JupyterLab application instance
     """
-    if NebiConfig not in server_app.classes:
-        server_app.classes.append(NebiConfig)
     setup_handlers(server_app.web_app, server_app)
     name = "jupyterlab_launchpad"
     server_app.log.info(f"Registered {name} server extension")

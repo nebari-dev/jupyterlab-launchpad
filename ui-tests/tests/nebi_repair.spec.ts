@@ -28,14 +28,16 @@ for (const scenario of [
   },
   {
     name: 'Pixi fails with multiline stderr',
-    dependencies: ['test-failing-kernel'],
+    dependencies: ['example-kernel'],
     status: 500,
-    detail: 'Could not install test-failing-kernel.\nPackage is unavailable.'
+    screenshot: 'nebi-repair-install-error.png',
+    detail: 'Could not install example-kernel.\nPackage is unavailable.'
   },
   {
     name: 'installation succeeds but discovery still reports an unusable environment',
     dependencies: ['test-no-kernel'],
     status: 200,
+    screenshot: 'nebi-repair-still-unavailable.png',
     detail:
       'The environment is still unavailable. Open it in Nebi to resolve the remaining problem.'
   }
@@ -79,11 +81,12 @@ for (const scenario of [
       expect(await response.json()).toEqual({ ok: true });
     }
 
-    for (const line of scenario.detail.split('\n')) {
-      await expect(
-        page.getByRole('alert').filter({ hasText: line })
-      ).toBeVisible();
-    }
+    const notification = page.locator('.jp-Notification-Toast-error');
+    await expect(notification).toBeVisible();
+    await expect(notification.locator('.jp-toast-message')).toHaveText(
+      scenario.detail,
+      { useInnerText: true }
+    );
     await expect(
       page.getByRole('alert').filter({ hasText: 'Installing dependencies...' })
     ).toHaveCount(0);
@@ -91,6 +94,11 @@ for (const scenario of [
     await expect(
       page.getByText('Dependencies installed', { exact: true })
     ).toHaveCount(0);
+
+    if (scenario.screenshot) {
+      // Check the rendered toast: text in the DOM alone cannot catch clipping.
+      await expect(notification).toHaveScreenshot(scenario.screenshot);
+    }
 
     if (scenario.dependencies.length) {
       const invocation = await page.request.get(
