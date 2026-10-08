@@ -7,6 +7,7 @@ import {
 import { Notification, showErrorMessage } from '@jupyterlab/apputils';
 import { URLExt } from '@jupyterlab/coreutils';
 import { ServerConnection } from '@jupyterlab/services';
+import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { ITranslator } from '@jupyterlab/translation';
 import { checkIcon } from '@jupyterlab/ui-components';
 import type { LabIcon } from '@jupyterlab/ui-components';
@@ -25,7 +26,8 @@ import {
   IKernelActionOptions,
   IKernelIconFallbackTitleProvider,
   IKernelMetadataColumn,
-  ILaunchpadKernelTable
+  ILaunchpadKernelTable,
+  MAIN_PLUGIN_ID
 } from '../types';
 
 export namespace NebiCommandIDs {
@@ -271,6 +273,11 @@ function missingDependenciesTitle(
   metadata: ReadonlyJSONObject | undefined,
   trans: ReturnType<ITranslator['load']>
 ): string | undefined {
+  if (metadata?.['nebi_not_ready_reason'] === 'kernel-not-installed') {
+    return trans.__(
+      'This environment has no Jupyter kernel. Use Attempt fix to install the configured kernel dependencies.'
+    );
+  }
   const value = metadata?.['nebi_missing_dependencies'];
   if (!Array.isArray(value)) {
     return undefined;
@@ -354,7 +361,10 @@ function nebiStatusTitle(
     case 'not-installed':
       return trans.__("Packages haven't been set up yet");
     case 'missing-deps':
-      return trans.__('Can’t launch in Jupyter');
+      return (
+        missingDependenciesTitle(metadata, trans) ??
+        trans.__('Can’t launch in Jupyter')
+      );
     case 'failed':
       return trans.__('This workspace is broken');
   }
@@ -561,7 +571,11 @@ function createNebiActions(
         statusFromMetadata(options.metadata) === 'missing-deps' &&
         typeof options.metadata?.['nebi_workspace_path'] === 'string' &&
         options.metadata['nebi_workspace_path'].length > 0,
-      args: actionArgs
+      args: options => ({
+        ...actionArgs(options),
+        repair: true,
+        notReadyReason: options.metadata?.['nebi_not_ready_reason']
+      })
     },
     {
       id: 'nebi-open-overview',
@@ -604,28 +618,30 @@ function commandBody(args: ReadonlyPartialJSONObject): RequestInit {
   };
 }
 
-function notifyAction<T>(
+async function notifyAction<T>(
   operation: Promise<T>,
   messages: { pending: string; success: string; error: string }
 ): Promise<T> {
-  Notification.promise(
-    operation.then(() => null),
-    {
-      pending: {
-        message: messages.pending,
-        options: { autoClose: false }
-      },
-      success: {
-        message: () => messages.success,
-        options: { autoClose: 3000 }
-      },
-      error: {
-        message: () => messages.error,
-        options: { autoClose: false }
-      }
-    }
-  );
-  return operation;
+  const pending = Notification.emit(messages.pending, 'in-progress', {
+    autoClose: false
+  });
+  try {
+    const result = await operation;
+    Notification.dismiss(pending);
+    Notification.success(messages.success, { autoClose: 3000 });
+    return result;
+  } catch (reason) {
+    Notification.dismiss(pending);
+    // Use a new notification: a fast response can arrive before the progress
+    // toast mounts, causing an update to that toast to be lost.
+    Notification.error(
+      reason instanceof Error && reason.message
+        ? reason.message
+        : messages.error,
+      { autoClose: false }
+    );
+    throw reason;
+  }
 }
 
 function hasMissingDependencies(args: ReadonlyPartialJSONObject): boolean {
@@ -670,7 +686,8 @@ async function getNebiServerProxyPath(): Promise<string | null> {
 function registerNebiActionCommands(
   app: JupyterFrontEnd,
   trans: ReturnType<ITranslator['load']>,
-  kernelTable: ILaunchpadKernelTable
+  kernelTable: ILaunchpadKernelTable,
+  settingRegistry: ISettingRegistry
 ): void {
   const { commands } = app;
   const updateColumnDefaults = (nebi: boolean) => {
@@ -754,12 +771,50 @@ function registerNebiActionCommands(
       if (!capabilities.pixi) {
         return;
       }
-      const installingDependencies = hasMissingDependencies(args);
+      const installingDependencies =
+        args['repair'] === true || hasMissingDependencies(args);
       try {
+        const installation = (async () => {
+          let body = args;
+          if (
+            args['repair'] === true &&
+            args['notReadyReason'] === 'kernel-not-installed'
+          ) {
+            const settings = await settingRegistry.load(MAIN_PLUGIN_ID);
+            body = {
+              ...args,
+              kernelDependencies: settings.get('nebiKernelDependencies')
+                .composite
+            };
+          }
+          return requestAPI('nebi/install-dependencies', commandBody(body));
+        })();
         await notifyAction(
-          requestAPI('nebi/install-dependencies', commandBody(args)).then(() =>
-            refreshKernelSpecs(app)
-          ),
+          installation.then(async () => {
+            await refreshKernelSpecs(app);
+            if (args['repair'] === true) {
+              const specs = app.serviceManager.kernelspecs.specs?.kernelspecs;
+              const repaired = Object.values(specs ?? {}).some(spec => {
+                const metadata = spec?.metadata;
+                const status =
+                  normalizeStatus(metadata?.['nebi_status']) ??
+                  normalizeStatus(metadata?.['nebi_state']);
+                return (
+                  metadata?.['nebi_workspace_path'] === args['workspacePath'] &&
+                  metadata?.['pixi_environment'] ===
+                    (args['environment'] || 'default') &&
+                  (status === 'ready' || status === 'outdated')
+                );
+              });
+              if (!repaired) {
+                throw new Error(
+                  trans.__(
+                    'The environment is still unavailable. Open it in Nebi to resolve the remaining problem.'
+                  )
+                );
+              }
+            }
+          }),
           {
             pending: installingDependencies
               ? trans.__('Installing dependencies...')
@@ -767,9 +822,14 @@ function registerNebiActionCommands(
             success: installingDependencies
               ? trans.__('Dependencies installed')
               : trans.__('Environment installed'),
-            error: installingDependencies
-              ? trans.__('Could not install dependencies')
-              : trans.__('Could not install environment')
+            error:
+              args['repair'] === true
+                ? trans.__(
+                    'Could not repair the environment. Open it in Nebi to resolve the remaining problem.'
+                  )
+                : installingDependencies
+                  ? trans.__('Could not install dependencies')
+                  : trans.__('Could not install environment')
           }
         );
       } catch (error) {
@@ -809,16 +869,17 @@ export const nebiKernelTablePlugin: JupyterFrontEndPlugin<void> = {
   id: 'jupyterlab-launchpad:nebi',
   description: 'Nebi kernel metadata presentation for launchpad',
   autoStart: true,
-  requires: [ITranslator, ILaunchpadKernelTable],
+  requires: [ITranslator, ILaunchpadKernelTable, ISettingRegistry],
   activate: (
     app,
     translator: ITranslator,
-    kernelTable: ILaunchpadKernelTable
+    kernelTable: ILaunchpadKernelTable,
+    settingRegistry: ISettingRegistry
   ) => {
     const trans = translator.load('jupyterlab-launchpad');
     // Registered for the lifetime of the Nebi plugin.
     addKernelRefreshMessageListener(app, [NEBI_JOB_COMPLETED_MESSAGE]);
-    registerNebiActionCommands(app, trans, kernelTable);
+    registerNebiActionCommands(app, trans, kernelTable, settingRegistry);
     kernelTable.registerIconFallbackTitleProvider(
       nebiIconFallbackTitleProvider
     );

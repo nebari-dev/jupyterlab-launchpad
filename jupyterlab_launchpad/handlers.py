@@ -9,6 +9,8 @@ from jupyter_server.base.handlers import APIHandler
 from jupyter_server.utils import url_path_join
 import tornado
 
+from .config import NebiConfig
+
 
 _NEBI_WORKSPACE_RE = re.compile(r"^(?!-)[A-Za-z0-9._/@:+-]+$")
 _NEBI_VERSION_RE = re.compile(r"^(?!-)[A-Za-z0-9._+-]+$")
@@ -72,24 +74,25 @@ class NebiActionHandler(APIHandler):
     def initialize(self, action: str, server_app):
         self.action = action
         self.server_app = server_app
+        self.nebi_config = NebiConfig(config=server_app.config)
 
     @tornado.web.authenticated
     def post(self):
         body = self.get_json_body() or {}
         if not isinstance(body, dict):
-            raise tornado.web.HTTPError(400, reason="Invalid request body")
+            raise tornado.web.HTTPError(400, log_message="Invalid request body")
 
         if self.action == "pull":
             self._pull_workspace(body)
         elif self.action == "install-dependencies":
             self._install_dependencies(body)
         else:
-            raise tornado.web.HTTPError(404, reason="Unknown Nebi action")
+            raise tornado.web.HTTPError(404, log_message="Unknown Nebi action")
 
     def _pull_workspace(self, body: Dict[str, Any]):
         workspace = _string_field(body, "workspace")
         if not workspace:
-            raise tornado.web.HTTPError(400, reason="Missing workspace")
+            raise tornado.web.HTTPError(400, log_message="Missing workspace")
         _validate_nebi_field(workspace, _NEBI_WORKSPACE_RE, "workspace")
 
         remote_version = _string_field(body, "remoteVersion")
@@ -104,25 +107,50 @@ class NebiActionHandler(APIHandler):
     def _install_dependencies(self, body: Dict[str, Any]):
         workspace_path = _string_field(body, "workspacePath")
         if not workspace_path:
-            raise tornado.web.HTTPError(400, reason="Missing workspace path")
+            raise tornado.web.HTTPError(400, log_message="Missing workspace path")
 
         workspace_dir = _resolve_workspace_dir(self.server_app, workspace_path)
 
         manifest = _find_manifest(workspace_dir)
         if not manifest.exists():
-            raise tornado.web.HTTPError(400, reason="Workspace manifest does not exist")
+            raise tornado.web.HTTPError(400, log_message="Workspace manifest does not exist")
+
+        # Nebi currently runs only the default environment in each workspace.
+        if _string_field(body, "environment") not in ("", "default"):
+            raise tornado.web.HTTPError(
+                400,
+                log_message="Nebi only supports the default environment. "
+                "Open this workspace in Nebi.",
+            )
 
         dependencies = [
             item
             for item in body.get("missingDependencies", [])
             if isinstance(item, str) and item
         ]
+        if (
+            body.get("repair") is True
+            and _string_field(body, "notReadyReason") == "kernel-not-installed"
+        ):
+            kernel_dependencies = body.get("kernelDependencies", [])
+            if not isinstance(kernel_dependencies, list) or any(
+                not isinstance(package, str)
+                or not package.strip()
+                or package.strip().startswith("-")
+                for package in kernel_dependencies
+            ):
+                raise tornado.web.HTTPError(
+                    400, log_message="kernelDependencies must be a list of non-empty package specifications."
+                )
+            dependencies += kernel_dependencies or self.nebi_config.kernel_dependencies
+
+        if body.get("repair") is True and not dependencies:
+            raise tornado.web.HTTPError(
+                400, log_message="No automatic repair is available. Open this environment in Nebi."
+            )
 
         if dependencies:
             cmd = ["pixi", "add", "--manifest-path", str(manifest)]
-            environment = _string_field(body, "environment")
-            if environment and environment != "default":
-                cmd.extend(["-e", environment])
             cmd.extend(dependencies)
         else:
             cmd = ["pixi", "install", "--manifest-path", str(manifest)]
@@ -160,7 +188,7 @@ def _validate_nebi_field(
     value: str, pattern: re.Pattern[str], field: str
 ) -> None:
     if not pattern.fullmatch(value):
-        raise tornado.web.HTTPError(400, reason=f"Invalid Nebi {field}")
+        raise tornado.web.HTTPError(400, log_message=f"Invalid Nebi {field}")
 
 
 def _server_root(server_app) -> Path:
@@ -196,12 +224,12 @@ def _resolve_workspace_dir(server_app, workspace_path: str) -> Path:
         else:
             raise tornado.web.HTTPError(
                 400,
-                reason="Workspace path is outside the Jupyter file browser root "
+                log_message="Workspace path is outside the Jupyter file browser root "
                 "and is not a discovered Nebi workspace",
             )
 
     if not resolved_dir.is_dir():
-        raise tornado.web.HTTPError(400, reason="Workspace path does not exist")
+        raise tornado.web.HTTPError(400, log_message="Workspace path does not exist")
 
     return resolved_dir
 
@@ -216,9 +244,9 @@ def _run_command(cmd: List[str], cwd: Optional[Path] = None) -> Dict[str, Any]:
             timeout=300,
         )
     except FileNotFoundError:
-        raise tornado.web.HTTPError(500, reason=f"{cmd[0]} was not found on PATH")
+        raise tornado.web.HTTPError(500, log_message=f"{cmd[0]} was not found on PATH")
     except subprocess.TimeoutExpired:
-        raise tornado.web.HTTPError(500, reason=f"{cmd[0]} timed out")
+        raise tornado.web.HTTPError(500, log_message=f"{cmd[0]} timed out")
 
     if result.returncode != 0:
         message = (
@@ -226,7 +254,7 @@ def _run_command(cmd: List[str], cwd: Optional[Path] = None) -> Dict[str, Any]:
             or result.stdout.strip()
             or f"{cmd[0]} failed"
         )
-        raise tornado.web.HTTPError(500, reason=message)
+        raise tornado.web.HTTPError(500, log_message=message)
 
     return {"ok": True}
 
