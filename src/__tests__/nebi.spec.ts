@@ -9,7 +9,10 @@ jest.mock('@jupyterlab/ui-components', () => ({
 
 jest.mock('@jupyterlab/apputils', () => ({
   Notification: {
-    promise: jest.fn()
+    emit: jest.fn(() => 'pending-id'),
+    dismiss: jest.fn(),
+    success: jest.fn(),
+    error: jest.fn()
   },
   showErrorMessage: jest.fn(() => Promise.resolve())
 }));
@@ -538,9 +541,6 @@ describe('LaunchpadKernelTable', () => {
       const consoleError = jest
         .spyOn(console, 'error')
         .mockImplementation(() => {});
-      (Notification.promise as jest.Mock).mockImplementationOnce(
-        (promise: Promise<unknown>) => promise.catch(() => undefined)
-      );
       const registry = new LaunchpadKernelTable();
       const app = activateNebiPlugin(registry);
       await settlePromises();
@@ -569,13 +569,24 @@ describe('LaunchpadKernelTable', () => {
           notReadyReason: 'kernel-not-installed',
           repair: true
         });
-        const [operation, messages] = (Notification.promise as jest.Mock).mock
-          .calls[0];
-        expect(messages.pending.message).toBe('Installing dependencies...');
+        expect(Notification.emit).toHaveBeenCalledWith(
+          'Installing dependencies...',
+          'in-progress',
+          { autoClose: false }
+        );
+        expect(Notification.dismiss).toHaveBeenCalledWith('pending-id');
         if (success) {
-          await expect(operation).resolves.toBeNull();
+          expect(Notification.success).toHaveBeenCalledWith(
+            'Dependencies installed',
+            { autoClose: 3000 }
+          );
+          expect(Notification.error).not.toHaveBeenCalled();
         } else {
-          await expect(operation).rejects.toThrow('still unavailable');
+          expect(Notification.error).toHaveBeenCalledWith(
+            expect.stringContaining('still unavailable'),
+            { autoClose: false }
+          );
+          expect(Notification.success).not.toHaveBeenCalled();
         }
       } finally {
         consoleError.mockRestore();
@@ -605,14 +616,12 @@ describe('LaunchpadKernelTable', () => {
       'nebi/install-dependencies',
       expect.objectContaining({ method: 'POST' })
     );
-    expect(Notification.promise).toHaveBeenCalledWith(
-      expect.any(Promise),
-      expect.objectContaining({
-        pending: expect.objectContaining({
-          message: 'Installing dependencies...'
-        })
-      })
+    expect(Notification.emit).toHaveBeenCalledWith(
+      'Installing dependencies...',
+      'in-progress',
+      { autoClose: false }
     );
+    expect(Notification.dismiss).toHaveBeenCalledWith('pending-id');
   });
 
   it('does not show an extra error dialog for Nebi action failures', async () => {
@@ -620,9 +629,6 @@ describe('LaunchpadKernelTable', () => {
     const consoleError = jest
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
-    (Notification.promise as jest.Mock).mockImplementationOnce(
-      (promise: Promise<unknown>) => promise.catch(() => undefined)
-    );
     const registry = new LaunchpadKernelTable();
 
     const app = activateNebiPlugin(registry);
@@ -641,9 +647,12 @@ describe('LaunchpadKernelTable', () => {
         missingDependencies: ['ipykernel']
       });
 
-      expect(Notification.promise).toHaveBeenCalled();
-      const [, messages] = (Notification.promise as jest.Mock).mock.calls[0];
-      expect(messages.error.message()).toBe('Could not install dependencies');
+      expect(Notification.error).toHaveBeenCalledWith(
+        'Pixi failed\nCould not install dependencies',
+        { autoClose: false }
+      );
+      expect(Notification.dismiss).toHaveBeenCalledWith('pending-id');
+      expect(Notification.success).not.toHaveBeenCalled();
       expect(showErrorMessage).not.toHaveBeenCalled();
     } finally {
       consoleError.mockRestore();

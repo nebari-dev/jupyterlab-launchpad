@@ -267,7 +267,7 @@ class NebiWorkspaceTests(unittest.TestCase):
         self.discover(str(missing))
         with self.assertRaises(HTTPError) as error:
             _resolve_workspace_dir(self.server, str(missing))
-        self.assertEqual(error.exception.reason, "Workspace path does not exist")
+        self.assertEqual(error.exception.log_message, "Workspace path does not exist")
 
 
 if __name__ == "__main__":

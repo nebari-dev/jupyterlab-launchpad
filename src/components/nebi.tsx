@@ -618,31 +618,30 @@ function commandBody(args: ReadonlyPartialJSONObject): RequestInit {
   };
 }
 
-function notifyAction<T>(
+async function notifyAction<T>(
   operation: Promise<T>,
   messages: { pending: string; success: string; error: string }
 ): Promise<T> {
-  Notification.promise(
-    operation.then(() => null),
-    {
-      pending: {
-        message: messages.pending,
-        options: { autoClose: false }
-      },
-      success: {
-        message: () => messages.success,
-        options: { autoClose: 3000 }
-      },
-      error: {
-        message: reason =>
-          reason instanceof Error
-            ? `${reason.message}\n${messages.error}`
-            : messages.error,
-        options: { autoClose: false }
-      }
-    }
-  );
-  return operation;
+  const pending = Notification.emit(messages.pending, 'in-progress', {
+    autoClose: false
+  });
+  try {
+    const result = await operation;
+    Notification.dismiss(pending);
+    Notification.success(messages.success, { autoClose: 3000 });
+    return result;
+  } catch (reason) {
+    Notification.dismiss(pending);
+    // Use a new notification: a fast response can arrive before the progress
+    // toast mounts, causing an update to that toast to be lost.
+    Notification.error(
+      reason instanceof Error
+        ? `${reason.message}\n${messages.error}`
+        : messages.error,
+      { autoClose: false }
+    );
+    throw reason;
+  }
 }
 
 function hasMissingDependencies(args: ReadonlyPartialJSONObject): boolean {
