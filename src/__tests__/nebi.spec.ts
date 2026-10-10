@@ -9,7 +9,10 @@ jest.mock('@jupyterlab/ui-components', () => ({
 
 jest.mock('@jupyterlab/apputils', () => ({
   Notification: {
-    promise: jest.fn()
+    emit: jest.fn(() => 'pending-id'),
+    dismiss: jest.fn(),
+    success: jest.fn(),
+    error: jest.fn()
   },
   showErrorMessage: jest.fn(() => Promise.resolve())
 }));
@@ -72,7 +75,10 @@ async function settlePromises() {
   await Promise.resolve();
 }
 
-function activateNebiPlugin(registry: LaunchpadKernelTable) {
+function activateNebiPlugin(
+  registry: LaunchpadKernelTable,
+  kernelDependencies: string[] = []
+) {
   const app = {
     commands: {
       addCommand: jest.fn(),
@@ -85,11 +91,18 @@ function activateNebiPlugin(registry: LaunchpadKernelTable) {
         baseUrl: 'http://example.com/user/demo/'
       },
       kernelspecs: {
+        specs: {
+          kernelspecs: {} as Record<string, { metadata: ReadonlyJSONObject }>
+        },
         refreshSpecs: jest.fn()
       }
     }
   };
-  nebiKernelTablePlugin.activate(app as never, nullTranslator, registry);
+  nebiKernelTablePlugin.activate(app as never, nullTranslator, registry, {
+    load: jest.fn().mockResolvedValue({
+      get: () => ({ composite: kernelDependencies })
+    })
+  });
   return app;
 }
 
@@ -104,7 +117,7 @@ describe('LaunchpadKernelTable', () => {
 
       expect(registry.getColumnDefaultVisibility('nebi_status')).toBe(nebi);
       expect(registry.getColumnDefaultVisibility('actions')).toBe(nebi);
-      expect(registry.getColumnDefaultVisibility('nebi_version')).toBe(nebi);
+      expect(registry.getMetadataColumn('nebi_version')).toBeUndefined();
       expect(registry.getColumnDefaultVisibility('state')).toBe(true);
     }
   );
@@ -116,7 +129,6 @@ describe('LaunchpadKernelTable', () => {
       const registry = new LaunchpadKernelTable();
       activateNebiPlugin(registry);
       await settlePromises();
-      expect(registry.getColumnDefaultVisibility('nebi_version')).toBe(false);
       expect(registry.getColumnDefaultVisibility('nebi_status')).toBe(false);
       expect(registry.getColumnDefaultVisibility('actions')).toBe(false);
     } finally {
@@ -161,14 +173,12 @@ describe('LaunchpadKernelTable', () => {
         .getMetadataColumns()
         .filter(column => column.isVisibleByDefault)
         .map(column => column.id)
-    ).toEqual(['nebi_version', 'nebi_status']);
+    ).toEqual(['nebi_status']);
 
-    const version = registry.getMetadataColumn('nebi_version');
     const state = registry.getMetadataColumn('nebi_state');
     const source = registry.getMetadataColumn('nebi_source');
     const remoteVersion = registry.getMetadataColumn('nebi_remote_version');
 
-    expect(version?.label).toBe('Version');
     expect(state?.label).toBe('Nebi status');
     expect(source?.label).toBe('Location');
     expect(
@@ -249,18 +259,11 @@ describe('LaunchpadKernelTable', () => {
       trans: null as never
     };
 
-    const version = registry.getMetadataColumn('nebi_version')?.render?.({
-      ...options,
-      metadataKey: 'nebi_version'
-    });
     const status = registry.getMetadataColumn('nebi_status')?.render?.({
       ...options,
       metadataKey: 'nebi_status'
     });
 
-    expect(React.isValidElement(version) && version.props['aria-label']).toBe(
-      'v1 update available'
-    );
     expect(React.isValidElement(status) && status.props['data-status']).toBe(
       'outdated'
     );
@@ -279,12 +282,6 @@ describe('LaunchpadKernelTable', () => {
       trans: null as never
     };
 
-    expect(
-      registry.getMetadataColumn('nebi_version')?.render?.({
-        ...options,
-        metadataKey: 'nebi_version'
-      })
-    ).toBe('-');
     const status = registry.getMetadataColumn('nebi_status')?.render?.({
       ...options,
       metadataKey: 'nebi_status'
@@ -339,42 +336,6 @@ describe('LaunchpadKernelTable', () => {
       ]);
     }
   );
-
-  it('sorts versions from upstream metadata, with missing local versions last', () => {
-    const registry = new LaunchpadKernelTable();
-    activateNebiPlugin(registry);
-    const version = registry.getMetadataColumn('nebi_version');
-    if (!version?.sort) {
-      throw new Error('Version column must sort derived values');
-    }
-    const options = (metadata: ReadonlyJSONObject) => ({
-      item: {} as IKernelItem,
-      metadataKey: 'nebi_version',
-      value: metadata['nebi_version'],
-      metadata,
-      trans: nullTranslator.load('jupyterlab-launchpad')
-    });
-    const remote = options({ nebi_remote_version: '9.0.0' });
-    const older = options({ nebi_local_version: '1.2.0' });
-    const newer = options({ nebi_local_version: '1.10.0' });
-    const builtin = options({ nebi_version: 'Built in' });
-    const rows = [remote, newer, builtin, older];
-    const sort = version.sort;
-
-    expect([...rows].sort((a, b) => sort(a, b) ?? 0)).toEqual([
-      older,
-      newer,
-      builtin,
-      remote
-    ]);
-    expect([...rows].sort((a, b) => sort(b, a) ?? 0)).toEqual([
-      remote,
-      builtin,
-      newer,
-      older
-    ]);
-    expect(version.sort(remote, options({ nebi_local_version: null }))).toBe(0);
-  });
 
   it('sorts Nebi action lists by primary action', () => {
     const registry = new LaunchpadKernelTable();
@@ -490,6 +451,149 @@ describe('LaunchpadKernelTable', () => {
     ]);
   });
 
+  it.each([
+    ['kernel-not-installed', [], [], true],
+    ['missing-dependencies', ['numpy'], ['numpy'], true],
+    ['environment-not-installed', [], [], false]
+  ])('selects the repair for %s', (reason, dependencies, expected, repair) => {
+    const registry = new LaunchpadKernelTable();
+    activateNebiPlugin(registry);
+    const options = {
+      item: {} as IKernelItem,
+      metadata: {
+        nebi_state: repair ? 'local-missing-deps' : 'local-not-installed',
+        nebi_workspace_path: '/tmp/demo',
+        pixi_environment: 'default',
+        nebi_not_ready_reason: reason,
+        nebi_missing_dependencies: dependencies
+      } as ReadonlyJSONObject,
+      trans: null as never
+    };
+    const action = registry.getActions(options)[0];
+    expect(action.args?.(options)).toMatchObject({
+      environment: 'default',
+      missingDependencies: expected
+    });
+    expect(action.args?.(options)?.['repair']).toBe(repair || undefined);
+    if (repair) {
+      expect(action.args?.(options)?.['notReadyReason']).toBe(reason);
+    }
+    if (reason === 'kernel-not-installed') {
+      expect(
+        registry.getMetadataColumn('nebi_missing_dependencies')?.title?.({
+          ...options,
+          value: dependencies,
+          metadataKey: 'nebi_missing_dependencies'
+        })
+      ).toContain('configured kernel dependencies');
+    }
+  });
+
+  it.each([
+    ['kernel-not-installed', true, ['r-irkernel'], ['r-irkernel']],
+    ['kernel-not-installed', true, [], []],
+    ['missing-dependencies', true, ['r-irkernel'], undefined],
+    ['kernel-not-installed', false, ['r-irkernel'], undefined]
+  ])(
+    'sends the user kernel packages for reason %s and repair %s',
+    async (reason, repair, packages, expected) => {
+      jest.clearAllMocks();
+      const app = activateNebiPlugin(new LaunchpadKernelTable(), packages);
+      await settlePromises();
+      app.serviceManager.kernelspecs.specs.kernelspecs = {
+        python: {
+          metadata: {
+            nebi_workspace_path: '/tmp/demo',
+            pixi_environment: 'default',
+            nebi_state: 'ready'
+          }
+        }
+      };
+      const command = app.commands.addCommand.mock.calls.find(
+        ([id]) => id === NebiCommandIDs.installDependencies
+      )![1];
+      await command.execute({
+        workspacePath: '/tmp/demo',
+        environment: 'default',
+        notReadyReason: reason,
+        missingDependencies: ['numpy'],
+        repair
+      });
+      const [, init] = (requestAPI as jest.Mock).mock.calls.find(
+        ([endpoint]) => endpoint === 'nebi/install-dependencies'
+      )!;
+      const body = JSON.parse(init.body);
+      expect(body.kernelDependencies).toEqual(expected);
+      expect(body.missingDependencies).toEqual(['numpy']);
+    }
+  );
+
+  it.each([
+    ['ready', 'default', true],
+    ['outdated', 'default', true],
+    ['local-missing-deps', 'default', false],
+    ['ready', 'another-environment', false],
+    [undefined, 'default', false]
+  ])(
+    'verifies repair with state %s in %s',
+    async (state, environment, success) => {
+      jest.clearAllMocks();
+      const consoleError = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const registry = new LaunchpadKernelTable();
+      const app = activateNebiPlugin(registry);
+      await settlePromises();
+      app.serviceManager.kernelspecs.refreshSpecs.mockImplementationOnce(() => {
+        // Discovery replaces the placeholder with a differently named real kernel.
+        app.serviceManager.kernelspecs.specs.kernelspecs = state
+          ? {
+              'new-python-kernel': {
+                metadata: {
+                  nebi_workspace_path: '/tmp/demo',
+                  pixi_environment: environment,
+                  nebi_state: state
+                }
+              }
+            }
+          : {};
+      });
+      const command = (app.commands.addCommand as jest.Mock).mock.calls.find(
+        ([id]) => id === NebiCommandIDs.installDependencies
+      )![1];
+      try {
+        await command.execute({
+          workspacePath: '/tmp/demo',
+          environment: 'default',
+          missingDependencies: [],
+          notReadyReason: 'kernel-not-installed',
+          repair: true
+        });
+        expect(Notification.emit).toHaveBeenCalledWith(
+          'Installing dependencies...',
+          'in-progress',
+          { autoClose: false }
+        );
+        expect(Notification.dismiss).toHaveBeenCalledWith('pending-id');
+        if (success) {
+          expect(Notification.success).toHaveBeenCalledWith(
+            'Dependencies installed',
+            { autoClose: 3000 }
+          );
+          expect(Notification.error).not.toHaveBeenCalled();
+        } else {
+          expect(Notification.error).toHaveBeenCalledWith(
+            expect.stringContaining('still unavailable'),
+            { autoClose: false }
+          );
+          expect(Notification.success).not.toHaveBeenCalled();
+        }
+      } finally {
+        consoleError.mockRestore();
+      }
+    }
+  );
+
   it('shows progress notifications for Nebi install actions', async () => {
     jest.clearAllMocks();
     const registry = new LaunchpadKernelTable();
@@ -512,14 +616,12 @@ describe('LaunchpadKernelTable', () => {
       'nebi/install-dependencies',
       expect.objectContaining({ method: 'POST' })
     );
-    expect(Notification.promise).toHaveBeenCalledWith(
-      expect.any(Promise),
-      expect.objectContaining({
-        pending: expect.objectContaining({
-          message: 'Installing dependencies...'
-        })
-      })
+    expect(Notification.emit).toHaveBeenCalledWith(
+      'Installing dependencies...',
+      'in-progress',
+      { autoClose: false }
     );
+    expect(Notification.dismiss).toHaveBeenCalledWith('pending-id');
   });
 
   it('does not show an extra error dialog for Nebi action failures', async () => {
@@ -527,9 +629,6 @@ describe('LaunchpadKernelTable', () => {
     const consoleError = jest
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
-    (Notification.promise as jest.Mock).mockImplementationOnce(
-      (promise: Promise<unknown>) => promise.catch(() => undefined)
-    );
     const registry = new LaunchpadKernelTable();
 
     const app = activateNebiPlugin(registry);
@@ -548,9 +647,11 @@ describe('LaunchpadKernelTable', () => {
         missingDependencies: ['ipykernel']
       });
 
-      expect(Notification.promise).toHaveBeenCalled();
-      const [, messages] = (Notification.promise as jest.Mock).mock.calls[0];
-      expect(messages.error.message()).toBe('Could not install dependencies');
+      expect(Notification.error).toHaveBeenCalledWith('Pixi failed', {
+        autoClose: false
+      });
+      expect(Notification.dismiss).toHaveBeenCalledWith('pending-id');
+      expect(Notification.success).not.toHaveBeenCalled();
       expect(showErrorMessage).not.toHaveBeenCalled();
     } finally {
       consoleError.mockRestore();
