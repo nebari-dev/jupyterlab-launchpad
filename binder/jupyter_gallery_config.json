@@ -1,0 +1,33 @@
+{
+  "GalleryManager": {
+    "title": "Tutorials",
+    "destination": "tutorials",
+    "exhibits": [
+      {
+        "git": "https://github.com/numba/nvidia-cuda-tutorial.git",
+        "homepage": "https://github.com/numba/nvidia-cuda-tutorial",
+        "title": "Numba for CUDA Programmers",
+        "description": "Nvidia contributed CUDA tutorial for Numba"
+      },
+      {
+        "git": "https://github.com/yunjey/pytorch-tutorial.git",
+        "homepage": "https://github.com/yunjey/pytorch-tutorial",
+        "title": "PyTorch Tutorial",
+        "description": "PyTorch Tutorial for Deep Learning Researchers",
+        "icon": "https://github.com/yunjey/pytorch-tutorial/raw/master/logo/pytorch_logo_2018.svg"
+      },
+      {
+        "git": "https://github.com/jupyter-widgets/tutorial.git",
+        "homepage": "https://github.com/jupyter-widgets/tutorial",
+        "title": "Jupyter Widgets Tutorial",
+        "description": "The Jupyter Widget Ecosystem"
+      },
+      {
+        "git": "https://github.com/amueller/scipy-2018-sklearn.git",
+        "homepage": "https://github.com/amueller/scipy-2018-sklearn",
+        "title": "Scikit-learn Tutorial 2018",
+        "description": "SciPy 2018 Scikit-learn Tutorial"
+      }
+    ]
+  }
+}
