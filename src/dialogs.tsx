@@ -36,7 +36,7 @@ import type { ILauncher } from '@jupyterlab/launcher';
 import { JSONExt, ReadonlyJSONValue } from '@lumino/coreutils';
 import * as React from 'react';
 
-class CustomSessionContextDialogs extends SessionContextDialogs {
+export class CustomSessionContextDialogs extends SessionContextDialogs {
   constructor(protected options: CustomSessionContextDialogs.IOptions) {
     super(options);
     const translator = options.translator ?? nullTranslator;
@@ -73,12 +73,11 @@ class CustomSessionContextDialogs extends SessionContextDialogs {
     const settings = await this.options.settingRegistry.load(MAIN_PLUGIN_ID);
 
     const dataChanged = new Signal<CustomSessionContextDialogs, void>(this);
-    sessionContext.sessionManager.runningChanged.connect(() => {
+    const onRunningChanged = () => {
       dataChanged.emit();
-    });
-    this.options.kernelManager.runningChanged.connect(() => {
-      dataChanged.emit();
-    });
+    };
+    sessionContext.sessionManager.runningChanged.connect(onRunningChanged);
+    this.options.kernelManager.runningChanged.connect(onRunningChanged);
 
     const dialog = new Dialog<Partial<Kernel.IModel> | null>({
       title: trans.__('Select Kernel'),
@@ -115,7 +114,13 @@ class CustomSessionContextDialogs extends SessionContextDialogs {
     });
     dialog.node.classList.add('jp-KernelSelector-Dialog');
 
-    const result = await dialog.launch();
+    let result: Dialog.IResult<Partial<Kernel.IModel> | null>;
+    try {
+      result = await dialog.launch();
+    } finally {
+      sessionContext.sessionManager.runningChanged.disconnect(onRunningChanged);
+      this.options.kernelManager.runningChanged.disconnect(onRunningChanged);
+    }
 
     if (sessionContext.isDisposed || !result.button.accept) {
       return;
@@ -212,7 +217,7 @@ export class KernelSelector extends ReactWidget {
 
   onAfterAttach(msg: Message) {
     super.onAfterAttach(msg);
-    this.options.dataChanged.connect(this.update.bind(this));
+    this.options.dataChanged.connect(this._onDataChanged);
     requestAnimationFrame(() => {
       // Keep the height stable while filtering. CSS bounds the dialog width
       // to the viewport independently of the responsive table's contents.
@@ -223,8 +228,12 @@ export class KernelSelector extends ReactWidget {
 
   onAfterDetach(msg: Message) {
     super.onAfterDetach(msg);
-    this.options.dataChanged.disconnect(this.update);
+    this.options.dataChanged.disconnect(this._onDataChanged);
   }
+
+  private _onDataChanged = () => {
+    this.update();
+  };
 
   /**
    * Render the launcher to virtual DOM nodes.
@@ -362,7 +371,13 @@ export class KernelSelector extends ReactWidget {
       return this._selection.metadata.model as unknown as Kernel.IModel;
     }
     // User starts a new kernel
-    return { name: this._selection.args!.kernelName as string };
+    const args = this._selection.args;
+    const preference = args?.['kernelPreference'] as
+      | { name?: string }
+      | undefined;
+    const name =
+      (args?.['kernelName'] as string | undefined) ?? preference?.name;
+    return { name };
   }
 
   protected commands: CommandRegistry;
