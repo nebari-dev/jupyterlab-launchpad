@@ -1,5 +1,13 @@
 import { expect, test } from '@jupyterlab/galata';
 
+test.use({ autoGoto: false });
+test.beforeEach(async ({ page, tmpPath }) => {
+  await page.route('**/jupyterlab-launchpad/nebi/capabilities*', route =>
+    route.fulfill({ json: { nebi: false, pixi: false } })
+  );
+  await page.goto(`tree/${tmpPath}?reset`);
+});
+
 /**
  * Tests for server-proxy launcher icons.
  *

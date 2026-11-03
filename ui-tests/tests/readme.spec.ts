@@ -307,7 +307,15 @@ for (const nebi of [false, true]) {
         })
       );
       await page.route('**/jupyterlab-launchpad/nebi/capabilities*', route =>
-        route.fulfill({ json: { nebi, pixi: nebi } })
+        route.fulfill({
+          json: {
+            nebi,
+            pixi: nebi,
+            repairWorkspaces: nebi
+              ? environments.map(({ name }) => `/srv/${name}`)
+              : []
+          }
+        })
       );
       await page.route('**/server-proxy/servers-info*', route =>
         route.fulfill({

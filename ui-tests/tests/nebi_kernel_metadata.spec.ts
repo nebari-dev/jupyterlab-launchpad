@@ -98,7 +98,7 @@ const kernelspecs: KernelspecsResponse = {
           nebi_outdated: false,
           nebi_workspace: 'nebari/demo-r',
           nebi_workspace_path: '/srv/nebari/demo-r',
-          pixi_environment: 'r'
+          pixi_environment: 'default'
         }
       }
     },
@@ -179,7 +179,7 @@ const responsiveKernelspecs: KernelspecsResponse = {
           nebi_outdated: true,
           nebi_workspace: 'nebari/analytics-outdated',
           nebi_workspace_path: '/srv/nebari/analytics-outdated',
-          pixi_environment: 'python'
+          pixi_environment: 'default'
         }
       }
     },
@@ -195,7 +195,7 @@ const responsiveKernelspecs: KernelspecsResponse = {
           nebi_location: 'local',
           nebi_workspace: 'nebari/new-environment',
           nebi_workspace_path: '/srv/nebari/new-environment',
-          pixi_environment: 'python'
+          pixi_environment: 'default'
         }
       }
     }
@@ -207,9 +207,14 @@ async function mockNebiEndpoints(
   options: {
     includeNebiServerProxy?: boolean;
     specs?: KernelspecsResponse;
+    repairWorkspaces?: string[];
   } = {}
 ): Promise<void> {
-  const { includeNebiServerProxy = false, specs = kernelspecs } = options;
+  const {
+    includeNebiServerProxy = false,
+    specs = kernelspecs,
+    repairWorkspaces = []
+  } = options;
 
   await page.route('**/api/kernelspecs*', async route => {
     await route.fulfill({
@@ -225,7 +230,7 @@ async function mockNebiEndpoints(
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ nebi: true, pixi: true })
+        body: JSON.stringify({ nebi: true, pixi: true, repairWorkspaces })
       });
     }
   );
@@ -263,7 +268,8 @@ test.describe('Nebi kernel metadata', () => {
   }) => {
     await mockNebiEndpoints(page, {
       includeNebiServerProxy: true,
-      specs: overflowKernelspecs
+      specs: overflowKernelspecs,
+      repairWorkspaces: ['/srv/nebari/demo-r']
     });
     await page.goto(`tree/${tmpPath}?reset`);
 
@@ -279,6 +285,9 @@ test.describe('Nebi kernel metadata', () => {
     ).toBeVisible();
     await expect(
       notebookSection.getByText('Missing dependencies', { exact: true })
+    ).toHaveCount(1);
+    await expect(
+      notebookSection.locator('[data-action="nebi-install-dependencies"]')
     ).toHaveCount(1);
     await expect(
       notebookSection
@@ -318,6 +327,8 @@ test.describe('Nebi repair notifications', () => {
     tmpPath
   }) => {
     await mockNebiEndpoints(page, {
+      includeNebiServerProxy: true,
+      repairWorkspaces: ['/srv/nebari/demo'],
       specs: {
         default: 'missing-kernel',
         kernelspecs: {
@@ -340,9 +351,16 @@ test.describe('Nebi repair notifications', () => {
         }
       }
     });
+    await page.route(/\/jupyterlab-launchpad\/nebi\/repair(\?.*)?$/, route =>
+      route.fulfill({
+        status: 202,
+        json: { id: 'settings-repair', status: 'running' }
+      })
+    );
     await page.route(
-      '**/jupyterlab-launchpad/nebi/install-dependencies*',
-      route => route.fulfill({ json: { ok: true } })
+      /\/jupyterlab-launchpad\/nebi\/repair\/settings-repair(\?.*)?$/,
+      route =>
+        route.fulfill({ json: { id: 'settings-repair', status: 'completed' } })
     );
     await page.route('**/jupyterlab-launchpad/kernels/refresh*', route =>
       route.fulfill({ json: { invalidated: true } })
@@ -367,8 +385,15 @@ test.describe('Nebi repair notifications', () => {
         },
         { plugin: SETTINGS_ID, packages }
       );
-      const request = page.waitForRequest(
-        '**/jupyterlab-launchpad/nebi/install-dependencies*'
+      const request = page.waitForRequest(request =>
+        new URL(request.url()).pathname.endsWith(
+          '/jupyterlab-launchpad/nebi/repair'
+        )
+      );
+      const completed = page.waitForResponse(response =>
+        new URL(response.url()).pathname.endsWith(
+          '/jupyterlab-launchpad/nebi/repair/settings-repair'
+        )
       );
       await repair.click();
       expect((await request).postDataJSON()).toMatchObject({
@@ -377,6 +402,7 @@ test.describe('Nebi repair notifications', () => {
         notReadyReason: 'kernel-not-installed',
         repair: true
       });
+      await completed;
       await expect(repair).toBeEnabled();
       await page.evaluate(() =>
         window.jupyterapp.commands.execute('apputils:dismiss-notification')
@@ -398,7 +424,8 @@ test.describe('Nebi kernel metadata responsive layout', () => {
   }) => {
     await mockNebiEndpoints(page, {
       includeNebiServerProxy: true,
-      specs: responsiveKernelspecs
+      specs: responsiveKernelspecs,
+      repairWorkspaces: ['/srv/nebari/demo-r', '/srv/nebari/analytics-outdated']
     });
     await page.goto(`tree/${tmpPath}?reset`);
     if (await page.locator('#jp-left-stack').isVisible()) {

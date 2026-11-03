@@ -84,7 +84,9 @@ def configure_nebi_fixtures(c):
         "nebi": {
             "command": [sys.executable, str(Path(__file__).resolve()), "{port}", str(c.ServerApp.root_dir)],
             "absolute_url": True,
-            "launcher_entry": {"title": "Nebi", "path_info": "nebi/workspaces"},
+            # Keep the fixture available to repair handlers without adding an
+            # application card to unrelated launcher screenshots.
+            "launcher_entry": {"enabled": False, "title": "Nebi", "path_info": "nebi/workspaces"},
         },
     }
 
