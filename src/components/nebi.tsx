@@ -17,6 +17,10 @@ import type {
 } from '@lumino/coreutils';
 import * as React from 'react';
 import { requestAPI } from '../handler';
+import {
+  NebiRepairAttentionError,
+  repairNebiEnvironment
+} from '../nebi-repair';
 import { infoCircleIcon, nebiIcon, updateAvailableIcon } from '../icons';
 import { addKernelRefreshMessageListener } from '../kernel-refresh-messages';
 import { refreshKernelSpecs } from '../kernel-refresh';
@@ -41,6 +45,7 @@ export const NEBI_JOB_COMPLETED_MESSAGE = 'nebi:job-completed';
 interface INebiActionCapabilities {
   nebi: boolean;
   pixi: boolean;
+  repairWorkspaces?: string[];
 }
 
 interface INebiStatusPresentation {
@@ -620,7 +625,12 @@ function commandBody(args: ReadonlyPartialJSONObject): RequestInit {
 
 async function notifyAction<T>(
   operation: Promise<T>,
-  messages: { pending: string; success: string; error: string }
+  messages: {
+    pending: string;
+    success: string;
+    error: string;
+    retry?: { label: string; callback: () => void };
+  }
 ): Promise<T> {
   const pending = Notification.emit(messages.pending, 'in-progress', {
     autoClose: false
@@ -638,7 +648,9 @@ async function notifyAction<T>(
       reason instanceof Error && reason.message
         ? reason.message
         : messages.error,
-      { autoClose: false }
+      reason instanceof NebiRepairAttentionError && messages.retry
+        ? { autoClose: false, actions: [messages.retry] }
+        : { autoClose: false }
     );
     throw reason;
   }
@@ -706,16 +718,21 @@ function registerNebiActionCommands(
     commands.notifyCommandChanged(NebiCommandIDs.openOverview);
   };
 
-  void requestAPI<INebiActionCapabilities>('nebi/capabilities')
-    .then(value => {
-      capabilities = value;
-      updateColumnDefaults(value.nebi);
-      refreshActionCommands();
-    })
-    .catch(error => {
-      console.warn('Could not load Nebi action capabilities', error);
-      refreshActionCommands();
-    });
+  const loadCapabilities = () =>
+    requestAPI<INebiActionCapabilities>('nebi/capabilities')
+      .then(value => {
+        capabilities = value;
+        updateColumnDefaults(value.nebi);
+        refreshActionCommands();
+      })
+      .catch(error => {
+        console.warn('Could not load Nebi action capabilities', error);
+        refreshActionCommands();
+      });
+  void loadCapabilities();
+  app.serviceManager.kernelspecs.specsChanged.connect(() => {
+    void loadCapabilities();
+  });
   void getNebiServerProxyPath().then(value => {
     nebiServerProxyPath = value;
     refreshActionCommands();
@@ -724,7 +741,15 @@ function registerNebiActionCommands(
   const canPull = (args: ReadonlyPartialJSONObject) =>
     capabilities.nebi && stringArg(args, 'workspace').length > 0;
   const canInstallDependencies = (args: ReadonlyPartialJSONObject) =>
-    capabilities.pixi && stringArg(args, 'workspacePath').length > 0;
+    capabilities.pixi &&
+    (!args['environment'] || args['environment'] === 'default') &&
+    (!(args['repair'] === true || hasMissingDependencies(args)) ||
+      (capabilities.nebi &&
+        nebiServerProxyPath !== null &&
+        (capabilities.repairWorkspaces ?? []).includes(
+          stringArg(args, 'workspacePath')
+        ))) &&
+    stringArg(args, 'workspacePath').length > 0;
   const canOpenNebi = () =>
     capabilities.nebi &&
     nebiServerProxyPath !== null &&
@@ -761,14 +786,19 @@ function registerNebiActionCommands(
 
   commands.addCommand(NebiCommandIDs.installDependencies, {
     label: trans.__('Attempt fix'),
-    caption: () =>
-      capabilities.pixi
-        ? trans.__('Install missing dependencies')
-        : trans.__('Pixi is not available on this Jupyter server'),
+    caption: args =>
+      !capabilities.pixi
+        ? trans.__('Pixi is not available on this Jupyter server')
+        : (args['repair'] === true || hasMissingDependencies(args)) &&
+            !capabilities.nebi
+          ? trans.__(
+              'Nebi CLI is required to create a repaired workspace version'
+            )
+          : trans.__('Install missing dependencies'),
     isVisible: canInstallDependencies,
     isEnabled: canInstallDependencies,
     execute: async args => {
-      if (!capabilities.pixi) {
+      if (!canInstallDependencies(args)) {
         return;
       }
       const installingDependencies =
@@ -787,7 +817,25 @@ function registerNebiActionCommands(
                 .composite
             };
           }
-          return requestAPI('nebi/install-dependencies', commandBody(body));
+          try {
+            if (installingDependencies) {
+              await repairNebiEnvironment(body);
+            } else {
+              await requestAPI('nebi/install-dependencies', commandBody(body));
+            }
+          } catch (error) {
+            // Nebi may have saved a version, or Pixi may have changed files,
+            // before the operation failed. Preserve the original repair error.
+            try {
+              await refreshKernelSpecs(app);
+            } catch (refreshError) {
+              console.warn(
+                'Could not refresh kernels after a failed repair',
+                refreshError
+              );
+            }
+            throw error;
+          }
         })();
         await notifyAction(
           installation.then(async () => {
@@ -816,6 +864,12 @@ function registerNebiActionCommands(
             }
           }),
           {
+            retry: {
+              label: trans.__('Check repair again'),
+              callback: () => {
+                void commands.execute(NebiCommandIDs.installDependencies, args);
+              }
+            },
             pending: installingDependencies
               ? trans.__('Installing dependencies...')
               : trans.__('Installing environment...'),

@@ -12,11 +12,13 @@ in [jupyter_server_test_config.py](./jupyter_server_test_config.py).
 
 The Nebi repair tests in `tests/nebi_repair.spec.ts` use the real Launchpad
 handlers and Jupyter Server error responses. `nebi_test_fixtures.py` supplies
-filesystem-backed kernel discovery and a temporary Pixi executable so these
-tests do not install packages or require a Nebi service. No repair or discovery
-HTTP responses are intercepted. Run them with `jlpm playwright test nebi_repair.spec.ts`
-from this directory. Make sure the server imports the Python package under test;
-for a local checkout, set `PYTHONPATH=..` when starting the tests.
+filesystem-backed kernel discovery, temporary Nebi/Pixi executables, and a local
+Nebi API fixture through Jupyter Server Proxy. These tests do not install packages
+or require a real Nebi service. No repair or discovery HTTP responses are
+intercepted. After completing the setup below, run
+`PYTHONPATH=.. jlpm playwright test nebi_repair.spec.ts` from this directory so the
+server imports the Python package under test. If Playwright reuses an existing
+server, that server must already use this checkout and the test configuration.
 Two cropped notification snapshots cover the installation error and the
 environment that remains unavailable after repair, so truncated or clipped
 messages can be reviewed visually. Generate these baselines on Linux to match CI.
@@ -43,6 +45,7 @@ jlpm build:prod
 2. Install test dependencies (needed only once):
 
 ```sh
+python -m pip install -e ".[test]"
 cd ./ui-tests
 jlpm install
 jlpm playwright install
@@ -180,6 +183,30 @@ cd ..
 cd ./ui-tests
 jlpm playwright test --debug
 ```
+
+## Test with real Nebi
+
+The opt-in Python test [test_nebi_integration.py](../tests/test_nebi_integration.py)
+checks saved versions, package records, and retry behavior against a disposable
+data-science-pack server running this checkout, Nebi v0.15, and Pixi. It uses
+`linux-aarch64` packages, so the server must run on Linux ARM64. Run the following
+from the repository root, replacing the URL and token with those of the test server:
+
+```sh
+export LAUNCHPAD_INTEGRATION_URL="http://127.0.0.1:8889"
+export LAUNCHPAD_INTEGRATION_TOKEN="<test-server-token>"
+python -m unittest discover -s tests -p test_nebi_integration.py
+```
+
+The URL is the Jupyter Server base URL, including any configured base path; do not
+append `/lab` or `/nebi`. The test creates and deletes its own workspace. It is
+skipped when `LAUNCHPAD_INTEGRATION_URL` is unset.
+
+When running the test inside the server container, set
+`LAUNCHPAD_INTEGRATION_FILESYSTEM=1` to also remove kernel files and the test
+workspace's installed environment, then verify that repair restores them without
+creating another version. Leave this unset for a client outside the container,
+where the server's workspace paths are not accessible.
 
 ## Upgrade Playwright and the browsers
 

@@ -45,7 +45,20 @@ jest.mock('@jupyterlab/services', () => ({
 
 jest.mock('../handler', () => ({
   refreshKernelsWithInvalidation: jest.fn(() => Promise.resolve()),
-  requestAPI: jest.fn(() => Promise.resolve({ nebi: true, pixi: true }))
+  requestAPI: jest.fn(() =>
+    Promise.resolve({ nebi: true, pixi: true, repairWorkspaces: ['/tmp/demo'] })
+  )
+}));
+
+jest.mock('../nebi-repair', () => ({
+  NebiRepairAttentionError:
+    jest.requireActual('../nebi-repair').NebiRepairAttentionError,
+  repairNebiEnvironment: jest.fn(args =>
+    jest.requireMock('../handler').requestAPI('nebi/repair', {
+      method: 'POST',
+      body: JSON.stringify(args)
+    })
+  )
 }));
 
 jest.mock('../kernel-refresh-messages', () => ({
@@ -66,7 +79,7 @@ import {
   NEBI_JOB_COMPLETED_MESSAGE,
   nebiKernelTablePlugin
 } from '../components/nebi';
-import { requestAPI } from '../handler';
+import { requestAPI, refreshKernelsWithInvalidation } from '../handler';
 import { addKernelRefreshMessageListener } from '../kernel-refresh-messages';
 import { IKernelItem } from '../types';
 
@@ -91,6 +104,7 @@ function activateNebiPlugin(
         baseUrl: 'http://example.com/user/demo/'
       },
       kernelspecs: {
+        specsChanged: { connect: jest.fn() },
         specs: {
           kernelspecs: {} as Record<string, { metadata: ReadonlyJSONObject }>
         },
@@ -520,7 +534,8 @@ describe('LaunchpadKernelTable', () => {
         repair
       });
       const [, init] = (requestAPI as jest.Mock).mock.calls.find(
-        ([endpoint]) => endpoint === 'nebi/install-dependencies'
+        ([endpoint]) =>
+          endpoint === 'nebi/repair' || endpoint === 'nebi/install-dependencies'
       )!;
       const body = JSON.parse(init.body);
       expect(body.kernelDependencies).toEqual(expected);
@@ -599,7 +614,7 @@ describe('LaunchpadKernelTable', () => {
     const registry = new LaunchpadKernelTable();
 
     const app = activateNebiPlugin(registry);
-    await Promise.resolve();
+    await settlePromises();
     const installCommand = (
       app.commands.addCommand as jest.Mock
     ).mock.calls.find(([id]) => id === NebiCommandIDs.installDependencies)?.[1];
@@ -613,7 +628,7 @@ describe('LaunchpadKernelTable', () => {
     });
 
     expect(requestAPI).toHaveBeenCalledWith(
-      'nebi/install-dependencies',
+      'nebi/repair',
       expect.objectContaining({ method: 'POST' })
     );
     expect(Notification.emit).toHaveBeenCalledWith(
@@ -622,6 +637,28 @@ describe('LaunchpadKernelTable', () => {
       { autoClose: false }
     );
     expect(Notification.dismiss).toHaveBeenCalledWith('pending-id');
+  });
+
+  it('requires Nebi for versioned repairs but still permits plain installation', async () => {
+    jest.clearAllMocks();
+    (requestAPI as jest.Mock).mockResolvedValueOnce({
+      nebi: false,
+      pixi: true
+    });
+    const app = activateNebiPlugin(new LaunchpadKernelTable());
+    await settlePromises();
+    const command = app.commands.addCommand.mock.calls.find(
+      ([id]) => id === NebiCommandIDs.installDependencies
+    )![1];
+    const args = { workspacePath: '/tmp/demo' };
+    expect(command.isEnabled(args)).toBe(true);
+    expect(command.isEnabled({ ...args, repair: true })).toBe(false);
+    expect(
+      command.isEnabled({ ...args, missingDependencies: ['ipykernel'] })
+    ).toBe(false);
+    (requestAPI as jest.Mock).mockClear();
+    await command.execute({ ...args, repair: true });
+    expect(requestAPI).not.toHaveBeenCalled();
   });
 
   it('does not show an extra error dialog for Nebi action failures', async () => {
@@ -656,6 +693,90 @@ describe('LaunchpadKernelTable', () => {
     } finally {
       consoleError.mockRestore();
     }
+  });
+
+  it('refreshes after partial failure without replacing the repair error', async () => {
+    jest.clearAllMocks();
+    const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const warnings = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const app = activateNebiPlugin(new LaunchpadKernelTable());
+      await settlePromises();
+      const command = app.commands.addCommand.mock.calls.find(
+        ([id]) => id === NebiCommandIDs.installDependencies
+      )![1];
+      (requestAPI as jest.Mock).mockRejectedValueOnce(
+        new Error('Saved version; install failed')
+      );
+      (refreshKernelsWithInvalidation as jest.Mock).mockRejectedValueOnce(
+        new Error('refresh failed')
+      );
+      await command.execute({ workspacePath: '/tmp/demo', repair: true });
+      expect(refreshKernelsWithInvalidation).toHaveBeenCalled();
+      expect(app.serviceManager.kernelspecs.refreshSpecs).toHaveBeenCalled();
+      expect(Notification.error).toHaveBeenCalledWith(
+        'Saved version; install failed',
+        { autoClose: false }
+      );
+      expect(Notification.success).not.toHaveBeenCalled();
+    } finally {
+      errors.mockRestore();
+      warnings.mockRestore();
+    }
+  });
+
+  it('offers to resume an uncertain repair from its notification', async () => {
+    jest.clearAllMocks();
+    const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const app = activateNebiPlugin(new LaunchpadKernelTable());
+      await settlePromises();
+      const command = app.commands.addCommand.mock.calls.find(
+        ([id]) => id === NebiCommandIDs.installDependencies
+      )![1];
+      const { NebiRepairAttentionError } = jest.requireActual('../nebi-repair');
+      (requestAPI as jest.Mock).mockRejectedValueOnce(
+        new NebiRepairAttentionError('Cannot determine job outcome')
+      );
+      const args = { workspacePath: '/tmp/demo', repair: true };
+      await command.execute(args);
+      const [message, options] = (Notification.error as jest.Mock).mock
+        .calls[0];
+      expect(message).toBe('Cannot determine job outcome');
+      expect(options.autoClose).toBe(false);
+      expect(options.actions).toHaveLength(1);
+      expect(options.actions[0].label).toBe('Check repair again');
+      options.actions[0].callback();
+      expect(app.commands.execute).toHaveBeenCalledWith(
+        NebiCommandIDs.installDependencies,
+        args
+      );
+      expect(refreshKernelsWithInvalidation).toHaveBeenCalled();
+      expect(Notification.success).not.toHaveBeenCalled();
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
+  it('disables repair for unsupported paths and named environments', async () => {
+    const app = activateNebiPlugin(new LaunchpadKernelTable());
+    await settlePromises();
+    const command = app.commands.addCommand.mock.calls.find(
+      ([id]) => id === NebiCommandIDs.installDependencies
+    )![1];
+    expect(
+      command.isEnabled({ workspacePath: '/tmp/untracked', repair: true })
+    ).toBe(false);
+    expect(
+      command.isEnabled({
+        workspacePath: '/tmp/demo',
+        repair: true,
+        environment: 'other'
+      })
+    ).toBe(false);
+    expect(
+      command.isEnabled({ workspacePath: '/tmp/demo', repair: true })
+    ).toBe(true);
   });
 
   it('opens the Nebi overview through server proxy', async () => {

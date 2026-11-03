@@ -68,6 +68,37 @@ dependencies reported by discovery are still installed alongside these packages.
 An empty server list disables automatic kernel installation unless a user supplies
 an override. Missing dependencies reported by discovery continue to be installed.
 
+**Attempt fix** requires a workspace registered with Nebi, a `pixi.toml` file,
+and the default Pixi environment. Nebi must run in local mode alongside Jupyter
+Server, with access to the same files and a configured `nebi` entry in Jupyter
+Server Proxy.
+
+- **Install** installs the packages listed in `pixi.lock` without creating a
+  version. If the lockfile is missing or out of date, resolve and save the
+  configuration in Nebi first.
+- **Attempt fix** adds missing dependencies and restores missing package files.
+  Configuration changes are saved as a new Nebi version. Launchpad checks the
+  saved version, package information, and installation status before reporting
+  success, then refreshes Jupyter's kernel list.
+- Any unsaved configuration changes are saved as a separate version before the
+  repair changes the files. Earlier versions stay unchanged.
+
+A retry does not create another version if it leaves the configuration unchanged
+and Nebi's saved package information is complete. It may create another version
+if Pixi changes a package's version requirement or Nebi needs to rebuild
+incomplete package information.
+
+Wait for any install or uninstall to finish before repairing, and avoid editing
+the workspace during repair. A failed repair can leave some steps completed;
+review the files and versions in Nebi before retrying. Launchpad leaves the current
+files in place rather than undoing your edits.
+
+Repairs run in Jupyter Server and continue if you close the browser. If Launchpad
+cannot confirm a Nebi job's result, use **Check repair again** to resume checking
+that job. Other workspaces remain usable. Reloading the page can lose this button;
+if **Attempt fix** is also unavailable, there is currently no resume action in the
+UI. Restarting Jupyter Server loses the repair's tracking information.
+
 After installation you should restart JupyterLab (or jupyter server if using a remove server in JupyterLab Desktop).
 
 ## Uninstall

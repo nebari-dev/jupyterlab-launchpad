@@ -1,9 +1,11 @@
 import json
 from pathlib import Path
+import shutil
+import subprocess
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 from tornado.web import HTTPError
 from traitlets.config import Config
@@ -24,9 +26,28 @@ class NebiWorkspaceTests(unittest.TestCase):
         self.manifest.write_text('[workspace]\nname = "demo"\n')
         self.manager = Mock()
         self.manager.get_all_specs.return_value = {}
+        self.json_command = patch("jupyterlab_launchpad.handlers._run_json_command", side_effect=self.nebi_json).start()
+        self.addCleanup(patch.stopall)
         self.server = SimpleNamespace(
             root_dir=str(self.root), kernel_spec_manager=self.manager, config=Config()
         )
+
+    def install(self, handler, body):
+        return NebiActionHandler._install_dependencies(handler, {
+            "repairStage": "prepare", "workspaceId": "workspace-id", **body,
+        })
+
+    def nebi_json(self, cmd, cwd=None):
+        if cmd == ["nebi", "workspace", "list", "--json"]:
+            return [{"id": "workspace-id", "path": str(self.workspace)}]
+        if cmd[3] == "list":
+            return [{"version_number": 1, "content_hash": ""}]
+        lockfile = self.workspace / "pixi.lock"
+        return {
+            "manifest_content": self.manifest.read_text(),
+            "lock_file_content": lockfile.read_text() if lockfile.exists() else "",
+            "content_hash": "",
+        }
 
     def discover(self, path):
         self.manager.get_all_specs.return_value = {
@@ -34,6 +55,10 @@ class NebiWorkspaceTests(unittest.TestCase):
                 "spec": {"metadata": {"nebi_workspace_path": path}}
             }
         }
+
+    def repair_calls(self, dependencies):
+        return [call(["pixi", "add", "--no-install", "--manifest-path", str(self.manifest)]
+                     + dependencies, cwd=self.workspace)]
 
     def test_file_browser_paths_still_work_without_nebi(self):
         workspace = self.root / "local"
@@ -55,7 +80,7 @@ class NebiWorkspaceTests(unittest.TestCase):
                         "jupyterlab_launchpad.handlers._run_command",
                         return_value={"ok": True},
                     ) as run:
-                        NebiActionHandler._install_dependencies(
+                        self.install(
                             handler,
                             {
                                 "workspacePath": str(self.workspace),
@@ -64,14 +89,14 @@ class NebiWorkspaceTests(unittest.TestCase):
                                 "repair": bool(dependencies),
                             },
                         )
-                    run.assert_called_once_with(
-                        ["pixi", operation, "--manifest-path", str(self.manifest)]
-                        + dependencies,
-                        cwd=self.workspace,
-                    )
-                    self.assertEqual(
-                        json.loads(handler.finish.call_args.args[0]), {"ok": True}
-                    )
+                    if dependencies:
+                        self.assertEqual(run.call_args_list, self.repair_calls(dependencies))
+                    else:
+                        run.assert_called_once_with(
+                            ["pixi", "install", "--locked", "--manifest-path", str(self.manifest)],
+                            cwd=self.workspace,
+                        )
+
 
     def test_named_environment_does_not_modify_default_environment(self):
         self.discover(str(self.workspace))
@@ -81,7 +106,7 @@ class NebiWorkspaceTests(unittest.TestCase):
                 NebiActionHandler.initialize(handler, "install-dependencies", self.server)
                 with patch("jupyterlab_launchpad.handlers._run_command") as run:
                     with self.assertRaisesRegex(HTTPError, "only supports the default"):
-                        NebiActionHandler._install_dependencies(
+                        self.install(
                             handler,
                             {
                                 "workspacePath": str(self.workspace),
@@ -115,15 +140,11 @@ class NebiWorkspaceTests(unittest.TestCase):
                     ) as run:
                         if not expected:
                             with self.assertRaisesRegex(HTTPError, "No automatic repair"):
-                                NebiActionHandler._install_dependencies(handler, body)
+                                self.install(handler, body)
                             run.assert_not_called()
                         else:
-                            NebiActionHandler._install_dependencies(handler, body)
-                            run.assert_called_once_with(
-                                ["pixi", "add", "--manifest-path", str(self.manifest)]
-                                + expected,
-                                cwd=self.workspace,
-                            )
+                            self.install(handler, body)
+                            self.assertEqual(run.call_args_list, self.repair_calls(expected))
                     self.assertEqual(body["missingDependencies"], missing)
                     self.assertEqual(
                         handler.nebi_config.kernel_dependencies,
@@ -141,17 +162,15 @@ class NebiWorkspaceTests(unittest.TestCase):
                     with patch(
                         "jupyterlab_launchpad.handlers._run_command", return_value={"ok": True}
                     ) as run:
-                        NebiActionHandler._install_dependencies(handler, {
+                        self.install(handler, {
                             "workspacePath": str(self.workspace),
                             "repair": True,
                             "notReadyReason": "kernel-not-installed",
                             "missingDependencies": ["numpy"],
                             "kernelDependencies": override,
                         })
-                    run.assert_called_once_with(
-                        ["pixi", "add", "--manifest-path", str(self.manifest), "numpy"]
-                        + (override or configured),
-                        cwd=self.workspace,
+                    self.assertEqual(
+                        run.call_args_list, self.repair_calls(["numpy"] + (override or configured))
                     )
                     self.assertEqual(handler.nebi_config.kernel_dependencies, configured)
 
@@ -163,7 +182,7 @@ class NebiWorkspaceTests(unittest.TestCase):
                 NebiActionHandler.initialize(handler, "install-dependencies", self.server)
                 with patch("jupyterlab_launchpad.handlers._run_command") as run:
                     with self.assertRaisesRegex(HTTPError, "kernelDependencies must be"):
-                        NebiActionHandler._install_dependencies(handler, {
+                        self.install(handler, {
                             "workspacePath": str(self.workspace),
                             "repair": True,
                             "notReadyReason": "kernel-not-installed",
@@ -180,17 +199,131 @@ class NebiWorkspaceTests(unittest.TestCase):
                 with patch(
                     "jupyterlab_launchpad.handlers._run_command", return_value={"ok": True}
                 ) as run:
-                    NebiActionHandler._install_dependencies(handler, {
+                    self.install(handler, {
                         "workspacePath": str(self.workspace),
                         "repair": repair,
                         "notReadyReason": reason,
                         "missingDependencies": ["numpy"],
                         "kernelDependencies": ["r-irkernel"],
                     })
-                run.assert_called_once_with(
-                    ["pixi", "add", "--manifest-path", str(self.manifest), "numpy"],
-                    cwd=self.workspace,
-                )
+                self.assertEqual(run.call_args_list, self.repair_calls(["numpy"]))
+
+    def test_failed_workspace_does_not_hide_valid_workspace(self):
+        from jupyterlab_launchpad.handlers import _tracked_workspaces
+        valid = {"id": "healthy", "path": str(self.workspace)}
+        self.json_command.side_effect = None
+        self.json_command.return_value = [valid, {"id": "failed", "status": "failed"},
+                                          {"id": "pending", "path": None},
+                                          {"id": "relative", "path": "relative"}]
+        self.assertEqual(_tracked_workspaces(), [valid])
+
+    def test_repair_plan_compares_contents_not_empty_server_hash(self):
+        self.discover(str(self.workspace))
+        handler = Mock(spec=NebiActionHandler)
+        NebiActionHandler.initialize(handler, "install-dependencies", self.server)
+        with patch("jupyterlab_launchpad.handlers._run_command") as command:
+            result = self.install(handler, {
+                "workspacePath": str(self.workspace), "missingDependencies": ["ipykernel"],
+                "repairStage": "plan",
+            })
+        self.assertEqual(result, {"workspaceId": "workspace-id", "needsSave": False, "files": (self.manifest.read_bytes(), b"")})
+        command.assert_not_called()
+        self.assertFalse(any("create" in args[0] for args, _ in self.json_command.call_args_list))
+
+    def test_changed_files_require_native_save_before_preparing(self):
+        self.discover(str(self.workspace))
+        handler = Mock(spec=NebiActionHandler)
+        NebiActionHandler.initialize(handler, "install-dependencies", self.server)
+        original_json = self.nebi_json
+        def nebi_json(cmd, cwd=None):
+            result = original_json(cmd, cwd)
+            if "show" in cmd:
+                result["manifest_content"] = "previous saved manifest"
+            return result
+        self.json_command.side_effect = nebi_json
+        body = {"workspacePath": str(self.workspace), "missingDependencies": ["ipykernel"]}
+        with patch("jupyterlab_launchpad.handlers._run_command") as command:
+            self.assertTrue(self.install(handler, {**body, "repairStage": "plan"})["needsSave"])
+            with self.assertRaisesRegex(HTTPError, "Workspace files changed"):
+                self.install(handler, body)
+        command.assert_not_called()
+
+    def test_repair_rejects_untracked_and_pyproject_workspaces(self):
+        self.discover(str(self.workspace))
+        handler = Mock(spec=NebiActionHandler)
+        NebiActionHandler.initialize(handler, "install-dependencies", self.server)
+        body = {"workspacePath": str(self.workspace), "missingDependencies": ["ipykernel"]}
+        with patch("jupyterlab_launchpad.handlers._run_command") as command:
+            self.json_command.return_value = []
+            self.json_command.side_effect = None
+            with self.assertRaisesRegex(HTTPError, "not tracked"):
+                self.install(handler, body)
+            self.manifest.rename(self.workspace / "pyproject.toml")
+            with self.assertRaisesRegex(HTTPError, "requires pixi.toml"):
+                self.install(handler, body)
+        command.assert_not_called()
+
+    def test_failed_repair_does_not_overwrite_external_edits(self):
+        self.discover(str(self.workspace))
+        lockfile = self.workspace / "pixi.lock"
+        for original_lock in (None, b"original lock"):
+            for external_content in (None, b"saved by another process"):
+                with self.subTest(original_lock=original_lock, external_content=external_content):
+                    self.manifest.write_text("original manifest")
+                    lockfile.unlink(missing_ok=True)
+                    if original_lock is not None:
+                        lockfile.write_bytes(original_lock)
+                    handler = Mock(spec=NebiActionHandler)
+                    NebiActionHandler.initialize(handler, "install-dependencies", self.server)
+                    def run(cmd, cwd):
+                        for path in (self.manifest, lockfile):
+                            if external_content is None:
+                                path.unlink(missing_ok=True)
+                            else:
+                                path.write_bytes(external_content)
+                        raise HTTPError(500, log_message="repair failed")
+                    with patch("jupyterlab_launchpad.handlers._run_command", side_effect=run):
+                        with self.assertRaisesRegex(HTTPError, "repair failed"):
+                            self.install(handler, {
+                                "workspacePath": str(self.workspace),
+                                "repair": True, "missingDependencies": ["ipykernel"],
+                            })
+                    for path in (self.manifest, lockfile):
+                        self.assertEqual(path.read_bytes() if path.exists() else None, external_content)
+
+    def test_prepared_repair_reports_changes_without_creating_cli_versions(self):
+        self.discover(str(self.workspace))
+        handler = Mock(spec=NebiActionHandler)
+        NebiActionHandler.initialize(handler, "install-dependencies", self.server)
+        body = {"workspacePath": str(self.workspace), "missingDependencies": ["ipykernel"]}
+        for changed in (False, True):
+            with self.subTest(changed=changed):
+                def run(cmd, cwd):
+                    if changed:
+                        self.manifest.write_text("repaired specification")
+                    return {"ok": True}
+                with patch("jupyterlab_launchpad.handlers._run_command", side_effect=run) as command:
+                    self.assertEqual(self.install(handler, body), {
+                        "workspaceId": "workspace-id", "changed": changed, "files": (self.manifest.read_bytes(), b""),
+                    })
+                self.assertEqual(command.call_args_list, self.repair_calls(["ipykernel"]))
+
+    def test_external_edit_during_history_query_is_not_overwritten(self):
+        self.discover(str(self.workspace))
+        handler = Mock(spec=NebiActionHandler)
+        NebiActionHandler.initialize(handler, "install-dependencies", self.server)
+        original_json = self.nebi_json
+        def edit_during_history(cmd, cwd=None):
+            result = original_json(cmd, cwd)
+            if "show" in cmd:
+                self.manifest.write_text("external edit")
+            return result
+        self.json_command.side_effect = edit_during_history
+        with patch("jupyterlab_launchpad.handlers._run_command") as command:
+            with self.assertRaisesRegex(HTTPError, "files changed during repair"):
+                self.install(handler, {"workspacePath": str(self.workspace), "missingDependencies": ["ipykernel"]})
+        command.assert_not_called()
+        self.assertEqual(self.manifest.read_text(), "external edit")
 
     def test_unknown_repair_does_not_run_install(self):
         self.discover(str(self.workspace))
@@ -215,7 +348,7 @@ class NebiWorkspaceTests(unittest.TestCase):
                 NebiActionHandler.initialize(handler, "install-dependencies", self.server)
                 with patch("jupyterlab_launchpad.handlers._run_command") as run:
                     with self.assertRaises(HTTPError) as error:
-                        NebiActionHandler._install_dependencies(
+                        self.install(
                             handler,
                             {
                                 "workspacePath": str(self.workspace),
@@ -268,6 +401,47 @@ class NebiWorkspaceTests(unittest.TestCase):
         with self.assertRaises(HTTPError) as error:
             _resolve_workspace_dir(self.server, str(missing))
         self.assertEqual(error.exception.log_message, "Workspace path does not exist")
+
+
+@unittest.skipUnless(shutil.which("pixi"), "Pixi is required for locked-install integration tests")
+class LockedInstallTests(unittest.TestCase):
+    def test_install_preserves_specification(self):
+        # Use a real solver and installer, with no downloads or package dependencies.
+        for state in ("current", "missing", "stale"):
+            with self.subTest(state=state), TemporaryDirectory() as temporary:
+                workspace = Path(temporary).resolve()
+                manifest = workspace / "pixi.toml"
+                lockfile = workspace / "pixi.lock"
+                manifest.write_text(
+                    '[workspace]\nname = "locked-install-test"\nchannels = []\n'
+                    'platforms = ["linux-64", "linux-aarch64", "osx-arm64", "osx-64", "win-64"]\n'
+                )
+                if state != "missing":
+                    subprocess.run(
+                        ["pixi", "lock", "--manifest-path", str(manifest)],
+                        check=True, capture_output=True, text=True,
+                    )
+                if state == "stale":
+                    with manifest.open("a") as stream:
+                        stream.write('\n[dependencies]\nnonexistent-launchpad-test-package = "*"\n')
+                before_manifest = manifest.read_bytes()
+                before_lock = lockfile.read_bytes() if lockfile.exists() else None
+                handler = Mock(spec=NebiActionHandler)
+                server = SimpleNamespace(root_dir=str(workspace), config=Config())
+                NebiActionHandler.initialize(handler, "install-dependencies", server)
+                body = {"workspacePath": str(workspace)}
+                if state == "current":
+                    self.assertEqual(NebiActionHandler._install_dependencies(handler, body), {"ok": True})
+                    self.assertTrue((workspace / ".pixi" / "envs" / "default").is_dir())
+                else:
+                    with self.assertRaisesRegex(HTTPError, "Open this workspace in Nebi"):
+                        NebiActionHandler._install_dependencies(handler, body)
+                    handler.finish.assert_not_called()
+                    self.assertFalse((workspace / ".pixi" / "envs" / "default").exists())
+                self.assertEqual(manifest.read_bytes(), before_manifest)
+                self.assertEqual(
+                    lockfile.read_bytes() if lockfile.exists() else None, before_lock
+                )
 
 
 if __name__ == "__main__":

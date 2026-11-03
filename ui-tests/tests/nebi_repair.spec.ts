@@ -69,16 +69,28 @@ for (const scenario of [
       });
 
     const responsePromise = page.waitForResponse(
-      '**/jupyterlab-launchpad/nebi/install-dependencies*'
+      response =>
+        new URL(response.url()).pathname.endsWith(
+          '/jupyterlab-launchpad/nebi/repair'
+        ) && response.request().method() === 'POST'
     );
     await repair.click();
     const response = await responsePromise;
-    expect(response.status()).toBe(scenario.status);
+    expect(response.status()).toBe(202);
+    const operation = await response.json();
+    await expect
+      .poll(async () => {
+        const status = await page.request.get(
+          `/jupyterlab-launchpad/nebi/repair/${operation.id}`
+        );
+        return (await status.json()).status;
+      })
+      .toBe(scenario.status === 200 ? 'completed' : 'failed');
     if (scenario.status !== 200) {
-      // Assert the real APIHandler error body, not just an HTTP status phrase.
-      expect(await response.json()).toMatchObject({ message: scenario.detail });
-    } else {
-      expect(await response.json()).toEqual({ ok: true });
+      const status = await page.request.get(
+        `/jupyterlab-launchpad/nebi/repair/${operation.id}`
+      );
+      expect(await status.json()).toMatchObject({ error: scenario.detail });
     }
 
     const notification = page.locator('.jp-Notification-Toast-error');
@@ -102,16 +114,34 @@ for (const scenario of [
 
     if (scenario.dependencies.length) {
       const invocation = await page.request.get(
-        `/api/contents/${tmpPath}/pixi-invocation.json`
+        `/api/contents/${tmpPath}/pixi-invocations.json`
       );
       expect(invocation.ok()).toBe(true);
       const args = JSON.parse((await invocation.json()).content);
-      expect(args).toEqual([
+      expect(args[0]).toEqual([
         'add',
+        '--no-install',
         '--manifest-path',
         expect.stringContaining(`${tmpPath}/pixi.toml`),
         ...scenario.dependencies
       ]);
+      expect(args).toHaveLength(scenario.status === 200 ? 2 : 1);
+      if (scenario.status === 200) {
+        expect(args[1]).toEqual([
+          'reinstall',
+          '--locked',
+          '--manifest-path',
+          expect.stringContaining(`${tmpPath}/pixi.toml`)
+        ]);
+      }
+      if (scenario.status === 200) {
+        const job = await page.request.get(
+          `/api/contents/${tmpPath}/native-job.json`
+        );
+        expect(JSON.parse((await job.json()).content)).toEqual({
+          action: 'solve'
+        });
+      }
     }
   });
 }
