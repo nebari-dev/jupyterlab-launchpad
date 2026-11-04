@@ -126,9 +126,11 @@ if __name__ == "__main__":
             parts = urlsplit(self.path).path.split("/")
             workspace = root / parts[-2]
             (workspace / "native-job.json").write_text(json.dumps({"action": parts[-1]}))
+            lockfile = workspace / "pixi.lock"
+            lockfile.write_text("# Resolved by Nebi\n")
             (workspace / "snapshot.json").write_text(json.dumps({
                 "manifest_content": (workspace / "pixi.toml").read_text(),
-                "lock_file_content": "", "job_id": "fixture-job", "package_metadata": "[]",
+                "lock_file_content": lockfile.read_text(), "job_id": "fixture-job", "package_metadata": "[]",
             }))
             self.respond({"id": "fixture-job", "status": "completed"})
 

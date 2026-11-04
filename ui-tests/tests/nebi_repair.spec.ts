@@ -120,6 +120,7 @@ for (const scenario of [
       const args = JSON.parse((await invocation.json()).content);
       expect(args[0]).toEqual([
         'add',
+        '--frozen',
         '--no-install',
         '--manifest-path',
         expect.stringContaining(`${tmpPath}/pixi.toml`),

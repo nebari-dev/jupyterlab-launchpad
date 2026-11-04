@@ -390,9 +390,10 @@ def _prepare_dependency_repair(
         raise tornado.web.HTTPError(409, log_message="Workspace files changed during repair. Review them in Nebi before retrying.")
     if not saved:
         raise tornado.web.HTTPError(409, log_message="Workspace files changed. Save them in Nebi before retrying Attempt fix.")
+    # Declare requirements only. Nebi's solve job owns lockfile resolution.
     # Preserve current files on failure; never restore over concurrent edits.
     _run_command(
-        ["pixi", "add", "--no-install", "--manifest-path", str(manifest)] + dependencies,
+        ["pixi", "add", "--frozen", "--no-install", "--manifest-path", str(manifest)] + dependencies,
         cwd=workspace_dir,
     )
     prepared = (manifest.read_bytes(), lockfile.read_bytes() if lockfile.exists() else b"")

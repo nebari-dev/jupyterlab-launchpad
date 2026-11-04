@@ -57,6 +57,8 @@ class NebiRepairTests(IsolatedAsyncioTestCase):
             return {'path': str(self.workspace), 'install_status': 'installed'}
         if path.endswith('/solve'):
             job_id = 'job-' + str(len(self.saved))
+            if self.manifest.read_text() != self.saved[-1]['manifest_content']:
+                self.lock.write_text('resolved ' + self.manifest.read_text())
             self.snapshot(job_id)
             return {'id': job_id, 'status': 'completed'}
         if path.endswith('/versions'):
@@ -70,6 +72,8 @@ class NebiRepairTests(IsolatedAsyncioTestCase):
     async def test_changed_repair_verifies_snapshot_and_packages_before_install(self):
         await self.repair.run()
         self.assertEqual(len(self.saved), 2)
+        self.assertEqual(self.saved[0]['lock_file_content'], 'lock')
+        self.assertEqual(self.saved[1]['lock_file_content'], 'resolved repaired')
         self.command.assert_called_once_with(
             ['pixi', 'reinstall', '--locked', '--manifest-path', str(self.manifest)], self.workspace)
 
@@ -153,7 +157,30 @@ class NebiRepairTests(IsolatedAsyncioTestCase):
                 with self.assertRaisesRegex(HTTPError, 'version was not saved'):
                     await self.repair.run()
                 self.command.assert_not_called()
-                self.assertEqual(self.files(), (b'repaired', b'lock'))
+                self.assertEqual(self.files(), (b'repaired', b'resolved repaired'))
+
+    async def test_manifest_edit_during_solve_is_preserved_and_rejected(self):
+        async def edit_manifest(path, method='GET'):
+            if path.endswith('/solve'):
+                self.manifest.write_text('external edit')
+            return await self.respond(path, method)
+        self.request.side_effect = edit_manifest
+        with self.assertRaisesRegex(HTTPError, 'manifest changed while saving'):
+            await self.repair.run()
+        self.assertEqual(self.manifest.read_text(), 'external edit')
+        self.command.assert_not_called()
+
+    async def test_lockfile_edit_after_solve_is_preserved_and_rejected(self):
+        async def edit_lock(path, method='GET'):
+            result = await self.respond(path, method)
+            if path.endswith('/solve'):
+                self.lock.write_text('external lock edit')
+            return result
+        self.request.side_effect = edit_lock
+        with self.assertRaisesRegex(HTTPError, 'version was not saved'):
+            await self.repair.run()
+        self.assertEqual(self.lock.read_text(), 'external lock edit')
+        self.command.assert_not_called()
 
     async def test_failed_package_sync_is_not_success(self):
         async def missing_packages(path, method='GET'):

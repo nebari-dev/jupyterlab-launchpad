@@ -57,7 +57,7 @@ class NebiWorkspaceTests(unittest.TestCase):
         }
 
     def repair_calls(self, dependencies):
-        return [call(["pixi", "add", "--no-install", "--manifest-path", str(self.manifest)]
+        return [call(["pixi", "add", "--frozen", "--no-install", "--manifest-path", str(self.manifest)]
                      + dependencies, cwd=self.workspace)]
 
     def test_file_browser_paths_still_work_without_nebi(self):
@@ -405,6 +405,39 @@ class NebiWorkspaceTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("pixi"), "Pixi is required for locked-install integration tests")
 class LockedInstallTests(unittest.TestCase):
+    def test_repair_preparation_leaves_resolution_to_nebi(self):
+        # No channel can provide this package. Manifest-only preparation must
+        # still succeed without solving, installing, or changing the lockfile.
+        with TemporaryDirectory() as temporary:
+            workspace = Path(temporary).resolve()
+            manifest = workspace / "pixi.toml"
+            lockfile = workspace / "pixi.lock"
+            manifest.write_text(
+                '[workspace]\nname = "manifest-only-test"\nchannels = []\n'
+                'platforms = ["linux-64", "linux-aarch64", "osx-arm64", "osx-64", "win-64"]\n'
+            )
+            subprocess.run(["pixi", "lock", "--manifest-path", str(manifest)],
+                           check=True, capture_output=True, text=True)
+            saved = {"manifest_content": manifest.read_text(), "lock_file_content": lockfile.read_text()}
+            def nebi_json(cmd, cwd=None):
+                if cmd == ["nebi", "workspace", "list", "--json"]:
+                    return [{"id": "workspace", "path": str(workspace)}]
+                if "show" in cmd:
+                    return saved
+                return [{"version_number": 1}]
+            handler = Mock(spec=NebiActionHandler)
+            NebiActionHandler.initialize(handler, "install-dependencies",
+                SimpleNamespace(root_dir=str(workspace), config=Config()))
+            with patch("jupyterlab_launchpad.handlers._run_json_command", side_effect=nebi_json):
+                result = NebiActionHandler._install_dependencies(handler, {
+                    "workspacePath": str(workspace), "repairStage": "prepare", "workspaceId": "workspace",
+                    "repair": True, "missingDependencies": ["nonexistent-launchpad-test-package"],
+                })
+            self.assertTrue(result["changed"])
+            self.assertIn('nonexistent-launchpad-test-package = "*"', manifest.read_text())
+            self.assertEqual(lockfile.read_text(), saved["lock_file_content"])
+            self.assertFalse((workspace / ".pixi" / "envs" / "default").exists())
+
     def test_install_preserves_specification(self):
         # Use a real solver and installer, with no downloads or package dependencies.
         for state in ("current", "missing", "stale"):

@@ -142,8 +142,8 @@ class NebiRepair:
     async def verify_saved(self, expected, job_id=None):
         """Check that Nebi saved the expected files and matching package records.
 
-        expected is the manifest/lockfile byte pair read after dependency
-        preparation or the solve that preserves unsaved input. When job_id is
+        expected is the manifest/lockfile byte pair read after Nebi's solve,
+        or the unchanged saved input when no solve is needed. When job_id is
         supplied, the saved version must also belong to that job. Check package
         names and versions against Pixi's locked list, and detect working-file
         edits before and after verification. A completed job alone is not proof
@@ -168,6 +168,20 @@ class NebiRepair:
         if saved_packages != expected_packages or recorded_packages != expected_packages:
             raise IncompletePackageRecords()
         await self.check_files(expected)
+
+    async def solve_and_verify(self, expected):
+        """Let Nebi resolve the lockfile and verify its saved result.
+
+        A solve may update the lockfile, but must preserve the input manifest.
+        The resulting files must match the snapshot created by this job.
+        """
+        await self.check_files(expected)
+        job = await self.run_job("solve")
+        resolved = await IOLoop.current().run_in_executor(None, self.files)
+        if resolved[0] != expected[0]:
+            raise HTTPError(409, log_message="Workspace manifest changed while saving. Review it in Nebi.")
+        await self.verify_saved(resolved, job["id"])
+        return resolved
 
     async def install_status(self, *, allow_uninstalled=True):
         """Return Nebi's installation status after checking the workspace path.
@@ -205,27 +219,19 @@ class NebiRepair:
         before = plan["files"]
         await self.check_files(before)
         if plan["needsSave"]:
-            # Saving unsaved input may resolve its lockfile. Check the manifest
-            # remains unchanged, then verify the resulting native snapshot.
-            job = await self.run_job("solve")
-            resolved = await IOLoop.current().run_in_executor(None, self.files)
-            if resolved[0] != before[0]:
-                raise HTTPError(409, log_message="Workspace manifest changed while saving. Review it in Nebi.")
-            await self.verify_saved(resolved, job["id"])
-            before = resolved
+            before = await self.solve_and_verify(before)
             await self.install_status(allow_uninstalled=allow_uninstalled)
         await self.check_files(before)
         prepared = await IOLoop.current().run_in_executor(None, self.prepare, {
             "repairStage": "prepare", "workspaceId": plan["workspaceId"],
             "expectedManifest": before[0], "expectedLock": before[1],
         })
-        # Keep the prepared file contents as the reference for later checks.
+        # Preparation changes only the manifest; Nebi resolves the lockfile.
         expected = prepared["files"]
         await self.check_files(expected)
         if prepared["changed"]:
             await self.install_status(allow_uninstalled=allow_uninstalled)
-            job = await self.run_job("solve")
-            await self.verify_saved(expected, job["id"])
+            expected = await self.solve_and_verify(expected)
         else:
             try:
                 await self.verify_saved(expected)

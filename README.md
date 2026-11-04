@@ -77,9 +77,12 @@ Server Proxy.
   version. If the lockfile is missing or out of date, resolve and save the
   configuration in Nebi first.
 - **Attempt fix** adds missing dependencies and restores missing package files.
-  Configuration changes are saved as a new Nebi version. Launchpad checks the
-  saved version, package information, and installation status before reporting
-  success, then refreshes Jupyter's kernel list.
+  Launchpad declares the required packages in `pixi.toml` without resolving or
+  installing them. Nebi's solve job resolves the lockfile and saves a new version.
+  Launchpad checks the saved version and package information, restores installed
+  files from the lockfile, and verifies installation status before reporting
+  success and refreshing Jupyter's kernel list. Requirements without an explicit
+  version are added as `"*"` so Nebi can resolve compatible versions.
 - Any unsaved configuration changes are saved as a separate version before the
   repair changes the files. Earlier versions stay unchanged.
 
