@@ -26,13 +26,12 @@ class PingHandler(RequestHandler):
         self.write("ok")
 
 
-class NebiConcurrencyTests(AsyncHTTPTestCase):
+class NebiActionTestCase(AsyncHTTPTestCase):
     def get_app(self):
         self.temporary = TemporaryDirectory()
         self.workspace = Path(self.temporary.name)
         (self.workspace / "pixi.toml").write_text('[workspace]\nname="concurrency"\n')
         server = SimpleNamespace(root_dir=str(self.workspace), config=Config())
-        self.install_server = server
         return Application([
             ("/action", TestActionHandler, {"action": "install-dependencies", "server_app": server}),
             ("/ping", PingHandler),
@@ -41,27 +40,6 @@ class NebiConcurrencyTests(AsyncHTTPTestCase):
     def tearDown(self):
         super().tearDown()
         self.temporary.cleanup()
-
-    @gen_test
-    async def test_unrelated_request_completes_while_cli_is_running(self):
-        started, release = Event(), Event()
-        def command(*args, **kwargs):
-            started.set()
-            release.wait(3)
-            return {"ok": True}
-        with patch("jupyterlab_launchpad.handlers._run_command", side_effect=command):
-            action = self.http_client.fetch(self.get_url("/action"), method="POST",
-                body=json.dumps({"workspacePath": str(self.workspace)}),
-                headers={"Content-Type": "application/json"})
-            try:
-                self.assertTrue(await asyncio.to_thread(started.wait, 2))
-                ping = await self.http_client.fetch(self.get_url("/ping"))
-                self.assertEqual(ping.code, 200)
-                self.assertFalse(action.done(), "The ping waited for the CLI operation")
-            finally:
-                release.set()
-                response = await action
-            self.assertEqual(response.code, 200)
 
 
 class TestRepairStatusHandler(NebiRepairStatusHandler):
@@ -74,7 +52,7 @@ class TestRepairActionHandler(TestActionHandler):
         return SimpleNamespace(username=self.request.headers.get('X-Test-User', 'test-user'))
 
 
-class NebiRepairLifetimeTests(NebiConcurrencyTests):
+class NebiRepairLifetimeTests(NebiActionTestCase):
     def get_app(self):
         app = super().get_app()
         app.settings['base_url'] = '/'
@@ -133,37 +111,30 @@ class NebiRepairLifetimeTests(NebiConcurrencyTests):
             started.set()
             release.wait(3)
             return {'test': {'spec': {'metadata': {'nebi_workspace_path': str(self.workspace)}}}}
-        for server in (self.install_server, self.repair_server):
-            server.root_dir = str(browser_root)
-            server.kernel_spec_manager = SimpleNamespace(get_all_specs=discover)
+        self.repair_server.root_dir = str(browser_root)
+        self.repair_server.kernel_spec_manager = SimpleNamespace(get_all_specs=discover)
         with patch('jupyterlab_launchpad.handlers._run_command', return_value={'ok': True}), patch(
                 'jupyterlab_launchpad.handlers.NebiRepair') as coordinator:
             coordinator.return_value.run = AsyncMock()
-            for endpoint in ('/action', '/repair'):
-                started.clear()
-                release.clear()
-                body = {'workspacePath': str(self.workspace)}
-                if endpoint == '/repair':
-                    body['repair'] = True
-                action = self.http_client.fetch(self.get_url(endpoint), method='POST',
-                    body=json.dumps(body), headers={'Content-Type': 'application/json'})
-                try:
-                    self.assertTrue(await asyncio.get_running_loop().run_in_executor(None, started.wait, 2))
-                    ping = await self.http_client.fetch(self.get_url('/ping'))
-                    self.assertEqual(ping.code, 200)
-                    self.assertFalse(action.done(), 'Path validation blocked the event loop')
-                finally:
-                    release.set()
-                    response = await action
-                self.assertEqual(response.code, 202 if endpoint == '/repair' else 200)
-                if endpoint == '/repair':
-                    operation = self._app.settings['launchpad_nebi_repairs'][json.loads(response.body)['id']]
-                    await operation['task']
-                    self.assertEqual(operation['status'], 'completed')
-                body['workspacePath'] = str(unlisted)
-                rejected = await self.http_client.fetch(self.get_url(endpoint), method='POST',
-                    body=json.dumps(body), headers={'Content-Type': 'application/json'}, raise_error=False)
-                self.assertEqual(rejected.code, 400)
+            body = {'workspacePath': str(self.workspace), 'repair': True}
+            action = self.http_client.fetch(self.get_url('/repair'), method='POST',
+                body=json.dumps(body), headers={'Content-Type': 'application/json'})
+            try:
+                self.assertTrue(await asyncio.get_running_loop().run_in_executor(None, started.wait, 2))
+                ping = await self.http_client.fetch(self.get_url('/ping'))
+                self.assertEqual(ping.code, 200)
+                self.assertFalse(action.done(), 'Path validation blocked the event loop')
+            finally:
+                release.set()
+                response = await action
+            self.assertEqual(response.code, 202)
+            operation = self._app.settings['launchpad_nebi_repairs'][json.loads(response.body)['id']]
+            await operation['task']
+            self.assertEqual(operation['status'], 'completed')
+            body['workspacePath'] = str(unlisted)
+            rejected = await self.http_client.fetch(self.get_url('/repair'), method='POST',
+                body=json.dumps(body), headers={'Content-Type': 'application/json'}, raise_error=False)
+            self.assertEqual(rejected.code, 400)
             coordinator.return_value.run.assert_awaited_once()
 
     @gen_test

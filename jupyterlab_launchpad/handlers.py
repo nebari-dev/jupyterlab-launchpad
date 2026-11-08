@@ -99,18 +99,18 @@ class NebiActionHandler(APIHandler):
         if self.action == "pull":
             # Resolve an existing target so pull cannot overwrite a workspace
             # owned by a repair.
-            tracked = await IOLoop.current().run_in_executor(None, _tracked_workspaces)
+            tracked = _tracked_workspaces()
             target = next((item["path"] for item in tracked
                            if _string_field(body, "workspace") in (item.get("name"), item["id"])), None)
             key = str(Path(target).resolve()) if target else "pull:" + _string_field(body, "workspace")
             lock = _workspace_lock(self.settings, key)
             async with lock:
-                result = await IOLoop.current().run_in_executor(None, self._pull_workspace, body)
+                result = self._pull_workspace(body)
         elif self.action == "install-dependencies":
-            workspace_dir = await IOLoop.current().run_in_executor(
-                None, _resolve_workspace_dir, self.server_app, _string_field(body, "workspacePath"))
+            workspace_dir = _resolve_workspace_dir(
+                self.server_app, _string_field(body, "workspacePath"))
             async with _workspace_lock(self.settings, str(workspace_dir)):
-                result = await IOLoop.current().run_in_executor(None, self._install_dependencies, body, workspace_dir)
+                result = self._install_dependencies(body, workspace_dir)
         else:
             raise tornado.web.HTTPError(404, log_message="Unknown Nebi action")
         self.finish(json.dumps(result))
