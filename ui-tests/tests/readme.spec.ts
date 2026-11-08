@@ -311,9 +311,7 @@ for (const nebi of [false, true]) {
           json: {
             nebi,
             pixi: nebi,
-            repairWorkspaces: nebi
-              ? environments.map(({ name }) => `/srv/${name}`)
-              : []
+            kernelDependencies: ['ipykernel']
           }
         })
       );

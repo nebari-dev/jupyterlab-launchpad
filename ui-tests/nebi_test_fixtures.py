@@ -20,9 +20,9 @@ class NebiTestKernelSpecManager(KernelSpecManager):
         for fixture in Path(self.parent.root_dir).glob("*/nebi-test.json"):
             metadata = json.loads(fixture.read_text())
             metadata.update({
-                "nebi_workspace_path": str(fixture.parent),
+                "nebi_workspace_path": str(fixture.parent.resolve()),
                 "pixi_environment": "default",
-                "nebi_state": "local-missing-deps",
+                "nebi_state": "ready" if (fixture.parent / "ready").exists() else "local-missing-deps",
             })
             specs[fixture.parent.name] = {
                 "resource_dir": str(fixture.parent),
@@ -47,35 +47,10 @@ def configure_nebi_fixtures(c):
     cli_dir = Path(mkdtemp(prefix="launchpad-test-pixi-"))
     atexit.register(shutil.rmtree, cli_dir)
     pixi = cli_dir / "pixi"
-    pixi.write_text(
-        f"#!{sys.executable}\n"
-        "import json, pathlib, sys\n"
-        "if sys.argv[1] == 'list': print('[]'); sys.exit(0)\n"
-        "path = pathlib.Path('pixi-invocations.json')\n"
-        "calls = json.loads(path.read_text()) if path.exists() else []\n"
-        "calls.append(sys.argv[1:])\n"
-        "path.write_text(json.dumps(calls))\n"
-        "if 'example-kernel' in sys.argv:\n"
-        "    sys.stderr.write('Could not install example-kernel.\\nPackage is unavailable.\\n')\n"
-        "    sys.exit(1)\n"
-        "if sys.argv[1] == 'add':\n"
-        "    with pathlib.Path('pixi.toml').open('a') as f: f.write('\\n# repaired\\n')\n"
-    )
+    pixi.write_text(f"#!{sys.executable}\nimport sys\nsys.exit(0)\n")
     pixi.chmod(0o755)
     nebi = cli_dir / "nebi"
-    nebi.write_text(
-        f"#!{sys.executable}\n"
-        "import json, pathlib, sys\n"
-        f"root = pathlib.Path({str(c.ServerApp.root_dir)!r})\n"
-        "if sys.argv[1:4] == ['workspace', 'list', '--json']:\n"
-        "    print(json.dumps([{'id': p.parent.name, 'path': str(p.parent)} for p in root.glob('*/nebi-test.json')]))\n"
-        "elif sys.argv[1:4] == ['workspace', 'version', 'list']:\n"
-        "    print(json.dumps([{'version_number': 1}]))\n"
-        "elif sys.argv[1:4] == ['workspace', 'version', 'show']:\n"
-        "    print(json.dumps({'manifest_content': pathlib.Path('pixi.toml').read_text(), 'lock_file_content': ''}))\n"
-        "else:\n"
-        "    sys.exit(1)\n"
-    )
+    nebi.write_text(f"#!{sys.executable}\nimport sys\nsys.exit(0)\n")
     nebi.chmod(0o755)
     os.environ["PATH"] = str(cli_dir) + os.pathsep + os.environ["PATH"]
     c.ServerApp.kernel_spec_manager_class = NebiTestKernelSpecManager
@@ -92,14 +67,17 @@ def configure_nebi_fixtures(c):
 
 
 if __name__ == "__main__":
-    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Timer
     from urllib.parse import urlsplit
-    root = Path(sys.argv[2])
+    from uuid import uuid4
+    root = Path(sys.argv[2]).resolve()
+    jobs = {}
 
     class NebiFixtureHandler(BaseHTTPRequestHandler):
-        def respond(self, data):
+        def respond(self, data, status=200):
             payload = json.dumps(data).encode()
-            self.send_response(200)
+            self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
@@ -107,31 +85,44 @@ if __name__ == "__main__":
 
         def do_GET(self):
             path = urlsplit(self.path).path
-            if path.endswith("/jobs"):
-                self.respond([])
-            elif path.endswith("/version"):
+            if path.endswith("/version"):
                 self.respond({"mode": "local"})
-            elif "/versions/" in path:
-                workspace = root / path.split("/")[-3]
-                self.respond(json.loads((workspace / "snapshot.json").read_text()))
+            elif path.endswith("/workspaces"):
+                self.respond([{"id": p.parent.name, "path": str(p.parent)}
+                              for p in root.glob("*/nebi-test.json")])
+            elif "/jobs/" in path:
+                self.respond(jobs[path.rsplit("/", 1)[-1]])
             elif path.endswith("/versions"):
-                self.respond([{"version_number": 1}])
-            elif path.endswith("/packages"):
-                self.respond([])
+                snapshot = root / path.split("/")[-2] / "snapshot.json"
+                self.respond(json.loads(snapshot.read_text()) if snapshot.exists() else [])
             else:
-                workspace = root / path.rsplit("/", 1)[-1]
-                self.respond({"path": str(workspace), "install_status": "installed"})
+                self.respond({"error": "Not found"}, 404)
 
         def do_POST(self):
             parts = urlsplit(self.path).path.split("/")
+            if parts[-1] != "packages":
+                return self.respond({"error": "Unexpected action"}, 400)
             workspace = root / parts[-2]
-            (workspace / "native-job.json").write_text(json.dumps({"action": parts[-1]}))
-            lockfile = workspace / "pixi.lock"
-            lockfile.write_text("# Resolved by Nebi\n")
-            (workspace / "snapshot.json").write_text(json.dumps({
-                "manifest_content": (workspace / "pixi.toml").read_text(),
-                "lock_file_content": lockfile.read_text(), "job_id": "fixture-job", "package_metadata": "[]",
-            }))
-            self.respond({"id": "fixture-job", "status": "completed"})
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            packages = body["packages"]
+            (workspace / "native-job.json").write_text(json.dumps({"action": "packages", **body}))
+            identifier = uuid4().hex
+            job = {"id": identifier, "status": "running"}
+            jobs[identifier] = job
 
-    HTTPServer(("127.0.0.1", int(sys.argv[1])), NebiFixtureHandler).serve_forever()
+            def finish():
+                if "example-kernel" in packages:
+                    job.update(status="failed", error="Could not install example-kernel.\nPackage is unavailable.")
+                    return
+                (workspace / "snapshot.json").write_text(json.dumps([
+                    {"version_number": 1, "job_id": "original"},
+                    {"version_number": 2, "job_id": "other" if "missing-version" in packages else identifier},
+                ]))
+                if "ipykernel" in packages:
+                    (workspace / "ready").touch()
+                job["status"] = "completed"
+
+            Timer(0.25, finish).start()
+            self.respond(job, 202)
+
+    ThreadingHTTPServer(("127.0.0.1", int(sys.argv[1])), NebiFixtureHandler).serve_forever()

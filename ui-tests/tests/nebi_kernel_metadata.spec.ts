@@ -207,14 +207,9 @@ async function mockNebiEndpoints(
   options: {
     includeNebiServerProxy?: boolean;
     specs?: KernelspecsResponse;
-    repairWorkspaces?: string[];
   } = {}
 ): Promise<void> {
-  const {
-    includeNebiServerProxy = false,
-    specs = kernelspecs,
-    repairWorkspaces = []
-  } = options;
+  const { includeNebiServerProxy = false, specs = kernelspecs } = options;
 
   await page.route('**/api/kernelspecs*', async route => {
     await route.fulfill({
@@ -230,7 +225,11 @@ async function mockNebiEndpoints(
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ nebi: true, pixi: true, repairWorkspaces })
+        body: JSON.stringify({
+          nebi: true,
+          pixi: true,
+          kernelDependencies: ['ipykernel']
+        })
       });
     }
   );
@@ -268,8 +267,7 @@ test.describe('Nebi kernel metadata', () => {
   }) => {
     await mockNebiEndpoints(page, {
       includeNebiServerProxy: true,
-      specs: overflowKernelspecs,
-      repairWorkspaces: ['/srv/nebari/demo-r']
+      specs: overflowKernelspecs
     });
     await page.goto(`tree/${tmpPath}?reset`);
 
@@ -328,7 +326,6 @@ test.describe('Nebi repair notifications', () => {
   }) => {
     await mockNebiEndpoints(page, {
       includeNebiServerProxy: true,
-      repairWorkspaces: ['/srv/nebari/demo'],
       specs: {
         default: 'missing-kernel',
         kernelspecs: {
@@ -351,16 +348,25 @@ test.describe('Nebi repair notifications', () => {
         }
       }
     });
-    await page.route(/\/jupyterlab-launchpad\/nebi\/repair(\?.*)?$/, route =>
+    await page.route('**/nebi/api/v1/version*', route =>
+      route.fulfill({ json: { mode: 'local' } })
+    );
+    await page.route('**/nebi/api/v1/workspaces*', route =>
+      route.fulfill({ json: [{ id: 'demo', path: '/srv/nebari/demo' }] })
+    );
+    await page.route('**/nebi/api/v1/workspaces/demo/packages*', route =>
       route.fulfill({
         status: 202,
         json: { id: 'settings-repair', status: 'running' }
       })
     );
-    await page.route(
-      /\/jupyterlab-launchpad\/nebi\/repair\/settings-repair(\?.*)?$/,
-      route =>
-        route.fulfill({ json: { id: 'settings-repair', status: 'completed' } })
+    await page.route('**/nebi/api/v1/jobs/settings-repair*', route =>
+      route.fulfill({ json: { id: 'settings-repair', status: 'completed' } })
+    );
+    await page.route('**/nebi/api/v1/workspaces/demo/versions*', route =>
+      route.fulfill({
+        json: [{ version_number: 2, job_id: 'settings-repair' }]
+      })
     );
     await page.route('**/jupyterlab-launchpad/kernels/refresh*', route =>
       route.fulfill({ json: { invalidated: true } })
@@ -387,20 +393,17 @@ test.describe('Nebi repair notifications', () => {
       );
       const request = page.waitForRequest(request =>
         new URL(request.url()).pathname.endsWith(
-          '/jupyterlab-launchpad/nebi/repair'
+          '/nebi/api/v1/workspaces/demo/packages'
         )
       );
       const completed = page.waitForResponse(response =>
         new URL(response.url()).pathname.endsWith(
-          '/jupyterlab-launchpad/nebi/repair/settings-repair'
+          '/nebi/api/v1/workspaces/demo/versions'
         )
       );
       await repair.click();
       expect((await request).postDataJSON()).toMatchObject({
-        kernelDependencies: packages,
-        missingDependencies: ['numpy'],
-        notReadyReason: 'kernel-not-installed',
-        repair: true
+        packages: ['numpy', ...(packages.length ? packages : ['ipykernel'])]
       });
       await completed;
       await expect(repair).toBeEnabled();
@@ -424,8 +427,7 @@ test.describe('Nebi kernel metadata responsive layout', () => {
   }) => {
     await mockNebiEndpoints(page, {
       includeNebiServerProxy: true,
-      specs: responsiveKernelspecs,
-      repairWorkspaces: ['/srv/nebari/demo-r', '/srv/nebari/analytics-outdated']
+      specs: responsiveKernelspecs
     });
     await page.goto(`tree/${tmpPath}?reset`);
     if (await page.locator('#jp-left-stack').isVisible()) {

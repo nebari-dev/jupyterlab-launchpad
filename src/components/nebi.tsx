@@ -17,10 +17,7 @@ import type {
 } from '@lumino/coreutils';
 import * as React from 'react';
 import { requestAPI } from '../handler';
-import {
-  NebiRepairAttentionError,
-  repairNebiEnvironment
-} from '../nebi-repair';
+import { repairNebiEnvironment } from '../nebi-repair';
 import { infoCircleIcon, nebiIcon, updateAvailableIcon } from '../icons';
 import { addKernelRefreshMessageListener } from '../kernel-refresh-messages';
 import { refreshKernelSpecs } from '../kernel-refresh';
@@ -45,7 +42,7 @@ export const NEBI_JOB_COMPLETED_MESSAGE = 'nebi:job-completed';
 interface INebiActionCapabilities {
   nebi: boolean;
   pixi: boolean;
-  repairWorkspaces?: string[];
+  kernelDependencies?: string[];
 }
 
 interface INebiStatusPresentation {
@@ -629,7 +626,6 @@ async function notifyAction<T>(
     pending: string;
     success: string;
     error: string;
-    retry?: { label: string; callback: () => void };
   }
 ): Promise<T> {
   const pending = Notification.emit(messages.pending, 'in-progress', {
@@ -648,9 +644,7 @@ async function notifyAction<T>(
       reason instanceof Error && reason.message
         ? reason.message
         : messages.error,
-      reason instanceof NebiRepairAttentionError && messages.retry
-        ? { autoClose: false, actions: [messages.retry] }
-        : { autoClose: false }
+      { autoClose: false }
     );
     throw reason;
   }
@@ -744,11 +738,7 @@ function registerNebiActionCommands(
     capabilities.pixi &&
     (!args['environment'] || args['environment'] === 'default') &&
     (!(args['repair'] === true || hasMissingDependencies(args)) ||
-      (capabilities.nebi &&
-        nebiServerProxyPath !== null &&
-        (capabilities.repairWorkspaces ?? []).includes(
-          stringArg(args, 'workspacePath')
-        ))) &&
+      (capabilities.nebi && nebiServerProxyPath !== null)) &&
     stringArg(args, 'workspacePath').length > 0;
   const canOpenNebi = () =>
     capabilities.nebi &&
@@ -819,7 +809,10 @@ function registerNebiActionCommands(
           }
           try {
             if (installingDependencies) {
-              await repairNebiEnvironment(body);
+              await repairNebiEnvironment(
+                body,
+                capabilities.kernelDependencies ?? ['ipykernel']
+              );
             } else {
               await requestAPI('nebi/install-dependencies', commandBody(body));
             }
@@ -864,12 +857,6 @@ function registerNebiActionCommands(
             }
           }),
           {
-            retry: {
-              label: trans.__('Check repair again'),
-              callback: () => {
-                void commands.execute(NebiCommandIDs.installDependencies, args);
-              }
-            },
             pending: installingDependencies
               ? trans.__('Installing dependencies...')
               : trans.__('Installing environment...'),

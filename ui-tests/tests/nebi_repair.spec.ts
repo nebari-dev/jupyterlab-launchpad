@@ -17,35 +17,39 @@ test.use({
   }
 });
 
-// No HTTP routes are fulfilled here: capabilities, repair, refresh and kernel
-// discovery all go through Jupyter Server and the installed Launchpad extension.
+// Browser requests use the real Jupyter proxy and the external Nebi API fixture.
 for (const scenario of [
   {
-    name: 'server validation rejects an unavailable repair',
+    name: 'no missing packages',
     dependencies: [],
-    status: 400,
     detail: 'No automatic repair is available. Open this environment in Nebi.'
   },
   {
-    name: 'Pixi fails with multiline stderr',
-    dependencies: ['example-kernel'],
-    status: 500,
+    name: 'failed package job',
     screenshot: 'nebi-repair-install-error.png',
+    dependencies: ['example-kernel'],
     detail: 'Could not install example-kernel.\nPackage is unavailable.'
   },
   {
-    name: 'installation succeeds but discovery still reports an unusable environment',
-    dependencies: ['test-no-kernel'],
-    status: 200,
+    name: 'completed job without a matching version',
+    dependencies: ['missing-version'],
+    detail:
+      'Could not verify the repair version. Check the job and versions in Nebi before retrying.'
+  },
+  {
+    name: 'environment remains unusable',
     screenshot: 'nebi-repair-still-unavailable.png',
+    dependencies: ['test-no-kernel'],
     detail:
       'The environment is still unavailable. Open it in Nebi to resolve the remaining problem.'
+  },
+  {
+    name: 'successful versioned repair',
+    dependencies: ['ipykernel'],
+    detail: ''
   }
 ]) {
-  test(`surfaces the error when ${scenario.name}`, async ({
-    page,
-    tmpPath
-  }) => {
+  test(scenario.name, async ({ page, tmpPath }) => {
     await page.contents.uploadContent(
       '[workspace]\nname = "repair-test"\n',
       'text',
@@ -60,89 +64,58 @@ for (const scenario of [
       `${tmpPath}/nebi-test.json`
     );
     await page.goto(`tree/${tmpPath}?reset`);
-    const repair = page
+    const row = page
       .locator('.jp-Launcher-launchNotebook tbody tr')
-      .filter({ hasText: 'Nebi repair integration fixture' })
-      .getByRole('button', {
-        name: 'Install missing dependencies',
-        exact: true
-      });
-
-    const responsePromise = page.waitForResponse(
-      response =>
-        new URL(response.url()).pathname.endsWith(
-          '/jupyterlab-launchpad/nebi/repair'
-        ) && response.request().method() === 'POST'
-    );
+      .filter({ hasText: 'Nebi repair integration fixture' });
+    const repair = row.getByRole('button', {
+      name: 'Install missing dependencies',
+      exact: true
+    });
+    const posts: string[] = [];
+    page.on('request', request => {
+      if (request.method() === 'POST' && request.url().includes('/nebi/')) {
+        posts.push(new URL(request.url()).pathname);
+      }
+    });
     await repair.click();
-    const response = await responsePromise;
-    expect(response.status()).toBe(202);
-    const operation = await response.json();
-    await expect
-      .poll(async () => {
-        const status = await page.request.get(
-          `/jupyterlab-launchpad/nebi/repair/${operation.id}`
-        );
-        return (await status.json()).status;
-      })
-      .toBe(scenario.status === 200 ? 'completed' : 'failed');
-    if (scenario.status !== 200) {
-      const status = await page.request.get(
-        `/jupyterlab-launchpad/nebi/repair/${operation.id}`
+    if (scenario.detail) {
+      const notification = page.locator('.jp-Notification-Toast-error');
+      await expect(notification).toBeVisible();
+      await expect(notification.locator('.jp-toast-message')).toHaveText(
+        scenario.detail,
+        { useInnerText: true }
       );
-      expect(await status.json()).toMatchObject({ error: scenario.detail });
+      if (scenario.screenshot) {
+        await expect(notification).toHaveScreenshot(scenario.screenshot);
+      }
+      await expect(repair).toBeEnabled();
+      await expect(
+        page.getByText('Dependencies installed', { exact: true })
+      ).toHaveCount(0);
+    } else {
+      await expect(
+        page.getByText('Dependencies installed', { exact: true })
+      ).toBeVisible();
+      await expect(repair).toHaveCount(0);
+      await expect(row).toContainText('Ready');
     }
-
-    const notification = page.locator('.jp-Notification-Toast-error');
-    await expect(notification).toBeVisible();
-    await expect(notification.locator('.jp-toast-message')).toHaveText(
-      scenario.detail,
-      { useInnerText: true }
-    );
     await expect(
       page.getByRole('alert').filter({ hasText: 'Installing dependencies...' })
     ).toHaveCount(0);
-    await expect(repair).toBeEnabled();
-    await expect(
-      page.getByText('Dependencies installed', { exact: true })
-    ).toHaveCount(0);
-
-    if (scenario.screenshot) {
-      // Check the rendered toast: text in the DOM alone cannot catch clipping.
-      await expect(notification).toHaveScreenshot(scenario.screenshot);
-    }
-
+    expect(posts).toEqual(
+      scenario.dependencies.length
+        ? [`/nebi/api/v1/workspaces/${tmpPath}/packages`]
+        : []
+    );
     if (scenario.dependencies.length) {
       const invocation = await page.request.get(
-        `/api/contents/${tmpPath}/pixi-invocations.json`
+        `/api/contents/${tmpPath}/native-job.json`
       );
       expect(invocation.ok()).toBe(true);
-      const args = JSON.parse((await invocation.json()).content);
-      expect(args[0]).toEqual([
-        'add',
-        '--frozen',
-        '--no-install',
-        '--manifest-path',
-        expect.stringContaining(`${tmpPath}/pixi.toml`),
-        ...scenario.dependencies
-      ]);
-      expect(args).toHaveLength(scenario.status === 200 ? 2 : 1);
-      if (scenario.status === 200) {
-        expect(args[1]).toEqual([
-          'reinstall',
-          '--locked',
-          '--manifest-path',
-          expect.stringContaining(`${tmpPath}/pixi.toml`)
-        ]);
-      }
-      if (scenario.status === 200) {
-        const job = await page.request.get(
-          `/api/contents/${tmpPath}/native-job.json`
-        );
-        expect(JSON.parse((await job.json()).content)).toEqual({
-          action: 'solve'
-        });
-      }
+      expect(JSON.parse((await invocation.json()).content)).toEqual({
+        action: 'packages',
+        packages: scenario.dependencies
+      });
     }
   });
 }

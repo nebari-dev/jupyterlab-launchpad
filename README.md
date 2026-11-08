@@ -72,39 +72,20 @@ dependencies reported by discovery are still installed alongside these packages.
 An empty server list disables automatic kernel installation unless a user supplies
 an override. Missing dependencies reported by discovery continue to be installed.
 
-**Attempt fix** requires a workspace registered with Nebi, a `pixi.toml` file,
-and the default Pixi environment. Nebi must run in local mode alongside Jupyter
-Server, with access to the same files and a configured `nebi` entry in Jupyter
-Server Proxy.
+**Attempt fix** requires a workspace registered with the local Nebi service,
+the default Pixi environment, and a configured `nebi` entry in Jupyter Server
+Proxy. Nebi and Jupyter Server must access the same workspace files.
 
-- **Install** installs the packages listed in `pixi.lock` without creating a
-  version. If the lockfile is missing or out of date, resolve and save the
-  configuration in Nebi first.
-- **Attempt fix** adds missing dependencies and restores missing package files.
-  Launchpad declares the required packages in `pixi.toml` without resolving or
-  installing them. Nebi's solve job resolves the lockfile and saves a new version.
-  Launchpad checks the saved version and package information, restores installed
-  files from the lockfile, and verifies installation status before reporting
-  success and refreshing Jupyter's kernel list. Requirements without an explicit
-  version are added as `"*"` so Nebi can resolve compatible versions.
-- Any unsaved configuration changes are saved as a separate version before the
-  repair changes the files. Earlier versions stay unchanged.
+Launchpad submits the missing packages to Nebi's package API and polls the
+resulting job. Nebi handles dependency resolution, version creation, and updating
+an already installed environment. Launchpad verifies that the newest version
+belongs to this job, then refreshes kernel discovery. Job failures are displayed
+in the notification; an environment that remains unusable is not reported as
+successfully repaired.
 
-A retry does not create another version if it leaves the configuration unchanged
-and Nebi's saved package information is complete. It may create another version
-if Pixi changes a package's version requirement or Nebi needs to rebuild
-incomplete package information.
-
-Wait for any install or uninstall to finish before repairing, and avoid editing
-the workspace during repair. A failed repair can leave some steps completed;
-review the files and versions in Nebi before retrying. Launchpad leaves the current
-files in place rather than undoing your edits.
-
-Repairs run in Jupyter Server and continue if you close the browser. If Launchpad
-cannot confirm a Nebi job's result, use **Check repair again** to resume checking
-that job. Other workspaces remain usable. Reloading the page can lose this button;
-if **Attempt fix** is also unavailable, there is currently no resume action in the
-UI. Restarting Jupyter Server loses the repair's tracking information.
+Once Nebi accepts the job, closing the browser does not cancel it. Closing or
+reloading the page stops Launchpad's progress tracking. If the connection fails,
+check the job and workspace in Nebi before retrying.
 
 ## Uninstall
 
