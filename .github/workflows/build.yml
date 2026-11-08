@@ -62,8 +62,7 @@ jobs:
 
   test_isolated:
     needs: build
-    # Python 3.9 has no setup-python build for Ubuntu 26.04.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
     - name: Install Python
