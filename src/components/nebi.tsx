@@ -712,21 +712,16 @@ function registerNebiActionCommands(
     commands.notifyCommandChanged(NebiCommandIDs.openOverview);
   };
 
-  const loadCapabilities = () =>
-    requestAPI<INebiActionCapabilities>('nebi/capabilities')
-      .then(value => {
-        capabilities = value;
-        updateColumnDefaults(value.nebi);
-        refreshActionCommands();
-      })
-      .catch(error => {
-        console.warn('Could not load Nebi action capabilities', error);
-        refreshActionCommands();
-      });
-  void loadCapabilities();
-  app.serviceManager.kernelspecs.specsChanged.connect(() => {
-    void loadCapabilities();
-  });
+  void requestAPI<INebiActionCapabilities>('nebi/capabilities')
+    .then(value => {
+      capabilities = value;
+      updateColumnDefaults(value.nebi);
+      refreshActionCommands();
+    })
+    .catch(error => {
+      console.warn('Could not load Nebi action capabilities', error);
+      refreshActionCommands();
+    });
   void getNebiServerProxyPath().then(value => {
     nebiServerProxyPath = value;
     refreshActionCommands();
@@ -736,9 +731,10 @@ function registerNebiActionCommands(
     capabilities.nebi && stringArg(args, 'workspace').length > 0;
   const canInstallDependencies = (args: ReadonlyPartialJSONObject) =>
     capabilities.pixi &&
-    (!args['environment'] || args['environment'] === 'default') &&
     (!(args['repair'] === true || hasMissingDependencies(args)) ||
-      (capabilities.nebi && nebiServerProxyPath !== null)) &&
+      (capabilities.nebi &&
+        nebiServerProxyPath !== null &&
+        (!args['environment'] || args['environment'] === 'default'))) &&
     stringArg(args, 'workspacePath').length > 0;
   const canOpenNebi = () =>
     capabilities.nebi &&

@@ -102,7 +102,6 @@ function activateNebiPlugin(
         baseUrl: 'http://example.com/user/demo/'
       },
       kernelspecs: {
-        specsChanged: { connect: jest.fn() },
         specs: {
           kernelspecs: {} as Record<string, { metadata: ReadonlyJSONObject }>
         },
@@ -737,8 +736,27 @@ describe('LaunchpadKernelTable', () => {
       })
     ).toBe(false);
     expect(
+      command.isEnabled({
+        workspacePath: '/tmp/demo',
+        missingDependencies: ['ipykernel'],
+        environment: 'other'
+      })
+    ).toBe(false);
+    expect(
       command.isEnabled({ workspacePath: '/tmp/demo', repair: true })
     ).toBe(true);
+    const installArgs = {
+      workspacePath: '/tmp/demo',
+      environment: 'other'
+    };
+    expect(command.isEnabled(installArgs)).toBe(true);
+    expect(command.isVisible(installArgs)).toBe(true);
+    await command.execute(installArgs);
+    expect(requestAPI).toHaveBeenCalledWith('nebi/install-dependencies', {
+      method: 'POST',
+      body: JSON.stringify(installArgs),
+      headers: { 'Content-Type': 'application/json' }
+    });
   });
 
   it('opens the Nebi overview through server proxy', async () => {
