@@ -47,6 +47,12 @@ for (const scenario of [
     name: 'successful versioned repair',
     dependencies: ['ipykernel'],
     detail: ''
+  },
+  {
+    name: 'uses the current user kernel packages',
+    dependencies: ['numpy'],
+    kernelDependencies: ['r-irkernel'],
+    detail: ''
   }
 ]) {
   test(scenario.name, async ({ page, tmpPath }) => {
@@ -58,12 +64,26 @@ for (const scenario of [
     await page.contents.uploadContent(
       JSON.stringify({
         nebi_missing_dependencies: scenario.dependencies,
-        nebi_not_ready_reason: 'missing-dependencies'
+        nebi_not_ready_reason: scenario.kernelDependencies
+          ? 'kernel-not-installed'
+          : 'missing-dependencies'
       }),
       'text',
       `${tmpPath}/nebi-test.json`
     );
     await page.goto(`tree/${tmpPath}?reset`);
+    if (scenario.kernelDependencies) {
+      await page.evaluate(async packages => {
+        const settings = await window.galata.getPlugin(
+          '@jupyterlab/apputils-extension:settings'
+        );
+        await settings!.set(
+          'jupyterlab-launchpad:plugin',
+          'nebiKernelDependencies',
+          packages
+        );
+      }, scenario.kernelDependencies);
+    }
     const row = page
       .locator('.jp-Launcher-launchNotebook tbody tr')
       .filter({ hasText: 'Nebi repair integration fixture' });
@@ -114,7 +134,10 @@ for (const scenario of [
       expect(invocation.ok()).toBe(true);
       expect(JSON.parse((await invocation.json()).content)).toEqual({
         action: 'packages',
-        packages: scenario.dependencies
+        packages: [
+          ...scenario.dependencies,
+          ...(scenario.kernelDependencies ?? [])
+        ]
       });
     }
   });

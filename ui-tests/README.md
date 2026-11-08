@@ -184,24 +184,6 @@ cd ./ui-tests
 jlpm playwright test --debug
 ```
 
-## Test with real Nebi
-
-The opt-in Python test [test_nebi_integration.py](../tests/test_nebi_integration.py)
-checks the native package job and preservation of earlier versions against a disposable
-data-science-pack server running this checkout, Nebi v0.15, and Pixi. It uses
-`linux-aarch64` packages, so the server must run on Linux ARM64. Run the following
-from the repository root, replacing the URL and token with those of the test server:
-
-```sh
-export LAUNCHPAD_INTEGRATION_URL="http://127.0.0.1:8889"
-export LAUNCHPAD_INTEGRATION_TOKEN="<test-server-token>"
-python -m unittest discover -s tests -p test_nebi_integration.py
-```
-
-The URL is the Jupyter Server base URL, including any configured base path; do not
-append `/lab` or `/nebi`. The test creates and deletes its own workspace. It is
-skipped when `LAUNCHPAD_INTEGRATION_URL` is unset.
-
 ## Upgrade Playwright and the browsers
 
 To update the web browser versions, you must update the package `@playwright/test`:

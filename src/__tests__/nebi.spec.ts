@@ -117,6 +117,18 @@ function activateNebiPlugin(
   return app;
 }
 
+async function setupInstall(kernelDependencies: string[] = []) {
+  const app = activateNebiPlugin(
+    new LaunchpadKernelTable(),
+    kernelDependencies
+  );
+  await settlePromises();
+  const command = app.commands.addCommand.mock.calls.find(
+    ([id]) => id === NebiCommandIDs.installDependencies
+  )![1];
+  return { app, command };
+}
+
 describe('LaunchpadKernelTable', () => {
   it.each([false, true])(
     'uses Nebi availability (%s) for column defaults',
@@ -509,8 +521,7 @@ describe('LaunchpadKernelTable', () => {
     'sends the user kernel packages for reason %s and repair %s',
     async (reason, repair, packages, expected) => {
       jest.clearAllMocks();
-      const app = activateNebiPlugin(new LaunchpadKernelTable(), packages);
-      await settlePromises();
+      const { app, command } = await setupInstall(packages);
       app.serviceManager.kernelspecs.specs.kernelspecs = {
         python: {
           metadata: {
@@ -520,9 +531,6 @@ describe('LaunchpadKernelTable', () => {
           }
         }
       };
-      const command = app.commands.addCommand.mock.calls.find(
-        ([id]) => id === NebiCommandIDs.installDependencies
-      )![1];
       await command.execute({
         workspacePath: '/tmp/demo',
         environment: 'default',
@@ -550,9 +558,7 @@ describe('LaunchpadKernelTable', () => {
       const consoleError = jest
         .spyOn(console, 'error')
         .mockImplementation(() => {});
-      const registry = new LaunchpadKernelTable();
-      const app = activateNebiPlugin(registry);
-      await settlePromises();
+      const { app, command } = await setupInstall();
       app.serviceManager.kernelspecs.refreshSpecs.mockImplementationOnce(() => {
         // Discovery replaces the placeholder with a differently named real kernel.
         app.serviceManager.kernelspecs.specs.kernelspecs = state
@@ -567,9 +573,6 @@ describe('LaunchpadKernelTable', () => {
             }
           : {};
       });
-      const command = (app.commands.addCommand as jest.Mock).mock.calls.find(
-        ([id]) => id === NebiCommandIDs.installDependencies
-      )![1];
       try {
         await command.execute({
           workspacePath: '/tmp/demo',
@@ -605,18 +608,9 @@ describe('LaunchpadKernelTable', () => {
 
   it('shows progress notifications for Nebi install actions', async () => {
     jest.clearAllMocks();
-    const registry = new LaunchpadKernelTable();
+    const { command } = await setupInstall();
 
-    const app = activateNebiPlugin(registry);
-    await settlePromises();
-    const installCommand = (
-      app.commands.addCommand as jest.Mock
-    ).mock.calls.find(([id]) => id === NebiCommandIDs.installDependencies)?.[1];
-    if (!installCommand) {
-      throw new Error('Install dependencies command was not registered');
-    }
-
-    await installCommand.execute({
+    await command.execute({
       workspacePath: '/tmp/demo',
       missingDependencies: ['ipykernel']
     });
@@ -639,11 +633,7 @@ describe('LaunchpadKernelTable', () => {
       nebi: false,
       pixi: true
     });
-    const app = activateNebiPlugin(new LaunchpadKernelTable());
-    await settlePromises();
-    const command = app.commands.addCommand.mock.calls.find(
-      ([id]) => id === NebiCommandIDs.installDependencies
-    )![1];
+    const { command } = await setupInstall();
     const args = { workspacePath: '/tmp/demo' };
     expect(command.isEnabled(args)).toBe(true);
     expect(command.isEnabled({ ...args, repair: true })).toBe(false);
@@ -660,22 +650,13 @@ describe('LaunchpadKernelTable', () => {
     const consoleError = jest
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
-    const registry = new LaunchpadKernelTable();
-
-    const app = activateNebiPlugin(registry);
-    await settlePromises();
-    const installCommand = (
-      app.commands.addCommand as jest.Mock
-    ).mock.calls.find(([id]) => id === NebiCommandIDs.installDependencies)?.[1];
-    if (!installCommand) {
-      throw new Error('Install dependencies command was not registered');
-    }
+    const { command } = await setupInstall();
 
     try {
       (repairNebiEnvironment as jest.Mock).mockRejectedValueOnce(
         new Error('Pixi failed')
       );
-      await installCommand.execute({
+      await command.execute({
         workspacePath: '/tmp/demo',
         missingDependencies: ['ipykernel']
       });
@@ -696,11 +677,7 @@ describe('LaunchpadKernelTable', () => {
     const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
     const warnings = jest.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      const app = activateNebiPlugin(new LaunchpadKernelTable());
-      await settlePromises();
-      const command = app.commands.addCommand.mock.calls.find(
-        ([id]) => id === NebiCommandIDs.installDependencies
-      )![1];
+      const { app, command } = await setupInstall();
       (repairNebiEnvironment as jest.Mock).mockRejectedValueOnce(
         new Error('Saved version; install failed')
       );
@@ -722,11 +699,7 @@ describe('LaunchpadKernelTable', () => {
   });
 
   it('disables repair for missing paths and named environments', async () => {
-    const app = activateNebiPlugin(new LaunchpadKernelTable());
-    await settlePromises();
-    const command = app.commands.addCommand.mock.calls.find(
-      ([id]) => id === NebiCommandIDs.installDependencies
-    )![1];
+    const { command } = await setupInstall();
     expect(command.isEnabled({ workspacePath: '', repair: true })).toBe(false);
     expect(
       command.isEnabled({

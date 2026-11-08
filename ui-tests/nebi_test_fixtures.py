@@ -118,7 +118,7 @@ if __name__ == "__main__":
                     {"version_number": 1, "job_id": "original"},
                     {"version_number": 2, "job_id": "other" if "missing-version" in packages else identifier},
                 ]))
-                if "ipykernel" in packages:
+                if "ipykernel" in packages or "r-irkernel" in packages:
                     (workspace / "ready").touch()
                 job["status"] = "completed"
 

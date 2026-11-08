@@ -622,11 +622,7 @@ function commandBody(args: ReadonlyPartialJSONObject): RequestInit {
 
 async function notifyAction<T>(
   operation: Promise<T>,
-  messages: {
-    pending: string;
-    success: string;
-    error: string;
-  }
+  messages: { pending: string; success: string; error: string }
 ): Promise<T> {
   const pending = Notification.emit(messages.pending, 'in-progress', {
     autoClose: false

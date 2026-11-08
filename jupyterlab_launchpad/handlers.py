@@ -74,7 +74,6 @@ class NebiActionHandler(APIHandler):
     def initialize(self, action: str, server_app):
         self.action = action
         self.server_app = server_app
-        self.nebi_config = NebiConfig(config=server_app.config)
 
     @tornado.web.authenticated
     def post(self):
