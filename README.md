@@ -38,6 +38,10 @@ To install the extension, execute:
 pip install jupyterlab-launchpad
 ```
 
+After installation you should restart JupyterLab (or jupyter server if using a remove server in JupyterLab Desktop).
+
+## Nebi integration
+
 For Nebi integration (Python >= 3.11), install the optional dependencies:
 
 ```bash
@@ -101,8 +105,6 @@ cannot confirm a Nebi job's result, use **Check repair again** to resume checkin
 that job. Other workspaces remain usable. Reloading the page can lose this button;
 if **Attempt fix** is also unavailable, there is currently no resume action in the
 UI. Restarting Jupyter Server loses the repair's tracking information.
-
-After installation you should restart JupyterLab (or jupyter server if using a remove server in JupyterLab Desktop).
 
 ## Uninstall
 
