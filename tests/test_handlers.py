@@ -1,10 +1,10 @@
-import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
+from jupyter_client.kernelspec import KernelSpecManager
 from tornado.web import HTTPError
 from traitlets.config import Config
 
@@ -22,7 +22,10 @@ class NebiWorkspaceTests(unittest.TestCase):
         self.workspace.mkdir(parents=True)
         self.manifest = self.workspace / "pixi.toml"
         self.manifest.write_text('[workspace]\nname = "demo"\n')
-        self.manager = Mock()
+        self.manager = KernelSpecManager(kernel_dirs=[])
+        discovery = patch.object(KernelSpecManager, "get_all_specs")
+        discovery.start()
+        self.addCleanup(discovery.stop)
         self.manager.get_all_specs.return_value = {}
         self.server = SimpleNamespace(
             root_dir=str(self.root), kernel_spec_manager=self.manager, config=Config()
@@ -55,7 +58,7 @@ class NebiWorkspaceTests(unittest.TestCase):
                         "jupyterlab_launchpad.handlers._run_command",
                         return_value={"ok": True},
                     ) as run:
-                        NebiActionHandler._install_dependencies(
+                        result = NebiActionHandler._install_dependencies(
                             handler,
                             {
                                 "workspacePath": str(self.workspace),
@@ -69,9 +72,8 @@ class NebiWorkspaceTests(unittest.TestCase):
                         + dependencies,
                         cwd=self.workspace,
                     )
-                    self.assertEqual(
-                        json.loads(handler.finish.call_args.args[0]), {"ok": True}
-                    )
+                    self.assertEqual(result, {"ok": True})
+                    handler.finish.assert_not_called()
 
     def test_named_environment_does_not_modify_default_environment(self):
         self.discover(str(self.workspace))

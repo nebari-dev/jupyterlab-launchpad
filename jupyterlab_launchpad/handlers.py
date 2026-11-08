@@ -1,3 +1,5 @@
+import asyncio
+from copy import deepcopy
 import json
 from pathlib import Path
 import re
@@ -77,19 +79,24 @@ class NebiActionHandler(APIHandler):
         self.nebi_config = NebiConfig(config=server_app.config)
 
     @tornado.web.authenticated
-    def post(self):
+    async def post(self):
         body = self.get_json_body() or {}
         if not isinstance(body, dict):
             raise tornado.web.HTTPError(400, log_message="Invalid request body")
 
         if self.action == "pull":
-            self._pull_workspace(body)
+            operation = self._pull_workspace
         elif self.action == "install-dependencies":
-            self._install_dependencies(body)
+            operation = self._install_dependencies
         else:
             raise tornado.web.HTTPError(404, log_message="Unknown Nebi action")
 
-    def _pull_workspace(self, body: Dict[str, Any]):
+        # Workspace discovery, filesystem lookups and CLI execution may block.
+        # Only the operation runs in a worker; HTTP responses stay on the event loop.
+        result = await asyncio.get_running_loop().run_in_executor(None, operation, body)
+        self.finish(json.dumps(result))
+
+    def _pull_workspace(self, body: Dict[str, Any]) -> Dict[str, Any]:
         workspace = _string_field(body, "workspace")
         if not workspace:
             raise tornado.web.HTTPError(400, log_message="Missing workspace")
@@ -101,10 +108,9 @@ class NebiActionHandler(APIHandler):
                 remote_version, _NEBI_VERSION_RE, "remote version"
             )
         workspace_ref = f"{workspace}:{remote_version}" if remote_version else workspace
-        result = _run_command(["nebi", "pull", workspace_ref, "--force"])
-        self.finish(json.dumps(result))
+        return _run_command(["nebi", "pull", workspace_ref, "--force"])
 
-    def _install_dependencies(self, body: Dict[str, Any]):
+    def _install_dependencies(self, body: Dict[str, Any]) -> Dict[str, Any]:
         workspace_path = _string_field(body, "workspacePath")
         if not workspace_path:
             raise tornado.web.HTTPError(400, log_message="Missing workspace path")
@@ -155,8 +161,7 @@ class NebiActionHandler(APIHandler):
         else:
             cmd = ["pixi", "install", "--manifest-path", str(manifest)]
 
-        result = _run_command(cmd, cwd=workspace_dir)
-        self.finish(json.dumps(result))
+        return _run_command(cmd, cwd=workspace_dir)
 
 class NebiCapabilitiesHandler(APIHandler):
     @tornado.web.authenticated
@@ -211,6 +216,16 @@ def _resolve_workspace_dir(server_app, workspace_path: str) -> Path:
         # Nebi workspaces may live on a separate volume from the file browser.
         # Trust only an exact path from server-side discovery, not request metadata.
         manager = getattr(server_app, "kernel_spec_manager", None)
+        if manager is not None:
+            # Discovery may mutate its registry. Use an independent instance so
+            # workers cannot race each other or Jupyter's live kernelspec handler.
+            options = deepcopy(manager.trait_values(config=True))
+            # This deprecated alias can overwrite allowed_kernelspecs at creation.
+            options.pop("whitelist", None)
+            options["kernel_dirs"] = list(manager.kernel_dirs)
+            manager = type(manager)(
+                parent=manager.parent, config=manager.config, **options
+            )
         specs = manager.get_all_specs() if manager is not None else {}
         for kernel in specs.values():
             metadata = kernel["spec"].get("metadata", {})
