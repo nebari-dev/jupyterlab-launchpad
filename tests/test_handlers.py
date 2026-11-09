@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
+from jupyter_client.kernelspec import KernelSpecManager
 from tornado.web import HTTPError
 from traitlets.config import Config
 
@@ -39,7 +40,10 @@ class NebiWorkspaceTests(unittest.TestCase):
         self.workspace.mkdir(parents=True)
         self.manifest = self.workspace / "pixi.toml"
         self.manifest.write_text('[workspace]\nname = "demo"\n')
-        self.manager = Mock()
+        self.manager = KernelSpecManager(kernel_dirs=[])
+        discovery = patch.object(KernelSpecManager, "get_all_specs")
+        discovery.start()
+        self.addCleanup(discovery.stop)
         self.manager.get_all_specs.return_value = {}
         self.server = SimpleNamespace(
             root_dir=str(self.root), kernel_spec_manager=self.manager, config=Config()
@@ -65,9 +69,11 @@ class NebiWorkspaceTests(unittest.TestCase):
         handler = Mock(spec=NebiActionHandler)
         NebiActionHandler.initialize(handler, "install-dependencies", self.server)
         with patch("jupyterlab_launchpad.handlers._run_command", return_value={"ok": True}) as run:
-            NebiActionHandler._install_dependencies(handler, {"workspacePath": str(self.workspace)})
+            result = NebiActionHandler._install_dependencies(handler, {"workspacePath": str(self.workspace)})
         run.assert_called_once_with(
             ["pixi", "install", "--manifest-path", str(self.manifest)], cwd=self.workspace)
+        self.assertEqual(result, {"ok": True})
+        handler.finish.assert_not_called()
 
     def test_legacy_repair_cannot_modify_dependencies_without_a_version(self):
         self.discover(str(self.workspace))
