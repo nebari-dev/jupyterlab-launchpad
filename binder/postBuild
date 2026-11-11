@@ -206,6 +206,7 @@ def _configure_nebi():
                             ],
                             "timeout": 30,
                             "absolute_url": True,
+                            "new_browser_tab": False,
                             "environment": {
                                 "NEBI_MODE": "local",
                                 "NEBI_PACKAGE_MANAGER_PIXI_PATH": pixi,
