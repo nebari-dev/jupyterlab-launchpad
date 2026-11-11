@@ -768,15 +768,22 @@ function registerNebiActionCommands(
 
   commands.addCommand(NebiCommandIDs.installDependencies, {
     label: trans.__('Attempt fix'),
-    caption: args =>
-      !capabilities.pixi
-        ? trans.__('Pixi is not available on this Jupyter server')
-        : (args['repair'] === true || hasMissingDependencies(args)) &&
-            !capabilities.nebi
-          ? trans.__(
-              'Nebi CLI is required to create a repaired workspace version'
-            )
-          : trans.__('Install missing dependencies'),
+    caption: args => {
+      if (!capabilities.pixi) {
+        return trans.__(
+          'Pixi was not found. Install it on the Jupyter server and restart the server with pixi on PATH.'
+        );
+      }
+      if (
+        (args['repair'] === true || hasMissingDependencies(args)) &&
+        !capabilities.nebi
+      ) {
+        return trans.__(
+          'Nebi CLI was not found. Install it on the Jupyter server and restart the server with nebi on PATH.'
+        );
+      }
+      return trans.__('Install missing dependencies');
+    },
     isVisible: canInstallDependencies,
     isEnabled: canInstallDependencies,
     execute: async args => {
