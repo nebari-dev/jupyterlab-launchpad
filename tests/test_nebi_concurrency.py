@@ -147,10 +147,16 @@ class NebiConcurrencyTests(AsyncHTTPTestCase):
         )
 
     @gen_test(timeout=10)
-    async def test_install_does_not_block_unrelated_requests(self):
-        await self.assert_responsive(
-            "install-dependencies", {"workspacePath": str(self.workspace)}
-        )
+    async def test_legacy_install_is_rejected_without_running_commands(self):
+        with patch(
+            "jupyterlab_launchpad.handlers._run_command", return_value={"ok": True}
+        ) as run:
+            response = await self.request(
+                "/install-dependencies", {"workspacePath": str(self.workspace)}
+            )
+            self.assertEqual(response.code, 400)
+            self.assertIn("managed by Nebi", json.loads(response.body)["message"])
+            run.assert_not_called()
 
     @gen_test(timeout=10)
     async def test_repair_does_not_block_unrelated_requests(self):
@@ -166,7 +172,9 @@ class NebiConcurrencyTests(AsyncHTTPTestCase):
     @gen_test(timeout=10)
     async def test_workspace_discovery_does_not_block_unrelated_requests(self):
         await self.assert_responsive(
-            "install-dependencies", {"workspacePath": str(self.workspace)}, lookup=True
+            "install-dependencies",
+            {"workspacePath": str(self.workspace), "missingDependencies": ["ipykernel"]},
+            lookup=True,
         )
 
     @gen_test(timeout=10)
@@ -200,7 +208,10 @@ class NebiConcurrencyTests(AsyncHTTPTestCase):
         ), patch(
             "jupyterlab_launchpad.handlers._run_command", return_value={"ok": True}
         ):
-            body = {"workspacePath": str(self.workspace)}
+            body = {
+                "workspacePath": str(self.workspace),
+                "missingDependencies": ["ipykernel"],
+            }
             first = self.request("/install-dependencies", body)
             try:
                 while not started.is_set():

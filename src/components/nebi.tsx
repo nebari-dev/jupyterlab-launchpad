@@ -17,6 +17,7 @@ import type {
 } from '@lumino/coreutils';
 import * as React from 'react';
 import { requestAPI } from '../handler';
+import { installNebiEnvironment } from '../nebi-install';
 import { infoCircleIcon, nebiIcon, updateAvailableIcon } from '../icons';
 import { addKernelRefreshMessageListener } from '../kernel-refresh-messages';
 import { refreshKernelSpecs } from '../kernel-refresh';
@@ -32,6 +33,7 @@ import {
 
 export namespace NebiCommandIDs {
   export const pull = 'launchpad:nebi-pull';
+  export const installEnvironment = 'launchpad:nebi-install-environment';
   export const installDependencies = 'launchpad:nebi-install-dependencies';
   export const openOverview = 'launchpad:nebi-open-overview';
 }
@@ -551,7 +553,7 @@ function createNebiActions(
       id: 'nebi-install-environment',
       label: trans.__('Install'),
       pendingLabel: trans.__('Installing'),
-      command: NebiCommandIDs.installDependencies,
+      command: NebiCommandIDs.installEnvironment,
       title: trans.__('Install environment'),
       rank: 1,
       isAvailable: options =>
@@ -644,11 +646,6 @@ async function notifyAction<T>(
   }
 }
 
-function hasMissingDependencies(args: ReadonlyPartialJSONObject): boolean {
-  const value = args['missingDependencies'];
-  return Array.isArray(value) && value.length > 0;
-}
-
 async function getNebiServerProxyPath(): Promise<string | null> {
   try {
     const settings = ServerConnection.makeSettings();
@@ -702,6 +699,7 @@ function registerNebiActionCommands(
   let nebiServerProxyPath: string | null = null;
   const refreshActionCommands = () => {
     commands.notifyCommandChanged(NebiCommandIDs.pull);
+    commands.notifyCommandChanged(NebiCommandIDs.installEnvironment);
     commands.notifyCommandChanged(NebiCommandIDs.installDependencies);
     commands.notifyCommandChanged(NebiCommandIDs.openOverview);
   };
@@ -725,6 +723,10 @@ function registerNebiActionCommands(
     capabilities.nebi && stringArg(args, 'workspace').length > 0;
   const canInstallDependencies = (args: ReadonlyPartialJSONObject) =>
     capabilities.pixi && stringArg(args, 'workspacePath').length > 0;
+  const canInstallEnvironment = (args: ReadonlyPartialJSONObject) =>
+    nebiServerProxyPath !== null &&
+    stringArg(args, 'workspacePath').length > 0 &&
+    (!args['environment'] || args['environment'] === 'default');
   const canOpenNebi = () =>
     capabilities.nebi &&
     nebiServerProxyPath !== null &&
@@ -759,6 +761,30 @@ function registerNebiActionCommands(
     }
   });
 
+  commands.addCommand(NebiCommandIDs.installEnvironment, {
+    label: trans.__('Install'),
+    caption: trans.__('Install environment through Nebi'),
+    isVisible: canInstallEnvironment,
+    isEnabled: canInstallEnvironment,
+    execute: async args => {
+      if (!canInstallEnvironment(args)) {
+        return;
+      }
+      try {
+        await notifyAction(
+          installNebiEnvironment(args).then(() => refreshKernelSpecs(app)),
+          {
+            pending: trans.__('Installing environment...'),
+            success: trans.__('Environment installed'),
+            error: trans.__('Could not install environment')
+          }
+        );
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  });
+
   commands.addCommand(NebiCommandIDs.installDependencies, {
     label: trans.__('Attempt fix'),
     caption: () =>
@@ -771,8 +797,6 @@ function registerNebiActionCommands(
       if (!capabilities.pixi) {
         return;
       }
-      const installingDependencies =
-        args['repair'] === true || hasMissingDependencies(args);
       try {
         const installation = (async () => {
           let body = args;
@@ -816,20 +840,14 @@ function registerNebiActionCommands(
             }
           }),
           {
-            pending: installingDependencies
-              ? trans.__('Installing dependencies...')
-              : trans.__('Installing environment...'),
-            success: installingDependencies
-              ? trans.__('Dependencies installed')
-              : trans.__('Environment installed'),
+            pending: trans.__('Installing dependencies...'),
+            success: trans.__('Dependencies installed'),
             error:
               args['repair'] === true
                 ? trans.__(
                     'Could not repair the environment. Open it in Nebi to resolve the remaining problem.'
                   )
-                : installingDependencies
-                  ? trans.__('Could not install dependencies')
-                  : trans.__('Could not install environment')
+                : trans.__('Could not install dependencies')
           }
         );
       } catch (error) {
