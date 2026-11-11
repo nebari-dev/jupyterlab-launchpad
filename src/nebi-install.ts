@@ -1,5 +1,6 @@
 import { URLExt } from '@jupyterlab/coreutils';
 import { ServerConnection } from '@jupyterlab/services';
+import type { TranslationBundle } from '@jupyterlab/translation';
 import type { ReadonlyPartialJSONObject } from '@lumino/coreutils';
 
 /**
@@ -33,6 +34,7 @@ interface INebiServerVersion {
 /** Use Nebi's named Jupyter Server Proxy entry with Jupyter's base URL. */
 async function requestNebi<T>(
   path: string,
+  trans: TranslationBundle,
   init: RequestInit = {}
 ): Promise<T> {
   const settings = ServerConnection.makeSettings();
@@ -49,7 +51,7 @@ async function requestNebi<T>(
     throw new Error(
       data?.error ||
         data?.message ||
-        `Nebi request failed (HTTP ${response.status})`
+        trans.__('Nebi request failed (HTTP %1)', response.status)
     );
   }
   return response.json();
@@ -60,42 +62,58 @@ async function requestNebi<T>(
  * reopening the page does not resume it automatically.
  */
 export async function installNebiEnvironment(
-  args: ReadonlyPartialJSONObject
+  args: ReadonlyPartialJSONObject,
+  trans: TranslationBundle
 ): Promise<void> {
   if (args['environment'] && args['environment'] !== 'default') {
-    throw new Error('Nebi only supports the default environment.');
+    throw new Error(trans.__('Nebi only supports the default environment.'));
   }
-  const version = await requestNebi<INebiServerVersion>('version');
+  const version = await requestNebi<INebiServerVersion>('version', trans);
   if (version.mode !== 'local') {
-    throw new Error('Environment installation requires Nebi in local mode.');
+    throw new Error(
+      trans.__('Environment installation requires Nebi in local mode.')
+    );
   }
-  const workspaces = await requestNebi<INebiWorkspace[] | null>('workspaces');
+  const workspaces = await requestNebi<INebiWorkspace[] | null>(
+    'workspaces',
+    trans
+  );
   const workspace = workspaces?.find(
     item => item.path && item.path === args['workspacePath']
   );
   if (!workspace?.id) {
     throw new Error(
-      'Workspace not found in Nebi. Register it in Nebi before installing.'
+      trans.__(
+        'Workspace not found in Nebi. Register it in Nebi before installing.'
+      )
     );
   }
   let job = await requestNebi<INebiJob>(
     `workspaces/${encodeURIComponent(workspace.id)}/install`,
+    trans,
     { method: 'POST' }
   );
   if (!job.id) {
     throw new Error(
-      'Nebi returned no job ID. Check the workspace in Nebi before retrying.'
+      trans.__(
+        'Nebi returned no job ID. Check the workspace in Nebi before retrying.'
+      )
     );
   }
   const jobId = job.id;
   while (job.status === 'pending' || job.status === 'running') {
     await new Promise(resolve => setTimeout(resolve, 500));
-    job = await requestNebi<INebiJob>(`jobs/${encodeURIComponent(jobId)}`);
+    job = await requestNebi<INebiJob>(
+      `jobs/${encodeURIComponent(jobId)}`,
+      trans
+    );
   }
   if (job.status !== 'completed') {
     throw new Error(
       job.error ||
-        'Nebi install job did not complete. Check the workspace in Nebi.'
+        trans.__(
+          'Nebi install job did not complete. Check the workspace in Nebi.'
+        )
     );
   }
 }

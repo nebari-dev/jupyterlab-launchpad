@@ -195,7 +195,7 @@ const responsiveKernelspecs: KernelspecsResponse = {
           nebi_location: 'local',
           nebi_workspace: 'nebari/new-environment',
           nebi_workspace_path: '/srv/nebari/new-environment',
-          pixi_environment: 'python'
+          pixi_environment: 'default'
         }
       }
     }
@@ -255,6 +255,46 @@ test.describe('Nebi kernel metadata', () => {
     autoGoto: false,
     viewport: { width: 1440, height: 720 },
     mockSettings: nebiMetadataMockSettings
+  });
+
+  test('only offers Install for the default environment', async ({
+    page,
+    tmpPath
+  }) => {
+    await mockNebiEndpoints(page, {
+      includeNebiServerProxy: true,
+      specs: {
+        default: 'default',
+        kernelspecs: Object.fromEntries(
+          ['default', 'analysis'].map(environment => [
+            environment,
+            {
+              name: environment,
+              resources: {},
+              spec: {
+                argv: [],
+                display_name: `Nebi Install ${environment}`,
+                language: 'python',
+                metadata: {
+                  nebi_status: 'not-installed',
+                  nebi_workspace_path: '/srv/nebari/install-test',
+                  pixi_environment: environment
+                }
+              }
+            }
+          ])
+        )
+      }
+    });
+    await page.goto(`tree/${tmpPath}?reset`);
+    const rows = page.locator('.jp-Launcher-launchNotebook tbody tr');
+    const install = '[data-action="nebi-install-environment"]';
+    await expect(
+      rows.filter({ hasText: 'Nebi Install default' }).locator(install)
+    ).toBeVisible();
+    const namedEnvironment = rows.filter({ hasText: 'Nebi Install analysis' });
+    await expect(namedEnvironment).toBeVisible();
+    await expect(namedEnvironment.locator(install)).toHaveCount(0);
   });
 
   test('should render Nebi metadata columns and actions', async ({
@@ -422,6 +462,12 @@ test.describe('Nebi kernel metadata responsive layout', () => {
     const notebookSection = launcher.locator('.jp-Launcher-launchNotebook');
 
     await expect(notebookSection.locator('tbody tr')).toHaveCount(23);
+    await expect(
+      notebookSection
+        .locator('tbody tr')
+        .filter({ hasText: 'Nebi New Environment' })
+        .locator('[data-action="nebi-install-environment"]')
+    ).toBeVisible();
     await expect(
       notebookSection.locator('.jp-NebiStatus-ready').first()
     ).toBeVisible();

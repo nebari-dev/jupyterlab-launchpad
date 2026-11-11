@@ -772,7 +772,9 @@ function registerNebiActionCommands(
       }
       try {
         await notifyAction(
-          installNebiEnvironment(args).then(() => refreshKernelSpecs(app)),
+          installNebiEnvironment(args, trans).then(() =>
+            refreshKernelSpecs(app)
+          ),
           {
             pending: trans.__('Installing environment...'),
             success: trans.__('Environment installed'),

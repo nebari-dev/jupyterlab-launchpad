@@ -913,6 +913,14 @@ describe('Nebi environment installation', () => {
     ]);
   }
 
+  function translateMessages() {
+    const bundle = nullTranslator.load('jupyterlab-launchpad');
+    const translate = bundle.__.bind(bundle);
+    jest
+      .spyOn(bundle, '__')
+      .mockImplementation((...values) => `translated: ${translate(...values)}`);
+  }
+
   beforeEach(() => {
     jest.clearAllMocks();
     makeRequest.mockReset();
@@ -1064,6 +1072,48 @@ describe('Nebi environment installation', () => {
     expect(Notification.success).not.toHaveBeenCalled();
     expect(jest.getTimerCount()).toBe(0);
   });
+
+  it('shows a translated error when Nebi returns no job ID', async () => {
+    const { command } = await setup();
+    translateMessages();
+    workspace();
+    respond({ status: 'pending' }, 202);
+    await command.execute(args);
+    expect(Notification.error).toHaveBeenCalledWith(
+      'translated: Nebi returned no job ID. Check the workspace in Nebi before retrying.',
+      { autoClose: false }
+    );
+  });
+
+  it('translates the HTTP fallback and interpolates its status', async () => {
+    const { command } = await setup();
+    translateMessages();
+    respond(null, 503);
+    await command.execute(args);
+    expect(Notification.error).toHaveBeenCalledWith(
+      'translated: Nebi request failed (HTTP 503)',
+      { autoClose: false }
+    );
+  });
+
+  it.each(['api', 'job'])(
+    'preserves the %s error returned by Nebi when translation is active',
+    async source => {
+      const { command } = await setup();
+      translateMessages();
+      workspace();
+      respond(
+        source === 'api'
+          ? { error: 'Original Nebi error' }
+          : { id: 'job-id', status: 'failed', error: 'Original Nebi error' },
+        source === 'api' ? 409 : 202
+      );
+      await command.execute(args);
+      expect(Notification.error).toHaveBeenCalledWith('Original Nebi error', {
+        autoClose: false
+      });
+    }
+  );
 
   it.each([
     [false, args],
