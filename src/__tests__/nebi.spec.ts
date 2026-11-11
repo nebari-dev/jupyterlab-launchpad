@@ -643,9 +643,7 @@ describe('LaunchpadKernelTable', () => {
       expect(
         command.isEnabled({ ...args, missingDependencies: ['ipykernel'] })
       ).toBe(true);
-      expect(command.caption({ ...args, repair: true })).toBe(
-        'Install missing dependencies'
-      );
+      expect(command.caption).toBe('Install missing dependencies');
       const pull = app.commands.addCommand.mock.calls.find(
         ([id]) => id === NebiCommandIDs.pull
       )![1];
@@ -676,9 +674,6 @@ describe('LaunchpadKernelTable', () => {
     expect(
       command.isEnabled({ ...args, missingDependencies: ['ipykernel'] })
     ).toBe(false);
-    expect(command.caption({ ...args, repair: true })).toContain(
-      'Jupyter Server Proxy'
-    );
     await command.execute({ ...args, repair: true });
     expect(repairNebiEnvironment).not.toHaveBeenCalled();
   });

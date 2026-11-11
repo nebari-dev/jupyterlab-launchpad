@@ -773,27 +773,7 @@ function registerNebiActionCommands(
 
   commands.addCommand(NebiCommandIDs.installDependencies, {
     label: trans.__('Attempt fix'),
-    caption: args => {
-      if (args['repair'] === true || hasMissingDependencies(args)) {
-        if (nebiServerProxyPath === null) {
-          return trans.__(
-            'Configure a local Nebi service in Jupyter Server Proxy to repair this environment.'
-          );
-        }
-        if (args['environment'] && args['environment'] !== 'default') {
-          return trans.__(
-            'Nebi can only repair the default environment. Open this workspace in Nebi.'
-          );
-        }
-        return trans.__('Install missing dependencies');
-      }
-      if (!capabilities.pixi) {
-        return trans.__(
-          'Pixi was not found. Install it on the Jupyter server and restart the server with pixi on PATH.'
-        );
-      }
-      return trans.__('Install missing dependencies');
-    },
+    caption: trans.__('Install missing dependencies'),
     isVisible: canInstallDependencies,
     isEnabled: canInstallDependencies,
     execute: async args => {
