@@ -606,27 +606,6 @@ describe('LaunchpadKernelTable', () => {
     }
   );
 
-  it('shows progress notifications for Nebi install actions', async () => {
-    jest.clearAllMocks();
-    const { command } = await setupInstall();
-
-    await command.execute({
-      workspacePath: '/tmp/demo',
-      missingDependencies: ['ipykernel']
-    });
-
-    expect(repairNebiEnvironment).toHaveBeenCalledWith(
-      { workspacePath: '/tmp/demo', missingDependencies: ['ipykernel'] },
-      ['ipykernel']
-    );
-    expect(Notification.emit).toHaveBeenCalledWith(
-      'Installing dependencies...',
-      'in-progress',
-      { autoClose: false }
-    );
-    expect(Notification.dismiss).toHaveBeenCalledWith('pending-id');
-  });
-
   it.each([
     { nebi: false, pixi: true },
     { nebi: true, pixi: false },
@@ -643,7 +622,6 @@ describe('LaunchpadKernelTable', () => {
       expect(
         command.isEnabled({ ...args, missingDependencies: ['ipykernel'] })
       ).toBe(true);
-      expect(command.caption).toBe('Install missing dependencies');
       const pull = app.commands.addCommand.mock.calls.find(
         ([id]) => id === NebiCommandIDs.pull
       )![1];

@@ -44,12 +44,7 @@ for (const scenario of [
       'The environment is still unavailable. Open it in Nebi to resolve the remaining problem.'
   },
   {
-    name: 'successful versioned repair',
-    dependencies: ['ipykernel'],
-    detail: ''
-  },
-  {
-    name: 'uses the current user kernel packages',
+    name: 'successful versioned repair with user kernel packages',
     dependencies: ['numpy'],
     kernelDependencies: ['r-irkernel'],
     detail: ''

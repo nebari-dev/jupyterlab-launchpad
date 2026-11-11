@@ -75,17 +75,6 @@ class NebiWorkspaceTests(unittest.TestCase):
         self.assertEqual(result, {"ok": True})
         handler.finish.assert_not_called()
 
-    def test_legacy_repair_cannot_modify_dependencies_without_a_version(self):
-        self.discover(str(self.workspace))
-        handler = Mock(spec=NebiActionHandler)
-        NebiActionHandler.initialize(handler, "install-dependencies", self.server)
-        for extra in ({"repair": True}, {"missingDependencies": ["ipykernel"]}):
-            with self.subTest(extra=extra), patch("jupyterlab_launchpad.handlers._run_command") as run:
-                with self.assertRaisesRegex(HTTPError, "package API"):
-                    NebiActionHandler._install_dependencies(
-                        handler, {"workspacePath": str(self.workspace), **extra})
-                run.assert_not_called()
-
     def test_both_actions_reject_undiscovered_external_workspace(self):
         for dependencies in ([], ["ipykernel"]):
             with self.subTest(dependencies=dependencies):

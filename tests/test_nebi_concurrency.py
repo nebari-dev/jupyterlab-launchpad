@@ -237,6 +237,12 @@ class NebiConcurrencyTests(AsyncHTTPTestCase):
                 "package API",
                 400,
             ),
+            (
+                "install-dependencies",
+                {"workspacePath": str(self.workspace), "missingDependencies": ["ipykernel"]},
+                "package API",
+                400,
+            ),
             ("unknown", {}, "Unknown Nebi action", 404),
         ]
         with patch("jupyterlab_launchpad.handlers._run_command") as run:
