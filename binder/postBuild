@@ -19,11 +19,11 @@ from pathlib import Path
 ROOT = Path.cwd()
 PREFIX = Path(os.environ.get("CONDA_PREFIX", sys.prefix))
 NEBI_DEMO_WORKSPACE = ROOT / "binder" / "nebi-workspaces" / "launchpad-demo"
+NEBI_DATA_DIR = NEBI_DEMO_WORKSPACE.parent / ".nebi"
+NEBI_CLI_ENV = {**os.environ, "NEBI_DATA_DIR": str(NEBI_DATA_DIR)}
 KERNELS_PATH = PREFIX / "share" / "jupyter" / "kernels"
 PYTHON_KERNEL_PATH = KERNELS_PATH / "python3"
-JUPYTER_CONFIG_PATH = (
-    PREFIX / "etc" / "jupyter" / "jupyter_server_config.json"
-)
+JUPYTER_CONFIG_PATH = NEBI_DEMO_WORKSPACE.parent / "jupyter_server_config.json"
 
 
 def _sample_workspace_metadata(name, **metadata):
@@ -43,7 +43,7 @@ def _sample_workspace_metadata(name, **metadata):
 
 # Synthetic rows using the kernelspec metadata emitted by nb-nebi-kernels.
 # Keep display-only fields (nebi_version/nebi_status) out of these fixtures.
-# Schema: https://github.com/nebari-dev/nb-nebi-kernels/blob/01b69406eddcd09e9d1dd541dc642d6267fbd177/src/nb_nebi_kernels/manager.py#L420-L441
+# Schema: https://github.com/nebari-dev/nb-nebi-kernels/blob/v0.3/src/nb_nebi_kernels/manager.py#L433-L457
 SAMPLE_KERNELS = [
     (
         "test123",
@@ -54,15 +54,6 @@ SAMPLE_KERNELS = [
             nebi_state="ready",
             nebi_remote_version="1.2.0",
             nebi_outdated=False,
-        ),
-    ),
-    (
-        "new-env",
-        "new-env",
-        _sample_workspace_metadata(
-            "new-env",
-            nebi_state="local-not-installed",
-            nebi_not_ready_reason="environment-not-installed",
         ),
     ),
     (
@@ -149,6 +140,7 @@ def _nebi_workspace_tracked(path):
         ["nebi", "workspace", "list", "--json"],
         capture_output=True,
         text=True,
+        env=NEBI_CLI_ENV,
     )
     if result.returncode != 0:
         print("\nERROR", result.returncode, "nebi workspace list --json")
@@ -175,16 +167,27 @@ def _create_nebi_demo_workspace():
         _("pixi", "init", "--format", "pixi", str(NEBI_DEMO_WORKSPACE))
 
     workspace_path = NEBI_DEMO_WORKSPACE.resolve()
+    if not (workspace_path / "pixi.lock").exists():
+        _("pixi", "add", "--no-install", "ipykernel", cwd=workspace_path)
     if not _nebi_workspace_tracked(workspace_path):
-        _("nebi", "init", cwd=workspace_path)
+        _("nebi", "init", cwd=workspace_path, env=NEBI_CLI_ENV)
 
 
-def _configure_nebi_kernel_manager():
-    """Ensure the Binder preview uses the Nebi kernel provider."""
-    JUPYTER_CONFIG_PATH.parent.mkdir(exist_ok=True, parents=True)
+def _configure_nebi():
+    """Configure kernel discovery and the local Nebi service in Binder."""
+    pixi = shutil.which("pixi")
+    if pixi is None:
+        raise RuntimeError("Pixi must be available on PATH to configure Nebi.")
+
+    # Binder starts JupyterLab with an explicit config file. Include the gallery
+    # settings in that same file so the proxy and kernel manager are loaded.
+    gallery_config = json.loads(
+        (ROOT / "binder" / "jupyter_gallery_config.json").read_text(encoding="utf-8")
+    )
     JUPYTER_CONFIG_PATH.write_text(
         json.dumps(
             {
+                **gallery_config,
                 "ServerApp": {
                     "kernel_spec_manager_class": (
                         "nb_nebi_kernels.NebiKernelSpecManager"
@@ -194,7 +197,34 @@ def _configure_nebi_kernel_manager():
                     "workspace_discovery_roots": [
                         str(NEBI_DEMO_WORKSPACE.parent.resolve())
                     ]
-                }
+                },
+                "ServerProxy": {
+                    "servers": {
+                        "nebi": {
+                            "command": [
+                                "nebi", "serve", "--host", "127.0.0.1", "--port", "{port}"
+                            ],
+                            "timeout": 30,
+                            "absolute_url": True,
+                            "environment": {
+                                "NEBI_MODE": "local",
+                                "NEBI_PACKAGE_MANAGER_PIXI_PATH": pixi,
+                                "NEBI_SERVER_BASE_PATH": "{base_url}nebi",
+                                "NEBI_DATABASE_DSN": str(NEBI_DATA_DIR / "nebi.db"),
+                                "NEBI_STORAGE_WORKSPACES_DIR": str(NEBI_DEMO_WORKSPACE.parent),
+                            },
+                            # Nebi's local listener requires loopback Host and Origin.
+                            "request_headers_override": {
+                                "Host": "localhost:{port}",
+                                "Origin": "http://localhost:{port}",
+                            },
+                            "launcher_entry": {
+                                "title": "Nebi",
+                                "path_info": "nebi/workspaces",
+                            },
+                        }
+                    }
+                },
             },
             indent=2,
         ),
@@ -244,7 +274,7 @@ _(sys.executable, "-m", "jupyter", "labextension", "develop", "--overwrite", "."
 
 # create a small nebi workspace so Binder previews show nebi kernel metadata
 _create_nebi_demo_workspace()
-_configure_nebi_kernel_manager()
+_configure_nebi()
 _create_sample_kernels()
 
 # verify the environment the extension didn't break anything
@@ -258,4 +288,4 @@ _("jupyter", "labextension", "list")
 
 
 print("JupyterLab with jupyterlab_launchpad is ready to run with:\n")
-print("\tjupyter lab\n")
+print("\tjupyter lab --config binder/nebi-workspaces/jupyter_server_config.json\n")

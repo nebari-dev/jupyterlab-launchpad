@@ -4,4 +4,6 @@ set -e
 
 echo $@
 
-exec jupyter-lab "${@:4}" --config binder/jupyter_gallery_config.json
+export NEBI_DATA_DIR="$PWD/binder/nebi-workspaces/.nebi"
+
+exec jupyter-lab "${@:4}" --config binder/nebi-workspaces/jupyter_server_config.json
