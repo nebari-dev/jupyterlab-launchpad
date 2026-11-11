@@ -133,6 +133,17 @@ it.each(['failed', 'cancelled'])(
   }
 );
 
+it('leaves package specification validation to Nebi and reports its error', async () => {
+  const error = 'Invalid package specification: --help';
+  setup({ id: 'job/id', status: 'failed', error });
+  await expect(
+    repairNebiEnvironment({ ...args, missingDependencies: ['--help'] }, [])
+  ).rejects.toThrow(error);
+  expect(JSON.parse(request.mock.calls[2][1].body)).toEqual({
+    packages: ['--help']
+  });
+});
+
 it('does not resubmit after losing the connection while polling', async () => {
   request
     .mockResolvedValueOnce(respond({ mode: 'local' }))
@@ -179,7 +190,7 @@ it('rejects team mode', async () => {
 
 it.each([
   { ...args, environment: 'other' },
-  { ...args, missingDependencies: ['--help'] },
+  { ...args, missingDependencies: [''] },
   { ...args, missingDependencies: [] }
 ])('rejects unsupported repairs before making requests', async invalid => {
   await expect(repairNebiEnvironment(invalid, [])).rejects.toThrow();

@@ -2,12 +2,21 @@ import { URLExt } from '@jupyterlab/coreutils';
 import { ServerConnection } from '@jupyterlab/services';
 import type { ReadonlyPartialJSONObject } from '@lumino/coreutils';
 
+/**
+ * Fields consumed from Nebi's Job response. The backend also defines cancelled.
+ * @see https://github.com/nebari-dev/nebi/blob/5bf66de578662296d92093d57f462840dec910cd/frontend/src/types/models.ts#L69-L80
+ * @see https://github.com/nebari-dev/nebi/blob/5bf66de578662296d92093d57f462840dec910cd/internal/models/job.go#L27-L47
+ */
 interface IJob {
   id: string;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   error?: string;
 }
 
+/**
+ * Fields consumed from Nebi's WorkspaceVersion response.
+ * @see https://github.com/nebari-dev/nebi/blob/5bf66de578662296d92093d57f462840dec910cd/frontend/src/types/models.ts#L138-L150
+ */
 interface IVersion {
   version_number: number;
   job_id?: string;
@@ -38,10 +47,7 @@ async function requestNebi<T>(
 function packages(value: unknown): string[] {
   if (
     !Array.isArray(value) ||
-    value.some(
-      item =>
-        typeof item !== 'string' || !item.trim() || item.trim().startsWith('-')
-    )
+    value.some(item => typeof item !== 'string' || !item.trim())
   ) {
     throw new Error('Invalid missing dependency specifications.');
   }
