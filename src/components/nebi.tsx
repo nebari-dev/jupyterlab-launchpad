@@ -725,13 +725,18 @@ function registerNebiActionCommands(
 
   const canPull = (args: ReadonlyPartialJSONObject) =>
     capabilities.nebi && stringArg(args, 'workspace').length > 0;
-  const canInstallDependencies = (args: ReadonlyPartialJSONObject) =>
-    capabilities.pixi &&
-    (!(args['repair'] === true || hasMissingDependencies(args)) ||
-      (capabilities.nebi &&
-        nebiServerProxyPath !== null &&
-        (!args['environment'] || args['environment'] === 'default'))) &&
-    stringArg(args, 'workspacePath').length > 0;
+  const canInstallDependencies = (args: ReadonlyPartialJSONObject) => {
+    if (!stringArg(args, 'workspacePath').length) {
+      return false;
+    }
+    if (args['repair'] !== true && !hasMissingDependencies(args)) {
+      return capabilities.pixi;
+    }
+    if (nebiServerProxyPath === null) {
+      return false;
+    }
+    return !args['environment'] || args['environment'] === 'default';
+  };
   const canOpenNebi = () =>
     capabilities.nebi &&
     nebiServerProxyPath !== null &&
@@ -769,17 +774,22 @@ function registerNebiActionCommands(
   commands.addCommand(NebiCommandIDs.installDependencies, {
     label: trans.__('Attempt fix'),
     caption: args => {
+      if (args['repair'] === true || hasMissingDependencies(args)) {
+        if (nebiServerProxyPath === null) {
+          return trans.__(
+            'Configure a local Nebi service in Jupyter Server Proxy to repair this environment.'
+          );
+        }
+        if (args['environment'] && args['environment'] !== 'default') {
+          return trans.__(
+            'Nebi can only repair the default environment. Open this workspace in Nebi.'
+          );
+        }
+        return trans.__('Install missing dependencies');
+      }
       if (!capabilities.pixi) {
         return trans.__(
           'Pixi was not found. Install it on the Jupyter server and restart the server with pixi on PATH.'
-        );
-      }
-      if (
-        (args['repair'] === true || hasMissingDependencies(args)) &&
-        !capabilities.nebi
-      ) {
-        return trans.__(
-          'Nebi CLI was not found. Install it on the Jupyter server and restart the server with nebi on PATH.'
         );
       }
       return trans.__('Install missing dependencies');

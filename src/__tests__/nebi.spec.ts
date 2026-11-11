@@ -627,11 +627,47 @@ describe('LaunchpadKernelTable', () => {
     expect(Notification.dismiss).toHaveBeenCalledWith('pending-id');
   });
 
-  it('requires Nebi for versioned repairs but still permits plain installation', async () => {
+  it.each([
+    { nebi: false, pixi: true },
+    { nebi: true, pixi: false },
+    { nebi: false, pixi: false }
+  ])(
+    'uses the proxy for repairs with CLI capabilities %j',
+    async capabilities => {
+      jest.clearAllMocks();
+      (requestAPI as jest.Mock).mockResolvedValueOnce(capabilities);
+      const { app, command } = await setupInstall();
+      const args = { workspacePath: '/tmp/demo' };
+      expect(command.isEnabled(args)).toBe(capabilities.pixi);
+      expect(command.isEnabled({ ...args, repair: true })).toBe(true);
+      expect(
+        command.isEnabled({ ...args, missingDependencies: ['ipykernel'] })
+      ).toBe(true);
+      expect(command.caption({ ...args, repair: true })).toBe(
+        'Install missing dependencies'
+      );
+      const pull = app.commands.addCommand.mock.calls.find(
+        ([id]) => id === NebiCommandIDs.pull
+      )![1];
+      expect(pull.isEnabled({ workspace: 'demo' })).toBe(capabilities.nebi);
+      (requestAPI as jest.Mock).mockClear();
+      await command.execute({ ...args, missingDependencies: ['ipykernel'] });
+      expect(repairNebiEnvironment).toHaveBeenCalledWith(
+        { ...args, missingDependencies: ['ipykernel'] },
+        ['ipykernel']
+      );
+      if (!capabilities.nebi) {
+        await pull.execute({ workspace: 'demo' });
+      }
+      expect(requestAPI).not.toHaveBeenCalled();
+    }
+  );
+
+  it('requires a proxy for repairs while plain installation still uses Pixi', async () => {
     jest.clearAllMocks();
-    (requestAPI as jest.Mock).mockResolvedValueOnce({
-      nebi: false,
-      pixi: true
+    (ServerConnection.makeRequest as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ server_processes: [] })
     });
     const { command } = await setupInstall();
     const args = { workspacePath: '/tmp/demo' };
@@ -640,9 +676,11 @@ describe('LaunchpadKernelTable', () => {
     expect(
       command.isEnabled({ ...args, missingDependencies: ['ipykernel'] })
     ).toBe(false);
-    (requestAPI as jest.Mock).mockClear();
+    expect(command.caption({ ...args, repair: true })).toContain(
+      'Jupyter Server Proxy'
+    );
     await command.execute({ ...args, repair: true });
-    expect(requestAPI).not.toHaveBeenCalled();
+    expect(repairNebiEnvironment).not.toHaveBeenCalled();
   });
 
   it('does not show an extra error dialog for Nebi action failures', async () => {
