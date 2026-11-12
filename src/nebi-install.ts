@@ -84,7 +84,7 @@ export async function installNebiEnvironment(
   if (!workspace?.id) {
     throw new Error(
       trans.__(
-        'Workspace not found in Nebi. Register it in Nebi before installing.'
+        'Workspace not found in Nebi. Register it in Nebi before installing: run "nebi init" in this folder, then try again.'
       )
     );
   }
