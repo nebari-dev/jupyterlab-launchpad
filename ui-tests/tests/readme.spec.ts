@@ -307,7 +307,12 @@ for (const nebi of [false, true]) {
         })
       );
       await page.route('**/jupyterlab-launchpad/nebi/capabilities*', route =>
-        route.fulfill({ json: { nebi, pixi: nebi } })
+        route.fulfill({
+          json: {
+            nebi,
+            kernelDependencies: ['ipykernel']
+          }
+        })
       );
       await page.route('**/server-proxy/servers-info*', route =>
         route.fulfill({

@@ -38,6 +38,10 @@ To install the extension, execute:
 pip install jupyterlab-launchpad
 ```
 
+After installation you should restart JupyterLab (or jupyter server if using a remote server in JupyterLab Desktop).
+
+## Nebi integration
+
 For Nebi integration (Python >= 3.11), install the optional dependencies:
 
 ```bash
@@ -61,6 +65,12 @@ reloading the page stops progress tracking but does not cancel the accepted job.
 Reopening the page does not resume progress tracking automatically. Check the job
 in Nebi before retrying after reopening the page or a connection failure.
 
+Binder provides two real workspaces: `launchpad-demo` starts with **Install**,
+and `launchpad-repair-demo` starts with **Attempt fix** on an installed Python
+environment without a Jupyter kernel. After either action succeeds, discovery
+shows the workspace as ready and removes its action button. The other sample
+rows are display examples and do not point to these workspaces.
+
 Nebi actions support the workspace's default environment. When a workspace has
 no Jupyter kernel, **Attempt fix** installs the packages configured on the server
 with `NebiConfig.kernel_dependencies` (default: `["ipykernel"]`). To use a different
@@ -79,7 +89,20 @@ dependencies reported by discovery are still installed alongside these packages.
 An empty server list disables automatic kernel installation unless a user supplies
 an override. Missing dependencies reported by discovery continue to be installed.
 
-After installation you should restart JupyterLab (or jupyter server if using a remove server in JupyterLab Desktop).
+**Attempt fix** requires a workspace registered with the local Nebi service,
+the default Pixi environment, and a configured `nebi` entry in Jupyter Server
+Proxy. Nebi and Jupyter Server must access the same workspace files.
+
+Launchpad submits the missing packages to Nebi's package API and polls the
+resulting job. Nebi handles dependency resolution, version creation, and updating
+an already installed environment. Launchpad verifies that the newest version
+belongs to this job, then refreshes kernel discovery. Job failures are displayed
+in the notification; an environment that remains unusable is not reported as
+successfully repaired.
+
+Once Nebi accepts the job, closing the browser does not cancel it. Closing or
+reloading the page stops Launchpad's progress tracking. If the connection fails,
+check the job and workspace in Nebi before retrying.
 
 ## Uninstall
 

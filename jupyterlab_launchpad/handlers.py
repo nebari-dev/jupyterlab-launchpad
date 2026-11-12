@@ -1,5 +1,4 @@
 import asyncio
-from copy import deepcopy
 import json
 from pathlib import Path
 import re
@@ -73,27 +72,17 @@ class KernelDiscoveryRefreshHandler(APIHandler):
 
 
 class NebiActionHandler(APIHandler):
-    def initialize(self, action: str, server_app):
-        self.action = action
-        self.server_app = server_app
-        self.nebi_config = NebiConfig(config=server_app.config)
-
     @tornado.web.authenticated
     async def post(self):
         body = self.get_json_body() or {}
         if not isinstance(body, dict):
             raise tornado.web.HTTPError(400, log_message="Invalid request body")
 
-        if self.action == "pull":
-            operation = self._pull_workspace
-        elif self.action == "install-dependencies":
-            operation = self._install_dependencies
-        else:
-            raise tornado.web.HTTPError(404, log_message="Unknown Nebi action")
-
-        # Workspace discovery, filesystem lookups and CLI execution may block.
-        # Only the operation runs in a worker; HTTP responses stay on the event loop.
-        result = await asyncio.get_running_loop().run_in_executor(None, operation, body)
+        # CLI execution may block. Only the operation runs in a worker;
+        # HTTP responses stay on the event loop.
+        result = await asyncio.get_running_loop().run_in_executor(
+            None, self._pull_workspace, body
+        )
         self.finish(json.dumps(result))
 
     def _pull_workspace(self, body: Dict[str, Any]) -> Dict[str, Any]:
@@ -110,71 +99,18 @@ class NebiActionHandler(APIHandler):
         workspace_ref = f"{workspace}:{remote_version}" if remote_version else workspace
         return _run_command(["nebi", "pull", workspace_ref, "--force"])
 
-    def _install_dependencies(self, body: Dict[str, Any]) -> Dict[str, Any]:
-        workspace_path = _string_field(body, "workspacePath")
-        if not workspace_path:
-            raise tornado.web.HTTPError(400, log_message="Missing workspace path")
-
-        workspace_dir = _resolve_workspace_dir(self.server_app, workspace_path)
-
-        manifest = _find_manifest(workspace_dir)
-        if not manifest.exists():
-            raise tornado.web.HTTPError(400, log_message="Workspace manifest does not exist")
-
-        # Nebi currently runs only the default environment in each workspace.
-        if _string_field(body, "environment") not in ("", "default"):
-            raise tornado.web.HTTPError(
-                400,
-                log_message="Nebi only supports the default environment. "
-                "Open this workspace in Nebi.",
-            )
-
-        dependencies = [
-            item
-            for item in body.get("missingDependencies", [])
-            if isinstance(item, str) and item
-        ]
-        if (
-            body.get("repair") is True
-            and _string_field(body, "notReadyReason") == "kernel-not-installed"
-        ):
-            kernel_dependencies = body.get("kernelDependencies", [])
-            if not isinstance(kernel_dependencies, list) or any(
-                not isinstance(package, str)
-                or not package.strip()
-                or package.strip().startswith("-")
-                for package in kernel_dependencies
-            ):
-                raise tornado.web.HTTPError(
-                    400, log_message="kernelDependencies must be a list of non-empty package specifications."
-                )
-            dependencies += kernel_dependencies or self.nebi_config.kernel_dependencies
-
-        if body.get("repair") is True and not dependencies:
-            raise tornado.web.HTTPError(
-                400, log_message="No automatic repair is available. Open this environment in Nebi."
-            )
-
-        if not dependencies:
-            raise tornado.web.HTTPError(
-                400,
-                log_message="Environment installation is managed by Nebi. "
-                "Use the Nebi workspace install API.",
-            )
-
-        cmd = ["pixi", "add", "--manifest-path", str(manifest)]
-        cmd.extend(dependencies)
-
-        return _run_command(cmd, cwd=workspace_dir)
 
 class NebiCapabilitiesHandler(APIHandler):
+    def initialize(self, server_app):
+        self.nebi_config = NebiConfig(config=server_app.config)
+
     @tornado.web.authenticated
     def get(self):
         self.finish(
             json.dumps(
                 {
                     "nebi": shutil.which("nebi") is not None,
-                    "pixi": shutil.which("pixi") is not None,
+                    "kernelDependencies": self.nebi_config.kernel_dependencies,
                 }
             )
         )
@@ -185,72 +121,11 @@ def _string_field(body: Dict[str, Any], key: str) -> str:
     return value if isinstance(value, str) else ""
 
 
-def _find_manifest(workspace_dir: Path) -> Path:
-    for name in ("pixi.toml", "pyproject.toml"):
-        path = workspace_dir / name
-        if path.exists():
-            return path
-    return workspace_dir / "pixi.toml"
-
-
 def _validate_nebi_field(
     value: str, pattern: re.Pattern[str], field: str
 ) -> None:
     if not pattern.fullmatch(value):
         raise tornado.web.HTTPError(400, log_message=f"Invalid Nebi {field}")
-
-
-def _server_root(server_app) -> Path:
-    root = getattr(server_app, "root_dir", None) or getattr(
-        getattr(server_app, "contents_manager", None), "root_dir", ""
-    )
-    return Path(root).resolve()
-
-
-def _resolve_workspace_dir(server_app, workspace_path: str) -> Path:
-    root_path = _server_root(server_app)
-    workspace_dir = Path(workspace_path)
-    if not workspace_dir.is_absolute():
-        workspace_dir = root_path / workspace_dir
-    resolved_dir = workspace_dir.resolve()
-
-    try:
-        resolved_dir.relative_to(root_path)
-    except ValueError:
-        # Nebi workspaces may live on a separate volume from the file browser.
-        # Trust only an exact path from server-side discovery, not request metadata.
-        manager = getattr(server_app, "kernel_spec_manager", None)
-        if manager is not None:
-            # Discovery may mutate its registry. Use an independent instance so
-            # workers cannot race each other or Jupyter's live kernelspec handler.
-            options = deepcopy(manager.trait_values(config=True))
-            # This deprecated alias can overwrite allowed_kernelspecs at creation.
-            options.pop("whitelist", None)
-            options["kernel_dirs"] = list(manager.kernel_dirs)
-            manager = type(manager)(
-                parent=manager.parent, config=manager.config, **options
-            )
-        specs = manager.get_all_specs() if manager is not None else {}
-        for kernel in specs.values():
-            metadata = kernel["spec"].get("metadata", {})
-            path = metadata.get("nebi_workspace_path")
-            if (
-                isinstance(path, str)
-                and Path(path).is_absolute()
-                and Path(path).resolve() == resolved_dir
-            ):
-                break
-        else:
-            raise tornado.web.HTTPError(
-                400,
-                log_message="Workspace path is outside the Jupyter file browser root "
-                "and is not a discovered Nebi workspace",
-            )
-
-    if not resolved_dir.is_dir():
-        raise tornado.web.HTTPError(400, log_message="Workspace path does not exist")
-
-    return resolved_dir
 
 
 def _run_command(cmd: List[str], cwd: Optional[Path] = None) -> Dict[str, Any]:
@@ -303,16 +178,11 @@ def setup_handlers(web_app, server_app):
             KernelDiscoveryRefreshHandler,
             {"server_app": server_app},
         ),
-        (url_path_join(nebi_url, "capabilities"), NebiCapabilitiesHandler),
+        (url_path_join(nebi_url, "capabilities"), NebiCapabilitiesHandler,
+         {"server_app": server_app}),
         (
             url_path_join(nebi_url, "pull"),
             NebiActionHandler,
-            {"action": "pull", "server_app": server_app},
-        ),
-        (
-            url_path_join(nebi_url, "install-dependencies"),
-            NebiActionHandler,
-            {"action": "install-dependencies", "server_app": server_app},
         ),
     ]
     web_app.add_handlers(host_pattern, handlers)

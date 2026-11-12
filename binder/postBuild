@@ -19,6 +19,7 @@ from pathlib import Path
 ROOT = Path.cwd()
 PREFIX = Path(os.environ.get("CONDA_PREFIX", sys.prefix))
 NEBI_DEMO_WORKSPACE = ROOT / "binder" / "nebi-workspaces" / "launchpad-demo"
+NEBI_REPAIR_WORKSPACE = NEBI_DEMO_WORKSPACE.with_name("launchpad-repair-demo")
 NEBI_DATA_DIR = NEBI_DEMO_WORKSPACE.parent / ".nebi"
 NEBI_CLI_ENV = {**os.environ, "NEBI_DATA_DIR": str(NEBI_DATA_DIR)}
 KERNELS_PATH = PREFIX / "share" / "jupyter" / "kernels"
@@ -29,7 +30,7 @@ JUPYTER_CONFIG_PATH = NEBI_DEMO_WORKSPACE.parent / "jupyter_server_config.json"
 def _sample_workspace_metadata(name, **metadata):
     return {
         "nebi_workspace": f"nebari/{name}",
-        "nebi_workspace_path": str(NEBI_DEMO_WORKSPACE.resolve()),
+        "nebi_workspace_path": "",
         "pixi_environment": "default",
         "nebi_source": "local",
         "nebi_local_version": None,
@@ -41,7 +42,8 @@ def _sample_workspace_metadata(name, **metadata):
     }
 
 
-# Synthetic rows using the kernelspec metadata emitted by nb-nebi-kernels.
+# Display-only rows using the kernelspec metadata emitted by nb-nebi-kernels.
+# Real workspaces below provide the Install and Attempt fix examples.
 # Keep display-only fields (nebi_version/nebi_status) out of these fixtures.
 # Schema: https://github.com/nebari-dev/nb-nebi-kernels/blob/v0.3/src/nb_nebi_kernels/manager.py#L433-L457
 SAMPLE_KERNELS = [
@@ -62,9 +64,8 @@ SAMPLE_KERNELS = [
         _sample_workspace_metadata(
             "my-project",
             nebi_local_version="1.0.0",
-            nebi_state="local-missing-deps",
-            nebi_not_ready_reason="missing-dependencies",
-            nebi_missing_dependencies=["ipykernel"],
+            nebi_state="outdated",
+            nebi_not_ready_reason="local-version-behind-remote",
             nebi_remote_version="1.1.0",
             nebi_outdated=True,
         ),
@@ -75,8 +76,7 @@ SAMPLE_KERNELS = [
         _sample_workspace_metadata(
             "env5",
             nebi_local_version="1.2.1",
-            nebi_state="local-missing-deps",
-            nebi_not_ready_reason="kernel-not-installed",
+            nebi_state="ready",
         ),
     ),
     (
@@ -160,17 +160,25 @@ def _nebi_workspace_tracked(path):
     return False
 
 
-def _create_nebi_demo_workspace():
-    """Create a small tracked Nebi/Pixi workspace for Binder previews."""
+def _create_nebi_demo_workspaces():
+    """Create real Install and Attempt fix examples for Binder previews."""
     NEBI_DEMO_WORKSPACE.parent.mkdir(exist_ok=True, parents=True)
-    if not (NEBI_DEMO_WORKSPACE / "pixi.toml").exists():
-        _("pixi", "init", "--format", "pixi", str(NEBI_DEMO_WORKSPACE))
+    for workspace, package in (
+        (NEBI_DEMO_WORKSPACE, "ipykernel"),
+        (NEBI_REPAIR_WORKSPACE, "python"),
+    ):
+        if not (workspace / "pixi.toml").exists():
+            _("pixi", "init", "--format", "pixi", str(workspace))
 
-    workspace_path = NEBI_DEMO_WORKSPACE.resolve()
-    if not (workspace_path / "pixi.lock").exists():
-        _("pixi", "add", "--no-install", "ipykernel", cwd=workspace_path)
-    if not _nebi_workspace_tracked(workspace_path):
-        _("nebi", "init", cwd=workspace_path, env=NEBI_CLI_ENV)
+        workspace_path = workspace.resolve()
+        if not (workspace_path / "pixi.lock").exists():
+            _("pixi", "add", "--no-install", package, cwd=workspace_path)
+        if workspace == NEBI_REPAIR_WORKSPACE:
+            # An installed Python-only environment has no Jupyter kernel yet.
+            # Attempt fix adds ipykernel and discovery replaces the placeholder.
+            _("pixi", "install", "--locked", cwd=workspace_path)
+        if not _nebi_workspace_tracked(workspace_path):
+            _("nebi", "init", cwd=workspace_path, env=NEBI_CLI_ENV)
 
 
 def _configure_nebi():
@@ -273,8 +281,8 @@ _(sys.executable, "-m", "pip", "check")
 _(sys.executable, "-m", "pip", "install", "-e", ".")
 _(sys.executable, "-m", "jupyter", "labextension", "develop", "--overwrite", ".")
 
-# create a small nebi workspace so Binder previews show nebi kernel metadata
-_create_nebi_demo_workspace()
+# create real Nebi workspaces for Binder's Install and Attempt fix examples
+_create_nebi_demo_workspaces()
 _configure_nebi()
 _create_sample_kernels()
 
