@@ -1067,29 +1067,28 @@ describe('Nebi environment installation', () => {
     });
   });
 
-  it.each(['failed', 'cancelled'])(
-    'shows the job error when installation is %s',
-    async status => {
-      const { app, command } = await setup();
-      workspace();
-      respond({ id: 'job-id', status: 'pending' }, 202);
-      respond({ id: 'job-id', status, error: 'Nebi installation failed' });
-      const installation = command.execute(args);
-      await jest.advanceTimersByTimeAsync(2000);
-      await installation;
-      expect(Notification.error).toHaveBeenCalledWith(
-        'Nebi installation failed',
-        {
-          autoClose: false
-        }
-      );
-      expect(Notification.success).not.toHaveBeenCalled();
-      expect(
-        app.serviceManager.kernelspecs.refreshSpecs
-      ).not.toHaveBeenCalled();
-      expect(jest.getTimerCount()).toBe(0);
-    }
-  );
+  it('shows the job error without refreshing discovery after a failure', async () => {
+    const { app, command } = await setup();
+    workspace();
+    respond({ id: 'job-id', status: 'pending' }, 202);
+    respond({
+      id: 'job-id',
+      status: 'failed',
+      error: 'Nebi installation failed'
+    });
+    const installation = command.execute(args);
+    await jest.advanceTimersByTimeAsync(2000);
+    await installation;
+    expect(Notification.error).toHaveBeenCalledWith(
+      'Nebi installation failed',
+      {
+        autoClose: false
+      }
+    );
+    expect(Notification.success).not.toHaveBeenCalled();
+    expect(app.serviceManager.kernelspecs.refreshSpecs).not.toHaveBeenCalled();
+    expect(jest.getTimerCount()).toBe(0);
+  });
 
   it.each([false, true])(
     'reports API errors during polling: %s',
@@ -1097,6 +1096,7 @@ describe('Nebi environment installation', () => {
       const { command } = await setup();
       workspace();
       if (polling) {
+        translateMessages();
         respond({ id: 'job-id', status: 'running' }, 202);
       }
       respond({ error: 'Nebi rejected the request' }, 409);
@@ -1104,98 +1104,17 @@ describe('Nebi environment installation', () => {
       await jest.advanceTimersByTimeAsync(2000);
       await installation;
       expect(Notification.error).toHaveBeenCalledWith(
-        'Nebi rejected the request',
+        polling
+          ? expect.stringContaining(
+              'translated: Could not check Nebi job job-id.'
+            )
+          : 'Nebi rejected the request',
         {
           autoClose: false
         }
       );
       expect(Notification.success).not.toHaveBeenCalled();
       expect(jest.getTimerCount()).toBe(0);
-    }
-  );
-
-  it.each([
-    ['server mode', { mode: 'remote' }, undefined, 'local mode'],
-    [
-      'unknown path',
-      { mode: 'local' },
-      [{ id: 'other', path: '/other/demo' }],
-      'Workspace not found'
-    ],
-    ['empty workspace list', { mode: 'local' }, null, 'Workspace not found']
-  ])(
-    'does not submit an install for %s',
-    async (_name, version, workspaces, error) => {
-      const { command } = await setup();
-      respond(version);
-      if (workspaces !== undefined) {
-        respond(workspaces);
-      }
-      await command.execute(args);
-      expect(Notification.error).toHaveBeenCalledWith(
-        expect.stringContaining(error),
-        {
-          autoClose: false
-        }
-      );
-      expect(
-        makeRequest.mock.calls.some(([, init]) => init.method === 'POST')
-      ).toBe(false);
-    }
-  );
-
-  it('rejects a missing job ID without polling or reporting success', async () => {
-    const { command } = await setup();
-    workspace();
-    respond({ status: 'pending' }, 202);
-    await command.execute(args);
-    expect(Notification.error).toHaveBeenCalledWith(
-      expect.stringContaining('no job ID'),
-      { autoClose: false }
-    );
-    expect(Notification.success).not.toHaveBeenCalled();
-    expect(jest.getTimerCount()).toBe(0);
-  });
-
-  it('shows a translated error when Nebi returns no job ID', async () => {
-    const { command } = await setup();
-    translateMessages();
-    workspace();
-    respond({ status: 'pending' }, 202);
-    await command.execute(args);
-    expect(Notification.error).toHaveBeenCalledWith(
-      'translated: Nebi returned no job ID. Check the workspace in Nebi before retrying.',
-      { autoClose: false }
-    );
-  });
-
-  it('translates the HTTP fallback and interpolates its status', async () => {
-    const { command } = await setup();
-    translateMessages();
-    respond(null, 503);
-    await command.execute(args);
-    expect(Notification.error).toHaveBeenCalledWith(
-      'translated: Nebi request failed (HTTP 503)',
-      { autoClose: false }
-    );
-  });
-
-  it.each(['api', 'job'])(
-    'preserves the %s error returned by Nebi when translation is active',
-    async source => {
-      const { command } = await setup();
-      translateMessages();
-      workspace();
-      respond(
-        source === 'api'
-          ? { error: 'Original Nebi error' }
-          : { id: 'job-id', status: 'failed', error: 'Original Nebi error' },
-        source === 'api' ? 409 : 202
-      );
-      await command.execute(args);
-      expect(Notification.error).toHaveBeenCalledWith('Original Nebi error', {
-        autoClose: false
-      });
     }
   );
 

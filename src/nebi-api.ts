@@ -86,10 +86,22 @@ export async function runNebiJob(
   const jobId = job.id;
   while (job.status === 'pending' || job.status === 'running') {
     await new Promise(resolve => setTimeout(resolve, 2000));
-    job = await requestNebi<INebiJob>(
-      `jobs/${encodeURIComponent(jobId)}`,
-      trans
-    );
+    try {
+      job = await requestNebi<INebiJob>(
+        `jobs/${encodeURIComponent(jobId)}`,
+        trans
+      );
+    } catch (error) {
+      const message = trans.__(
+        'Could not check Nebi job %1. It may still be running. Check Nebi before retrying.',
+        jobId
+      );
+      throw new Error(
+        error instanceof Error && error.message
+          ? `${message}\n${error.message}`
+          : message
+      );
+    }
   }
   if (job.status !== 'completed') {
     throw new Error(

@@ -38,7 +38,7 @@ To install the extension, execute:
 pip install jupyterlab-launchpad
 ```
 
-After installation you should restart JupyterLab (or jupyter server if using a remove server in JupyterLab Desktop).
+After installation you should restart JupyterLab (or jupyter server if using a remote server in JupyterLab Desktop).
 
 ## Nebi integration
 
