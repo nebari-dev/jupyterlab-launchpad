@@ -76,7 +76,7 @@ import {
   NEBI_JOB_COMPLETED_MESSAGE,
   nebiKernelTablePlugin
 } from '../components/nebi';
-import { requestAPI, refreshKernelsWithInvalidation } from '../handler';
+import { refreshKernelsWithInvalidation, requestAPI } from '../handler';
 import { repairNebiEnvironment } from '../nebi-repair';
 import { addKernelRefreshMessageListener } from '../kernel-refresh-messages';
 import { IKernelItem } from '../types';
@@ -617,7 +617,7 @@ describe('LaunchpadKernelTable', () => {
       (requestAPI as jest.Mock).mockResolvedValueOnce(capabilities);
       const { app, command } = await setupInstall();
       const args = { workspacePath: '/tmp/demo' };
-      expect(command.isEnabled(args)).toBe(capabilities.pixi);
+      expect(command.isEnabled(args)).toBe(true);
       expect(command.isEnabled({ ...args, repair: true })).toBe(true);
       expect(
         command.isEnabled({ ...args, missingDependencies: ['ipykernel'] })
@@ -639,7 +639,7 @@ describe('LaunchpadKernelTable', () => {
     }
   );
 
-  it('requires a proxy for repairs while plain installation still uses Pixi', async () => {
+  it('requires a proxy for repairs', async () => {
     jest.clearAllMocks();
     (ServerConnection.makeRequest as jest.Mock).mockResolvedValueOnce({
       ok: true,
@@ -647,7 +647,7 @@ describe('LaunchpadKernelTable', () => {
     });
     const { command } = await setupInstall();
     const args = { workspacePath: '/tmp/demo' };
-    expect(command.isEnabled(args)).toBe(true);
+    expect(command.isEnabled(args)).toBe(false);
     expect(command.isEnabled({ ...args, repair: true })).toBe(false);
     expect(
       command.isEnabled({ ...args, missingDependencies: ['ipykernel'] })
@@ -733,14 +733,8 @@ describe('LaunchpadKernelTable', () => {
       workspacePath: '/tmp/demo',
       environment: 'other'
     };
-    expect(command.isEnabled(installArgs)).toBe(true);
-    expect(command.isVisible(installArgs)).toBe(true);
-    await command.execute(installArgs);
-    expect(requestAPI).toHaveBeenCalledWith('nebi/install-dependencies', {
-      method: 'POST',
-      body: JSON.stringify(installArgs),
-      headers: { 'Content-Type': 'application/json' }
-    });
+    expect(command.isEnabled(installArgs)).toBe(false);
+    expect(command.isVisible(installArgs)).toBe(false);
   });
 
   it('opens the Nebi overview through server proxy', async () => {
@@ -944,5 +938,271 @@ describe('LaunchpadKernelTable', () => {
       trans: null as never
     });
     expect(builtInReadyActions.map(action => action.command)).toEqual([]);
+  });
+});
+
+describe('Nebi environment installation', () => {
+  const makeRequest = ServerConnection.makeRequest as jest.Mock;
+  const args = {
+    workspacePath: '/tmp/demo',
+    environment: 'default',
+    missingDependencies: ['ipykernel']
+  };
+
+  function respond(data: unknown, status = 200) {
+    makeRequest.mockResolvedValueOnce({
+      ok: status < 400,
+      status,
+      json: async () => data
+    });
+  }
+
+  async function setup(
+    proxy = true,
+    capabilities = { nebi: true, pixi: true }
+  ) {
+    (requestAPI as jest.Mock).mockResolvedValueOnce(capabilities);
+    respond({ server_processes: proxy ? [{ name: 'nebi' }] : [] });
+    const registry = new LaunchpadKernelTable();
+    const app = activateNebiPlugin(registry);
+    const action = registry.getActions({
+      item: {} as IKernelItem,
+      metadata: {
+        nebi_status: 'not-installed',
+        nebi_workspace_path: args.workspacePath,
+        pixi_environment: args.environment,
+        nebi_missing_dependencies: args.missingDependencies
+      },
+      trans: null as never
+    })[0];
+    expect(action.label).toBe('Install');
+    const command = app.commands.addCommand.mock.calls.find(
+      ([id]) => id === action.command
+    )![1];
+    expect(command.isEnabled(args)).toBe(false);
+    await settlePromises();
+    return { app, command };
+  }
+
+  function workspace() {
+    respond({ mode: 'local' });
+    respond([
+      { id: 'wrong-id', path: '/tmp/demo-other' },
+      { id: 'workspace-id', path: '/tmp/demo' }
+    ]);
+  }
+
+  function translateMessages() {
+    const bundle = nullTranslator.load('jupyterlab-launchpad');
+    const translate = bundle.__.bind(bundle);
+    jest
+      .spyOn(bundle, '__')
+      .mockImplementation((...values) => `translated: ${translate(...values)}`);
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    makeRequest.mockReset();
+    (requestAPI as jest.Mock).mockReset().mockResolvedValue({});
+    jest.useFakeTimers();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
+  it('enables Install through the proxy without requiring either CLI capability', async () => {
+    const { command } = await setup(true, { nebi: false, pixi: false });
+    expect(command.isVisible(args)).toBe(true);
+    expect(command.isEnabled(args)).toBe(true);
+  });
+
+  it('submits through the proxy and refreshes discovery only after the job completes', async () => {
+    const { app, command } = await setup();
+    expect(command.isEnabled(args)).toBe(true);
+    workspace();
+    respond({ id: 'job/id', status: 'pending' }, 202);
+    respond({ id: 'job/id', status: 'running' });
+    respond({ id: 'job/id', status: 'completed' });
+
+    const installation = command.execute(args);
+    await jest.advanceTimersByTimeAsync(2000);
+    expect(requestAPI).not.toHaveBeenCalledWith(
+      'nebi/install-dependencies',
+      expect.anything()
+    );
+    expect(makeRequest).toHaveBeenCalledWith(
+      'http://example.com/user/demo/nebi/api/v1/workspaces/workspace-id/install',
+      { method: 'POST' },
+      expect.objectContaining({ baseUrl: 'http://example.com/user/demo/' })
+    );
+    expect(Notification.emit).toHaveBeenCalledWith(
+      'Installing environment...',
+      'in-progress',
+      { autoClose: false }
+    );
+    expect(Notification.success).not.toHaveBeenCalled();
+    expect(refreshKernelsWithInvalidation).not.toHaveBeenCalled();
+    expect(app.serviceManager.kernelspecs.refreshSpecs).not.toHaveBeenCalled();
+
+    await jest.advanceTimersByTimeAsync(2000);
+    await installation;
+    expect(
+      makeRequest.mock.calls.filter(([url]) => url.endsWith('/jobs/job%2Fid'))
+    ).toHaveLength(2);
+    expect(refreshKernelsWithInvalidation).toHaveBeenCalledTimes(1);
+    expect(app.serviceManager.kernelspecs.refreshSpecs).toHaveBeenCalledTimes(
+      1
+    );
+    expect(Notification.dismiss).toHaveBeenCalledWith('pending-id');
+    expect(Notification.success).toHaveBeenCalledWith('Environment installed', {
+      autoClose: 3000
+    });
+  });
+
+  it.each(['failed', 'cancelled'])(
+    'shows the job error when installation is %s',
+    async status => {
+      const { app, command } = await setup();
+      workspace();
+      respond({ id: 'job-id', status: 'pending' }, 202);
+      respond({ id: 'job-id', status, error: 'Nebi installation failed' });
+      const installation = command.execute(args);
+      await jest.advanceTimersByTimeAsync(2000);
+      await installation;
+      expect(Notification.error).toHaveBeenCalledWith(
+        'Nebi installation failed',
+        {
+          autoClose: false
+        }
+      );
+      expect(Notification.success).not.toHaveBeenCalled();
+      expect(
+        app.serviceManager.kernelspecs.refreshSpecs
+      ).not.toHaveBeenCalled();
+      expect(jest.getTimerCount()).toBe(0);
+    }
+  );
+
+  it.each([false, true])(
+    'reports API errors during polling: %s',
+    async polling => {
+      const { command } = await setup();
+      workspace();
+      if (polling) {
+        respond({ id: 'job-id', status: 'running' }, 202);
+      }
+      respond({ error: 'Nebi rejected the request' }, 409);
+      const installation = command.execute(args);
+      await jest.advanceTimersByTimeAsync(2000);
+      await installation;
+      expect(Notification.error).toHaveBeenCalledWith(
+        'Nebi rejected the request',
+        {
+          autoClose: false
+        }
+      );
+      expect(Notification.success).not.toHaveBeenCalled();
+      expect(jest.getTimerCount()).toBe(0);
+    }
+  );
+
+  it.each([
+    ['server mode', { mode: 'remote' }, undefined, 'local mode'],
+    [
+      'unknown path',
+      { mode: 'local' },
+      [{ id: 'other', path: '/other/demo' }],
+      'Workspace not found'
+    ],
+    ['empty workspace list', { mode: 'local' }, null, 'Workspace not found']
+  ])(
+    'does not submit an install for %s',
+    async (_name, version, workspaces, error) => {
+      const { command } = await setup();
+      respond(version);
+      if (workspaces !== undefined) {
+        respond(workspaces);
+      }
+      await command.execute(args);
+      expect(Notification.error).toHaveBeenCalledWith(
+        expect.stringContaining(error),
+        {
+          autoClose: false
+        }
+      );
+      expect(
+        makeRequest.mock.calls.some(([, init]) => init.method === 'POST')
+      ).toBe(false);
+    }
+  );
+
+  it('rejects a missing job ID without polling or reporting success', async () => {
+    const { command } = await setup();
+    workspace();
+    respond({ status: 'pending' }, 202);
+    await command.execute(args);
+    expect(Notification.error).toHaveBeenCalledWith(
+      expect.stringContaining('no job ID'),
+      { autoClose: false }
+    );
+    expect(Notification.success).not.toHaveBeenCalled();
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('shows a translated error when Nebi returns no job ID', async () => {
+    const { command } = await setup();
+    translateMessages();
+    workspace();
+    respond({ status: 'pending' }, 202);
+    await command.execute(args);
+    expect(Notification.error).toHaveBeenCalledWith(
+      'translated: Nebi returned no job ID. Check the workspace in Nebi before retrying.',
+      { autoClose: false }
+    );
+  });
+
+  it('translates the HTTP fallback and interpolates its status', async () => {
+    const { command } = await setup();
+    translateMessages();
+    respond(null, 503);
+    await command.execute(args);
+    expect(Notification.error).toHaveBeenCalledWith(
+      'translated: Nebi request failed (HTTP 503)',
+      { autoClose: false }
+    );
+  });
+
+  it.each(['api', 'job'])(
+    'preserves the %s error returned by Nebi when translation is active',
+    async source => {
+      const { command } = await setup();
+      translateMessages();
+      workspace();
+      respond(
+        source === 'api'
+          ? { error: 'Original Nebi error' }
+          : { id: 'job-id', status: 'failed', error: 'Original Nebi error' },
+        source === 'api' ? 409 : 202
+      );
+      await command.execute(args);
+      expect(Notification.error).toHaveBeenCalledWith('Original Nebi error', {
+        autoClose: false
+      });
+    }
+  );
+
+  it.each([
+    [false, args],
+    [true, { ...args, workspacePath: '' }],
+    [true, { ...args, environment: 'analysis' }]
+  ])('disables installation with proxy %s and args %j', async (proxy, body) => {
+    const { command } = await setup(proxy);
+    expect(command.isEnabled(body)).toBe(false);
+    expect(command.isVisible(body)).toBe(false);
+    await command.execute(body);
+    expect(makeRequest).toHaveBeenCalledTimes(1);
   });
 });

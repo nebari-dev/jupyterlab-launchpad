@@ -64,16 +64,34 @@ class NebiWorkspaceTests(unittest.TestCase):
                 self.assertEqual(_resolve_workspace_dir(self.server, path), workspace)
         self.manager.get_all_specs.assert_not_called()
 
-    def test_install_accepts_discovered_external_workspace(self):
+    def test_environment_install_does_not_run_pixi(self):
         self.discover(str(self.workspace))
         handler = Mock(spec=NebiActionHandler)
         NebiActionHandler.initialize(handler, "install-dependencies", self.server)
-        with patch("jupyterlab_launchpad.handlers._run_command", return_value={"ok": True}) as run:
-            result = NebiActionHandler._install_dependencies(handler, {"workspacePath": str(self.workspace)})
-        run.assert_called_once_with(
-            ["pixi", "install", "--manifest-path", str(self.manifest)], cwd=self.workspace)
-        self.assertEqual(result, {"ok": True})
-        handler.finish.assert_not_called()
+        with patch("jupyterlab_launchpad.handlers._run_command") as run:
+            with self.assertRaisesRegex(HTTPError, "installation is managed by Nebi"):
+                NebiActionHandler._install_dependencies(
+                    handler, {"workspacePath": str(self.workspace)}
+                )
+            run.assert_not_called()
+
+    def test_named_environment_does_not_modify_default_environment(self):
+        self.discover(str(self.workspace))
+        for dependencies in ([], ["ipykernel"]):
+            with self.subTest(dependencies=dependencies):
+                handler = Mock(spec=NebiActionHandler)
+                NebiActionHandler.initialize(handler, "install-dependencies", self.server)
+                with patch("jupyterlab_launchpad.handlers._run_command") as run:
+                    with self.assertRaisesRegex(HTTPError, "only supports the default"):
+                        NebiActionHandler._install_dependencies(
+                            handler,
+                            {
+                                "workspacePath": str(self.workspace),
+                                "environment": "analysis",
+                                "missingDependencies": dependencies,
+                            },
+                        )
+                    run.assert_not_called()
 
     def test_both_actions_reject_undiscovered_external_workspace(self):
         for dependencies in ([], ["ipykernel"]):

@@ -129,8 +129,10 @@ class NebiConcurrencyTests(AsyncHTTPTestCase):
                 release.set()
                 response = await operation
 
-        self.assertEqual(response.code, 500 if fail else 200)
-        if fail:
+        self.assertEqual(response.code, 400 if lookup else 500 if fail else 200)
+        if lookup:
+            self.assertIn("package API", json.loads(response.body)["message"])
+        elif fail:
             self.assertEqual(
                 json.loads(response.body)["message"], "controlled command failure"
             )
@@ -147,15 +149,23 @@ class NebiConcurrencyTests(AsyncHTTPTestCase):
         )
 
     @gen_test(timeout=10)
-    async def test_install_does_not_block_unrelated_requests(self):
-        await self.assert_responsive(
-            "install-dependencies", {"workspacePath": str(self.workspace)}
-        )
+    async def test_legacy_install_is_rejected_without_running_commands(self):
+        with patch(
+            "jupyterlab_launchpad.handlers._run_command", return_value={"ok": True}
+        ) as run:
+            response = await self.request(
+                "/install-dependencies", {"workspacePath": str(self.workspace)}
+            )
+            self.assertEqual(response.code, 400)
+            self.assertIn("managed by Nebi", json.loads(response.body)["message"])
+            run.assert_not_called()
 
     @gen_test(timeout=10)
     async def test_workspace_discovery_does_not_block_unrelated_requests(self):
         await self.assert_responsive(
-            "install-dependencies", {"workspacePath": str(self.workspace)}, lookup=True
+            "install-dependencies",
+            {"workspacePath": str(self.workspace), "missingDependencies": ["ipykernel"]},
+            lookup=True,
         )
 
     @gen_test(timeout=10)
@@ -189,7 +199,10 @@ class NebiConcurrencyTests(AsyncHTTPTestCase):
         ), patch(
             "jupyterlab_launchpad.handlers._run_command", return_value={"ok": True}
         ):
-            body = {"workspacePath": str(self.workspace)}
+            body = {
+                "workspacePath": str(self.workspace),
+                "missingDependencies": ["ipykernel"],
+            }
             first = self.request("/install-dependencies", body)
             try:
                 while not started.is_set():
@@ -198,13 +211,13 @@ class NebiConcurrencyTests(AsyncHTTPTestCase):
                 self.assertEqual(native.code, 200)
                 self.assertIn("nebi-demo", json.loads(native.body)["kernelspecs"])
                 second = await self.request("/install-dependencies", body)
-                self.assertEqual(second.code, 200)
+                self.assertEqual(second.code, 400)
                 self.assertEqual((await self.request("/probe")).code, 200)
                 self.assertFalse(first.done())
             finally:
                 release.set()
                 response = await first
-            self.assertEqual(response.code, 200)
+            self.assertEqual(response.code, 400)
 
     @gen_test
     async def test_validation_errors_do_not_run_commands(self):

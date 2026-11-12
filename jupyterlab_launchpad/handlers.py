@@ -132,9 +132,13 @@ class NebiActionHandler(APIHandler):
             raise tornado.web.HTTPError(
                 400, log_message="Use Nebi's package API to create a versioned repair."
             )
-        cmd = ["pixi", "install", "--manifest-path", str(manifest)]
 
-        return _run_command(cmd, cwd=workspace_dir)
+        raise tornado.web.HTTPError(
+            400,
+            log_message="Environment installation is managed by Nebi. "
+            "Use the Nebi workspace install API.",
+        )
+
 
 class NebiCapabilitiesHandler(APIHandler):
     def initialize(self, server_app):
