@@ -50,6 +50,17 @@ Jupyter server's `PATH`. See [nb-nebi-kernels](https://github.com/nebari-dev/nb-
 for workspace setup. The **Open in Nebi** action also requires a configured
 `nebi` entry in Jupyter Server Proxy.
 
+**Install** also requires the `nebi` proxy entry and Nebi running in local mode.
+See [Binder's `postBuild` script](binder/postBuild) for an example configuration,
+including the proxy entry and `NEBI_DATABASE_DSN`.
+
+Launchpad matches the local workspace path in Nebi, starts its workspace install
+job, polls until it finishes, and refreshes kernel discovery on success. Nebi
+manages the installation state; failures show the job's error. Closing or
+reloading the page stops progress tracking but does not cancel the accepted job.
+Reopening the page does not resume progress tracking automatically. Check the job
+in Nebi before retrying after reopening the page or a connection failure.
+
 Nebi actions support the workspace's default environment. When a workspace has
 no Jupyter kernel, **Attempt fix** installs the packages configured on the server
 with `NebiConfig.kernel_dependencies` (default: `["ipykernel"]`). To use a different

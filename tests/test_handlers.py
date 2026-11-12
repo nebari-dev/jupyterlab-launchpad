@@ -46,34 +46,43 @@ class NebiWorkspaceTests(unittest.TestCase):
                 self.assertEqual(_resolve_workspace_dir(self.server, path), workspace)
         self.manager.get_all_specs.assert_not_called()
 
-    def test_both_actions_accept_discovered_external_workspace(self):
+    def test_dependency_repair_accepts_discovered_external_workspace(self):
         self.discover(str(self.workspace))
         self.server.config.NebiConfig.kernel_dependencies = ["custom-kernel"]
-        for dependencies, operation in (([], "install"), (["ipykernel"], "add")):
-            for environment in ("", "default"):
-                with self.subTest(operation=operation, environment=environment):
-                    handler = Mock(spec=NebiActionHandler)
-                    NebiActionHandler.initialize(handler, "install-dependencies", self.server)
-                    with patch(
-                        "jupyterlab_launchpad.handlers._run_command",
-                        return_value={"ok": True},
-                    ) as run:
-                        result = NebiActionHandler._install_dependencies(
-                            handler,
-                            {
-                                "workspacePath": str(self.workspace),
-                                "environment": environment,
-                                "missingDependencies": dependencies,
-                                "repair": bool(dependencies),
-                            },
-                        )
-                    run.assert_called_once_with(
-                        ["pixi", operation, "--manifest-path", str(self.manifest)]
-                        + dependencies,
-                        cwd=self.workspace,
+        for environment in ("", "default"):
+            with self.subTest(environment=environment):
+                handler = Mock(spec=NebiActionHandler)
+                NebiActionHandler.initialize(handler, "install-dependencies", self.server)
+                with patch(
+                    "jupyterlab_launchpad.handlers._run_command",
+                    return_value={"ok": True},
+                ) as run:
+                    result = NebiActionHandler._install_dependencies(
+                        handler,
+                        {
+                            "workspacePath": str(self.workspace),
+                            "environment": environment,
+                            "missingDependencies": ["ipykernel"],
+                            "repair": True,
+                        },
                     )
-                    self.assertEqual(result, {"ok": True})
-                    handler.finish.assert_not_called()
+                run.assert_called_once_with(
+                    ["pixi", "add", "--manifest-path", str(self.manifest), "ipykernel"],
+                    cwd=self.workspace,
+                )
+                self.assertEqual(result, {"ok": True})
+                handler.finish.assert_not_called()
+
+    def test_environment_install_does_not_run_pixi(self):
+        self.discover(str(self.workspace))
+        handler = Mock(spec=NebiActionHandler)
+        NebiActionHandler.initialize(handler, "install-dependencies", self.server)
+        with patch("jupyterlab_launchpad.handlers._run_command") as run:
+            with self.assertRaisesRegex(HTTPError, "installation is managed by Nebi"):
+                NebiActionHandler._install_dependencies(
+                    handler, {"workspacePath": str(self.workspace)}
+                )
+            run.assert_not_called()
 
     def test_named_environment_does_not_modify_default_environment(self):
         self.discover(str(self.workspace))
