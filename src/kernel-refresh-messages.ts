@@ -12,7 +12,8 @@ function getMessageType(data: unknown): string | undefined {
 
 export function addKernelRefreshMessageListener(
   app: JupyterFrontEnd,
-  messageTypes: readonly string[]
+  messageTypes: readonly string[],
+  shouldRefreshOnVisible?: () => boolean
 ): () => void {
   const acceptedMessageTypes = new Set(messageTypes);
   let inFlight: Promise<void> | null = null;
@@ -27,7 +28,7 @@ export function addKernelRefreshMessageListener(
     inFlight = refreshKernelSpecs(app)
       .catch(error => {
         console.error(
-          'Could not refresh kernels after completion message',
+          'Could not refresh kernels after a Nebi workspace change',
           error
         );
       })
@@ -53,8 +54,18 @@ export function addKernelRefreshMessageListener(
     run();
   };
 
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'visible' && shouldRefreshOnVisible?.()) {
+      run();
+    }
+  };
+
   window.addEventListener('message', listener);
+  if (shouldRefreshOnVisible) {
+    document.addEventListener('visibilitychange', onVisibilityChange);
+  }
   return () => {
     window.removeEventListener('message', listener);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
   };
 }

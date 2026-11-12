@@ -2,8 +2,7 @@
 
 set -e
 
-echo $@
-
 export NEBI_DATA_DIR="$PWD/binder/nebi-workspaces/.nebi"
+export JUPYTER_CONFIG_PATH="$PWD/binder/nebi-workspaces${JUPYTER_CONFIG_PATH:+:$JUPYTER_CONFIG_PATH}"
 
-exec jupyter-lab "${@:4}" --config binder/nebi-workspaces/jupyter_server_config.json
+exec "$@"

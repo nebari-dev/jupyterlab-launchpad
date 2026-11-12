@@ -136,6 +136,41 @@ describe('kernel refresh messages', () => {
     }
   });
 
+  it('refreshes when a tab with Nebi discovery becomes visible', async () => {
+    const app = createApp();
+    const visibility = jest.spyOn(document, 'visibilityState', 'get');
+    const canDiscover = jest.fn(() => false);
+    const removeListener = addKernelRefreshMessageListener(
+      app as never,
+      [MESSAGE_TYPE],
+      canDiscover
+    );
+
+    try {
+      visibility.mockReturnValue('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+      canDiscover.mockReturnValue(true);
+      visibility.mockReturnValue('hidden');
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(refreshKernelsWithInvalidation).not.toHaveBeenCalled();
+
+      visibility.mockReturnValue('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+      await flushPromises(6);
+      expect(refreshKernelsWithInvalidation).toHaveBeenCalledTimes(1);
+      expect(app.serviceManager.kernelspecs.refreshSpecs).toHaveBeenCalledTimes(
+        1
+      );
+
+      removeListener();
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(refreshKernelsWithInvalidation).toHaveBeenCalledTimes(1);
+    } finally {
+      removeListener();
+      visibility.mockRestore();
+    }
+  });
+
   it('logs refresh failures without skipping the client refresh', async () => {
     const error = new Error('boom');
     jest.mocked(refreshKernelsWithInvalidation).mockRejectedValueOnce(error);
@@ -161,7 +196,7 @@ describe('kernel refresh messages', () => {
         1
       );
       expect(consoleError).toHaveBeenCalledWith(
-        'Could not refresh kernels after completion message',
+        'Could not refresh kernels after a Nebi workspace change',
         error
       );
     } finally {

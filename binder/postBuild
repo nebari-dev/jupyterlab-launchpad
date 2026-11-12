@@ -59,39 +59,6 @@ SAMPLE_KERNELS = [
         ),
     ),
     (
-        "my-project",
-        "my-project",
-        _sample_workspace_metadata(
-            "my-project",
-            nebi_local_version="1.0.0",
-            nebi_state="outdated",
-            nebi_not_ready_reason="local-version-behind-remote",
-            nebi_remote_version="1.1.0",
-            nebi_outdated=True,
-        ),
-    ),
-    (
-        "env5",
-        "env5",
-        _sample_workspace_metadata(
-            "env5",
-            nebi_local_version="1.2.1",
-            nebi_state="ready",
-        ),
-    ),
-    (
-        "remote-template",
-        "remote-template",
-        _sample_workspace_metadata(
-            "remote-template",
-            nebi_state="remote-not-pulled",
-            nebi_source="remote",
-            nebi_workspace_path="",
-            nebi_remote_version="2.0.0",
-            nebi_not_ready_reason="workspace-not-pulled",
-        ),
-    ),
-    (
         "analytics-outdated",
         "analytics-outdated",
         _sample_workspace_metadata(
@@ -103,21 +70,6 @@ SAMPLE_KERNELS = [
             nebi_outdated=True,
         ),
     ),
-    *[
-        (
-            f"env{index}",
-            f"env{index}",
-            _sample_workspace_metadata(
-                f"env{index}",
-                nebi_local_version="1.2.1",
-                nebi_state="ready",
-                nebi_remote_version="1.2.1",
-                nebi_outdated=False,
-            ),
-        )
-        for index in range(1, 10)
-        if index != 5
-    ],
 ]
 
 
@@ -187,8 +139,6 @@ def _configure_nebi():
     if pixi is None:
         raise RuntimeError("Pixi must be available on PATH to configure Nebi.")
 
-    # Binder starts JupyterLab with an explicit config file. Include the gallery
-    # settings in that same file so the proxy and kernel manager are loaded.
     gallery_config = json.loads(
         (ROOT / "binder" / "jupyter_gallery_config.json").read_text(encoding="utf-8")
     )
@@ -196,15 +146,12 @@ def _configure_nebi():
         json.dumps(
             {
                 **gallery_config,
+                # The Nebi CLI already lists managed workspaces. Scanning their
+                # storage directory too lists them again by folder name.
                 "ServerApp": {
                     "kernel_spec_manager_class": (
                         "nb_nebi_kernels.NebiKernelSpecManager"
                     )
-                },
-                "NebiKernelSpecManager": {
-                    "workspace_discovery_roots": [
-                        str(NEBI_DEMO_WORKSPACE.parent.resolve())
-                    ]
                 },
                 "ServerProxy": {
                     "servers": {
