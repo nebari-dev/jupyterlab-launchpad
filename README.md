@@ -65,6 +65,12 @@ reloading the page stops progress tracking but does not cancel the accepted job.
 Reopening the page does not resume progress tracking automatically. Check the job
 in Nebi before retrying after reopening the page or a connection failure.
 
+Binder provides two real workspaces: `launchpad-demo` starts with **Install**,
+and `launchpad-repair-demo` starts with **Attempt fix** on an installed Python
+environment without a Jupyter kernel. After either action succeeds, discovery
+shows the workspace as ready and removes its action button. The other sample
+rows are display examples and do not point to these workspaces.
+
 Nebi actions support the workspace's default environment. When a workspace has
 no Jupyter kernel, **Attempt fix** installs the packages configured on the server
 with `NebiConfig.kernel_dependencies` (default: `["ipykernel"]`). To use a different

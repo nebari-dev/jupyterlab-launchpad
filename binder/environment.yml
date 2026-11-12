@@ -19,7 +19,8 @@ dependencies:
   - nodejs >=22.12,<23
   # additional packages for demos
   - nebi-cli =0.14
-  - pixi
+  # Match Nebi 0.14's bundled Pixi for compatible job/version lockfiles.
+  - pixi =0.58
   - pip
   - wheel
   # - ipywidgets
