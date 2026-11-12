@@ -468,11 +468,9 @@ describe('LaunchpadKernelTable', () => {
 
     const app = activateNebiPlugin(registry);
 
-    expect(addKernelRefreshMessageListener).toHaveBeenCalledWith(
-      app,
-      [NEBI_JOB_COMPLETED_MESSAGE],
-      expect.any(Function)
-    );
+    expect(addKernelRefreshMessageListener).toHaveBeenCalledWith(app, [
+      NEBI_JOB_COMPLETED_MESSAGE
+    ]);
   });
 
   it.each([

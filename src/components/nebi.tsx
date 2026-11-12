@@ -696,12 +696,6 @@ function registerNebiActionCommands(
   let capabilities: INebiActionCapabilities = {
     nebi: false
   };
-  // Nebi in a separate browser tab cannot send the embedded completion message.
-  addKernelRefreshMessageListener(
-    app,
-    [NEBI_JOB_COMPLETED_MESSAGE],
-    () => capabilities.nebi
-  );
   let nebiServerProxyPath: string | null = null;
   const refreshActionCommands = () => {
     commands.notifyCommandChanged(NebiCommandIDs.pull);
@@ -916,6 +910,8 @@ export const nebiKernelTablePlugin: JupyterFrontEndPlugin<void> = {
     settingRegistry: ISettingRegistry
   ) => {
     const trans = translator.load('jupyterlab-launchpad');
+    // Registered for the lifetime of the Nebi plugin.
+    addKernelRefreshMessageListener(app, [NEBI_JOB_COMPLETED_MESSAGE]);
     registerNebiActionCommands(app, trans, kernelTable, settingRegistry);
     kernelTable.registerIconFallbackTitleProvider(
       nebiIconFallbackTitleProvider
