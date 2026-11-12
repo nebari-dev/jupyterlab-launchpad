@@ -949,7 +949,7 @@ describe('Nebi environment installation', () => {
     respond({ id: 'job/id', status: 'completed' });
 
     const installation = command.execute(args);
-    await jest.advanceTimersByTimeAsync(500);
+    await jest.advanceTimersByTimeAsync(2000);
     expect(requestAPI).not.toHaveBeenCalledWith(
       'nebi/install-dependencies',
       expect.anything()
@@ -968,7 +968,7 @@ describe('Nebi environment installation', () => {
     expect(refreshKernelsWithInvalidation).not.toHaveBeenCalled();
     expect(app.serviceManager.kernelspecs.refreshSpecs).not.toHaveBeenCalled();
 
-    await jest.advanceTimersByTimeAsync(500);
+    await jest.advanceTimersByTimeAsync(2000);
     await installation;
     expect(
       makeRequest.mock.calls.filter(([url]) => url.endsWith('/jobs/job%2Fid'))
@@ -991,7 +991,7 @@ describe('Nebi environment installation', () => {
       respond({ id: 'job-id', status: 'pending' }, 202);
       respond({ id: 'job-id', status, error: 'Nebi installation failed' });
       const installation = command.execute(args);
-      await jest.advanceTimersByTimeAsync(500);
+      await jest.advanceTimersByTimeAsync(2000);
       await installation;
       expect(Notification.error).toHaveBeenCalledWith(
         'Nebi installation failed',
@@ -1017,7 +1017,7 @@ describe('Nebi environment installation', () => {
       }
       respond({ error: 'Nebi rejected the request' }, 409);
       const installation = command.execute(args);
-      await jest.advanceTimersByTimeAsync(500);
+      await jest.advanceTimersByTimeAsync(2000);
       await installation;
       expect(Notification.error).toHaveBeenCalledWith(
         'Nebi rejected the request',

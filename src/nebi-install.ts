@@ -102,7 +102,7 @@ export async function installNebiEnvironment(
   }
   const jobId = job.id;
   while (job.status === 'pending' || job.status === 'running') {
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 2000));
     job = await requestNebi<INebiJob>(
       `jobs/${encodeURIComponent(jobId)}`,
       trans

@@ -51,6 +51,9 @@ for workspace setup. The **Open in Nebi** action also requires a configured
 `nebi` entry in Jupyter Server Proxy.
 
 **Install** also requires the `nebi` proxy entry and Nebi running in local mode.
+See [Binder's `postBuild` script](binder/postBuild) for an example configuration,
+including the proxy entry and `NEBI_DATABASE_DSN`.
+
 Launchpad matches the local workspace path in Nebi, starts its workspace install
 job, polls until it finishes, and refreshes kernel discovery on success. Nebi
 manages the installation state; failures show the job's error. Closing or
