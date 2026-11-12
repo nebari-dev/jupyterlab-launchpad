@@ -539,7 +539,11 @@ describe('LaunchpadKernelTable', () => {
         repair
       });
       const body = (repairNebiEnvironment as jest.Mock).mock.calls[0][0];
-      expect(repairNebiEnvironment).toHaveBeenCalledWith(body, ['ipykernel']);
+      expect(repairNebiEnvironment).toHaveBeenCalledWith(
+        body,
+        ['ipykernel'],
+        nullTranslator.load('jupyterlab-launchpad')
+      );
       expect(body.kernelDependencies).toEqual(expected);
       expect(body.missingDependencies).toEqual(['numpy']);
     }
@@ -630,7 +634,8 @@ describe('LaunchpadKernelTable', () => {
       await command.execute({ ...args, missingDependencies: ['ipykernel'] });
       expect(repairNebiEnvironment).toHaveBeenCalledWith(
         { ...args, missingDependencies: ['ipykernel'] },
-        ['ipykernel']
+        ['ipykernel'],
+        nullTranslator.load('jupyterlab-launchpad')
       );
       if (!capabilities.nebi) {
         await pull.execute({ workspace: 'demo' });

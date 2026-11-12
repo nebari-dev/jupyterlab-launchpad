@@ -723,7 +723,7 @@ function registerNebiActionCommands(
 
   const canPull = (args: ReadonlyPartialJSONObject) =>
     capabilities.nebi && stringArg(args, 'workspace').length > 0;
-  const canInstallEnvironment = (args: ReadonlyPartialJSONObject) =>
+  const canUseNebiEnvironment = (args: ReadonlyPartialJSONObject) =>
     nebiServerProxyPath !== null &&
     stringArg(args, 'workspacePath').length > 0 &&
     (!args['environment'] || args['environment'] === 'default');
@@ -764,10 +764,10 @@ function registerNebiActionCommands(
   commands.addCommand(NebiCommandIDs.installEnvironment, {
     label: trans.__('Install'),
     caption: trans.__('Install environment through Nebi'),
-    isVisible: canInstallEnvironment,
-    isEnabled: canInstallEnvironment,
+    isVisible: canUseNebiEnvironment,
+    isEnabled: canUseNebiEnvironment,
     execute: async args => {
-      if (!canInstallEnvironment(args)) {
+      if (!canUseNebiEnvironment(args)) {
         return;
       }
       try {
@@ -790,10 +790,10 @@ function registerNebiActionCommands(
   commands.addCommand(NebiCommandIDs.installDependencies, {
     label: trans.__('Attempt fix'),
     caption: trans.__('Install missing dependencies'),
-    isVisible: canInstallEnvironment,
-    isEnabled: canInstallEnvironment,
+    isVisible: canUseNebiEnvironment,
+    isEnabled: canUseNebiEnvironment,
     execute: async args => {
-      if (!canInstallEnvironment(args)) {
+      if (!canUseNebiEnvironment(args)) {
         return;
       }
       try {
@@ -813,7 +813,8 @@ function registerNebiActionCommands(
           try {
             await repairNebiEnvironment(
               body,
-              capabilities.kernelDependencies ?? ['ipykernel']
+              capabilities.kernelDependencies ?? ['ipykernel'],
+              trans
             );
           } catch (error) {
             // Nebi may have saved a version before the operation failed.
