@@ -48,7 +48,6 @@ jest.mock('../handler', () => ({
   requestAPI: jest.fn(() =>
     Promise.resolve({
       nebi: true,
-      pixi: true,
       kernelDependencies: ['ipykernel']
     })
   )
@@ -133,7 +132,7 @@ describe('LaunchpadKernelTable', () => {
   it.each([false, true])(
     'uses Nebi availability (%s) for column defaults',
     async nebi => {
-      (requestAPI as jest.Mock).mockResolvedValueOnce({ nebi, pixi: true });
+      (requestAPI as jest.Mock).mockResolvedValueOnce({ nebi });
       const registry = new LaunchpadKernelTable();
       activateNebiPlugin(registry);
       await settlePromises();
@@ -610,15 +609,11 @@ describe('LaunchpadKernelTable', () => {
     }
   );
 
-  it.each([
-    { nebi: false, pixi: true },
-    { nebi: true, pixi: false },
-    { nebi: false, pixi: false }
-  ])(
-    'uses the proxy for repairs with CLI capabilities %j',
-    async capabilities => {
+  it.each([false, true])(
+    'uses the proxy for repairs with Nebi CLI available: %s',
+    async nebi => {
       jest.clearAllMocks();
-      (requestAPI as jest.Mock).mockResolvedValueOnce(capabilities);
+      (requestAPI as jest.Mock).mockResolvedValueOnce({ nebi });
       const { app, command } = await setupInstall();
       const args = { workspacePath: '/tmp/demo' };
       expect(command.isEnabled(args)).toBe(true);
@@ -629,7 +624,7 @@ describe('LaunchpadKernelTable', () => {
       const pull = app.commands.addCommand.mock.calls.find(
         ([id]) => id === NebiCommandIDs.pull
       )![1];
-      expect(pull.isEnabled({ workspace: 'demo' })).toBe(capabilities.nebi);
+      expect(pull.isEnabled({ workspace: 'demo' })).toBe(nebi);
       (requestAPI as jest.Mock).mockClear();
       await command.execute({ ...args, missingDependencies: ['ipykernel'] });
       expect(repairNebiEnvironment).toHaveBeenCalledWith(
@@ -637,7 +632,7 @@ describe('LaunchpadKernelTable', () => {
         ['ipykernel'],
         nullTranslator.load('jupyterlab-launchpad')
       );
-      if (!capabilities.nebi) {
+      if (!nebi) {
         await pull.execute({ workspace: 'demo' });
       }
       expect(requestAPI).not.toHaveBeenCalled();
@@ -962,10 +957,7 @@ describe('Nebi environment installation', () => {
     });
   }
 
-  async function setup(
-    proxy = true,
-    capabilities = { nebi: true, pixi: true }
-  ) {
+  async function setup(proxy = true, capabilities = { nebi: true }) {
     (requestAPI as jest.Mock).mockResolvedValueOnce(capabilities);
     respond({ server_processes: proxy ? [{ name: 'nebi' }] : [] });
     const registry = new LaunchpadKernelTable();
@@ -1018,8 +1010,8 @@ describe('Nebi environment installation', () => {
     jest.restoreAllMocks();
   });
 
-  it('enables Install through the proxy without requiring either CLI capability', async () => {
-    const { command } = await setup(true, { nebi: false, pixi: false });
+  it('enables Install through the proxy without requiring the Nebi CLI', async () => {
+    const { command } = await setup(true, { nebi: false });
     expect(command.isVisible(args)).toBe(true);
     expect(command.isEnabled(args)).toBe(true);
   });

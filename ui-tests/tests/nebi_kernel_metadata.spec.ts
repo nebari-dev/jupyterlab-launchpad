@@ -227,7 +227,6 @@ async function mockNebiEndpoints(
         contentType: 'application/json',
         body: JSON.stringify({
           nebi: true,
-          pixi: true,
           kernelDependencies: ['ipykernel']
         })
       });

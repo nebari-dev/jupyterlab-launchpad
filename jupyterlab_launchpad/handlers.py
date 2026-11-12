@@ -110,7 +110,6 @@ class NebiCapabilitiesHandler(APIHandler):
             json.dumps(
                 {
                     "nebi": shutil.which("nebi") is not None,
-                    "pixi": shutil.which("pixi") is not None,
                     "kernelDependencies": self.nebi_config.kernel_dependencies,
                 }
             )

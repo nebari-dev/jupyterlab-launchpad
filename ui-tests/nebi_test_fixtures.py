@@ -1,4 +1,4 @@
-"""External Nebi/Pixi fixtures for server-to-browser integration tests.
+"""External Nebi fixtures for server-to-browser integration tests.
 
 The production HTTP handlers, error serialization and frontend are not mocked.
 Tests create nebi-test.json inside their temporary workspace to expose a kernel.
@@ -41,14 +41,11 @@ class NebiTestKernelSpecManager(KernelSpecManager):
 
 
 def configure_nebi_fixtures(c):
-    """Provide deterministic Nebi/Pixi executables without installing packages."""
+    """Provide a Nebi CLI stub and API fixture without installing packages."""
     import os
 
-    cli_dir = Path(mkdtemp(prefix="launchpad-test-pixi-"))
+    cli_dir = Path(mkdtemp(prefix="launchpad-test-nebi-"))
     atexit.register(shutil.rmtree, cli_dir)
-    pixi = cli_dir / "pixi"
-    pixi.write_text(f"#!{sys.executable}\nimport sys\nsys.exit(0)\n")
-    pixi.chmod(0o755)
     nebi = cli_dir / "nebi"
     nebi.write_text(f"#!{sys.executable}\nimport sys\nsys.exit(0)\n")
     nebi.chmod(0o755)

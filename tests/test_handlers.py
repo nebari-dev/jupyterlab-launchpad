@@ -17,10 +17,18 @@ class NebiCapabilitiesTests(unittest.TestCase):
                     config.NebiConfig.kernel_dependencies = packages
                 handler = Mock(spec=NebiCapabilitiesHandler)
                 NebiCapabilitiesHandler.initialize(handler, SimpleNamespace(config=config))
-                with patch("jupyterlab_launchpad.handlers.shutil.which", return_value="/bin/tool"):
+                with patch(
+                    "jupyterlab_launchpad.handlers.shutil.which", return_value="/bin/tool"
+                ) as which:
                     NebiCapabilitiesHandler.get.__wrapped__(handler)
-                response = json.loads(handler.finish.call_args.args[0])
-                self.assertEqual(response["kernelDependencies"], ["ipykernel"] if packages is None else packages)
+                which.assert_called_once_with("nebi")
+                self.assertEqual(
+                    json.loads(handler.finish.call_args.args[0]),
+                    {
+                        "nebi": True,
+                        "kernelDependencies": ["ipykernel"] if packages is None else packages,
+                    },
+                )
 
 
 if __name__ == "__main__":

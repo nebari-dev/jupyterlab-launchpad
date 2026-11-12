@@ -43,7 +43,6 @@ export const NEBI_JOB_COMPLETED_MESSAGE = 'nebi:job-completed';
 
 interface INebiActionCapabilities {
   nebi: boolean;
-  pixi: boolean;
   kernelDependencies?: string[];
 }
 
@@ -695,8 +694,7 @@ function registerNebiActionCommands(
   };
   updateColumnDefaults(false);
   let capabilities: INebiActionCapabilities = {
-    nebi: false,
-    pixi: false
+    nebi: false
   };
   let nebiServerProxyPath: string | null = null;
   const refreshActionCommands = () => {

@@ -310,7 +310,6 @@ for (const nebi of [false, true]) {
         route.fulfill({
           json: {
             nebi,
-            pixi: nebi,
             kernelDependencies: ['ipykernel']
           }
         })

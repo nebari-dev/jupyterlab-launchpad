@@ -12,7 +12,7 @@ in [jupyter_server_test_config.py](./jupyter_server_test_config.py).
 
 The Nebi repair tests in `tests/nebi_repair.spec.ts` use the real Launchpad
 frontend and authenticated Jupyter Server Proxy requests. `nebi_test_fixtures.py` supplies
-filesystem-backed kernel discovery, temporary Nebi/Pixi executables, and a local
+filesystem-backed kernel discovery, a temporary Nebi CLI stub, and a local
 Nebi API fixture through Jupyter Server Proxy. These tests do not install packages
 or require a real Nebi service. No repair or discovery HTTP responses are
 intercepted. After completing the setup below, run
