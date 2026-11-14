@@ -142,12 +142,13 @@ def _configure_nebi():
     gallery_config = json.loads(
         (ROOT / "binder" / "jupyter_gallery_config.json").read_text(encoding="utf-8")
     )
+    # Don't set NebiKernelSpecManager.workspace_discovery_roots: the Nebi CLI
+    # already lists the tracked demo workspaces, and scanning their parent
+    # folder as well shows each one a second time under its folder name.
     JUPYTER_CONFIG_PATH.write_text(
         json.dumps(
             {
                 **gallery_config,
-                # The Nebi CLI already lists managed workspaces. Scanning their
-                # storage directory too lists them again by folder name.
                 "ServerApp": {
                     "kernel_spec_manager_class": (
                         "nb_nebi_kernels.NebiKernelSpecManager"
