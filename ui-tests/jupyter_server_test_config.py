@@ -15,7 +15,6 @@ configure_jupyter_server(c)
 sys.path.insert(0, str(Path(__file__).parent))
 from nebi_test_fixtures import configure_nebi_fixtures
 
-configure_nebi_fixtures(c)
 
 # Configure a mock server-proxy entry for testing icon rendering.
 # Requires jupyter-server-proxy to be installed (listed in [project.optional-dependencies] test).
@@ -35,3 +34,5 @@ except Exception:
 
 # Uncomment to set server log level to debug level
 # c.ServerApp.log_level = "DEBUG"
+
+configure_nebi_fixtures(c)

@@ -11,12 +11,14 @@ The JupyterLab server configuration to use for the integration test is defined
 in [jupyter_server_test_config.py](./jupyter_server_test_config.py).
 
 The Nebi repair tests in `tests/nebi_repair.spec.ts` use the real Launchpad
-handlers and Jupyter Server error responses. `nebi_test_fixtures.py` supplies
-filesystem-backed kernel discovery and a temporary Pixi executable so these
-tests do not install packages or require a Nebi service. No repair or discovery
-HTTP responses are intercepted. Run them with `jlpm playwright test nebi_repair.spec.ts`
-from this directory. Make sure the server imports the Python package under test;
-for a local checkout, set `PYTHONPATH=..` when starting the tests.
+frontend and authenticated Jupyter Server Proxy requests. `nebi_test_fixtures.py` supplies
+filesystem-backed kernel discovery, a temporary Nebi CLI stub, and a local
+Nebi API fixture through Jupyter Server Proxy. These tests do not install packages
+or require a real Nebi service. No repair or discovery HTTP responses are
+intercepted. After completing the setup below, run
+`PYTHONPATH=.. jlpm playwright test nebi_repair.spec.ts` from this directory so the
+server imports the Python package under test. If Playwright reuses an existing
+server, that server must already use this checkout and the test configuration.
 Two cropped notification snapshots cover the installation error and the
 environment that remains unavailable after repair, so truncated or clipped
 messages can be reviewed visually. Generate these baselines on Linux to match CI.
@@ -43,6 +45,7 @@ jlpm build:prod
 2. Install test dependencies (needed only once):
 
 ```sh
+python -m pip install -e ".[test]"
 cd ./ui-tests
 jlpm install
 jlpm playwright install

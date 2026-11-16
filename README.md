@@ -38,6 +38,10 @@ To install the extension, execute:
 pip install jupyterlab-launchpad
 ```
 
+After installation you should restart JupyterLab (or jupyter server if using a remote server in JupyterLab Desktop).
+
+## Nebi integration
+
 For Nebi integration (Python >= 3.11), install the optional dependencies:
 
 ```bash
@@ -49,6 +53,23 @@ Install the [Nebi CLI](https://nebi.nebari.dev/installation/) and
 Jupyter server's `PATH`. See [nb-nebi-kernels](https://github.com/nebari-dev/nb-nebi-kernels)
 for workspace setup. The **Open in Nebi** action also requires a configured
 `nebi` entry in Jupyter Server Proxy.
+
+**Install** also requires the `nebi` proxy entry and Nebi running in local mode.
+See [Binder's `postBuild` script](binder/postBuild) for an example configuration,
+including the proxy entry and `NEBI_DATABASE_DSN`.
+
+Launchpad matches the local workspace path in Nebi, starts its workspace install
+job, polls until it finishes, and refreshes kernel discovery on success. Nebi
+manages the installation state; failures show the job's error. Closing or
+reloading the page stops progress tracking but does not cancel the accepted job.
+Reopening the page does not resume progress tracking automatically. Check the job
+in Nebi before retrying after reopening the page or a connection failure.
+
+Binder provides two real workspaces: `launchpad-demo` starts with **Install**,
+and `launchpad-repair-demo` starts with **Attempt fix** on an installed Python
+environment without a Jupyter kernel. After either action succeeds, discovery
+shows the workspace as ready and removes its action button. The other sample
+rows are display examples and do not point to these workspaces.
 
 Nebi actions support the workspace's default environment. When a workspace has
 no Jupyter kernel, **Attempt fix** installs the packages configured on the server
@@ -68,7 +89,20 @@ dependencies reported by discovery are still installed alongside these packages.
 An empty server list disables automatic kernel installation unless a user supplies
 an override. Missing dependencies reported by discovery continue to be installed.
 
-After installation you should restart JupyterLab (or jupyter server if using a remove server in JupyterLab Desktop).
+**Attempt fix** requires a workspace registered with the local Nebi service,
+the default Pixi environment, and a configured `nebi` entry in Jupyter Server
+Proxy. Nebi and Jupyter Server must access the same workspace files.
+
+Launchpad submits the missing packages to Nebi's package API and polls the
+resulting job. Nebi handles dependency resolution, version creation, and updating
+an already installed environment. Launchpad verifies that the newest version
+belongs to this job, then refreshes kernel discovery. Job failures are displayed
+in the notification; an environment that remains unusable is not reported as
+successfully repaired.
+
+Once Nebi accepts the job, closing the browser does not cancel it. Closing or
+reloading the page stops Launchpad's progress tracking. If the connection fails,
+check the job and workspace in Nebi before retrying.
 
 ## Uninstall
 
@@ -92,9 +126,9 @@ The `jlpm` command is JupyterLab's pinned version of
 # Clone the repo to your local environment
 # Change directory to the jupyterlab_launchpad directory
 # Install package in development mode
-pip install -e "."
+pip install -e ".[dev]"
 # Link your development version of the extension with JupyterLab
-jupyter labextension develop . --overwrite
+jupyter-builder develop . --overwrite
 # Rebuild extension Typescript source after making changes
 jlpm build
 ```
@@ -122,7 +156,7 @@ jupyter lab build --minimize=False
 pip uninstall jupyterlab_launchpad
 ```
 
-In development mode, you will also need to remove the symlink created by `jupyter labextension develop`
+In development mode, you will also need to remove the symlink created by `jupyter-builder develop`
 command. To find its location, you can run `jupyter labextension list` to figure out where the `labextensions`
 folder is located. Then you can remove the symlink named `jupyterlab-launchpad` within that folder.
 

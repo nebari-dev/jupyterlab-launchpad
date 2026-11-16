@@ -98,7 +98,7 @@ const kernelspecs: KernelspecsResponse = {
           nebi_outdated: false,
           nebi_workspace: 'nebari/demo-r',
           nebi_workspace_path: '/srv/nebari/demo-r',
-          pixi_environment: 'r'
+          pixi_environment: 'default'
         }
       }
     },
@@ -179,7 +179,7 @@ const responsiveKernelspecs: KernelspecsResponse = {
           nebi_outdated: true,
           nebi_workspace: 'nebari/analytics-outdated',
           nebi_workspace_path: '/srv/nebari/analytics-outdated',
-          pixi_environment: 'python'
+          pixi_environment: 'default'
         }
       }
     },
@@ -195,7 +195,7 @@ const responsiveKernelspecs: KernelspecsResponse = {
           nebi_location: 'local',
           nebi_workspace: 'nebari/new-environment',
           nebi_workspace_path: '/srv/nebari/new-environment',
-          pixi_environment: 'python'
+          pixi_environment: 'default'
         }
       }
     }
@@ -225,7 +225,10 @@ async function mockNebiEndpoints(
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ nebi: true, pixi: true })
+        body: JSON.stringify({
+          nebi: true,
+          kernelDependencies: ['ipykernel']
+        })
       });
     }
   );
@@ -257,6 +260,46 @@ test.describe('Nebi kernel metadata', () => {
     mockSettings: nebiMetadataMockSettings
   });
 
+  test('only offers Install for the default environment', async ({
+    page,
+    tmpPath
+  }) => {
+    await mockNebiEndpoints(page, {
+      includeNebiServerProxy: true,
+      specs: {
+        default: 'default',
+        kernelspecs: Object.fromEntries(
+          ['default', 'analysis'].map(environment => [
+            environment,
+            {
+              name: environment,
+              resources: {},
+              spec: {
+                argv: [],
+                display_name: `Nebi Install ${environment}`,
+                language: 'python',
+                metadata: {
+                  nebi_status: 'not-installed',
+                  nebi_workspace_path: '/srv/nebari/install-test',
+                  pixi_environment: environment
+                }
+              }
+            }
+          ])
+        )
+      }
+    });
+    await page.goto(`tree/${tmpPath}?reset`);
+    const rows = page.locator('.jp-Launcher-launchNotebook tbody tr');
+    const install = '[data-action="nebi-install-environment"]';
+    await expect(
+      rows.filter({ hasText: 'Nebi Install default' }).locator(install)
+    ).toBeVisible();
+    const namedEnvironment = rows.filter({ hasText: 'Nebi Install analysis' });
+    await expect(namedEnvironment).toBeVisible();
+    await expect(namedEnvironment.locator(install)).toHaveCount(0);
+  });
+
   test('should render Nebi metadata columns and actions', async ({
     page,
     tmpPath
@@ -281,6 +324,9 @@ test.describe('Nebi kernel metadata', () => {
       notebookSection.getByText('Missing dependencies', { exact: true })
     ).toHaveCount(1);
     await expect(
+      notebookSection.locator('[data-action="nebi-install-dependencies"]')
+    ).toHaveCount(1);
+    await expect(
       notebookSection
         .locator('.jp-KernelActionButton')
         .filter({ hasText: 'Pull' })
@@ -298,90 +344,6 @@ test.describe('Nebi kernel metadata', () => {
     expect(await notebookSection.screenshot()).toMatchSnapshot(
       'nebi-kernel-metadata.png'
     );
-  });
-});
-
-test.describe('Nebi repair notifications', () => {
-  test.use({
-    autoGoto: false,
-    mockSettings: nebiMetadataMockSettings,
-    waitForApplication: async ({}, use) => {
-      await use(async page => {
-        await page.evaluate(() => window.jupyterapp.restored);
-        await page.locator('.jp-LauncherBody').waitFor();
-      });
-    }
-  });
-
-  test('uses the current user kernel packages when attempting a repair', async ({
-    page,
-    tmpPath
-  }) => {
-    await mockNebiEndpoints(page, {
-      specs: {
-        default: 'missing-kernel',
-        kernelspecs: {
-          'missing-kernel': {
-            name: 'missing-kernel',
-            resources: {},
-            spec: {
-              argv: [],
-              display_name: 'Workspace without kernel',
-              language: 'python',
-              metadata: {
-                nebi_state: 'local-missing-deps',
-                nebi_not_ready_reason: 'kernel-not-installed',
-                nebi_workspace_path: '/srv/nebari/demo',
-                nebi_missing_dependencies: ['numpy'],
-                pixi_environment: 'default'
-              }
-            }
-          }
-        }
-      }
-    });
-    await page.route(
-      '**/jupyterlab-launchpad/nebi/install-dependencies*',
-      route => route.fulfill({ json: { ok: true } })
-    );
-    await page.route('**/jupyterlab-launchpad/kernels/refresh*', route =>
-      route.fulfill({ json: { invalidated: true } })
-    );
-    await page.goto(`tree/${tmpPath}?reset`);
-    const repair = page
-      .locator('.jp-Launcher-launchNotebook tbody tr')
-      .filter({ hasText: 'Workspace without kernel' })
-      .getByRole('button', {
-        name: 'Install missing dependencies',
-        exact: true
-      });
-
-    // A saved change takes effect on the next attempt without reloading the page.
-    for (const packages of [[], ['r-irkernel'], []]) {
-      await page.evaluate(
-        async ({ plugin, packages }) => {
-          const registry = await window.galata.getPlugin(
-            '@jupyterlab/apputils-extension:settings'
-          );
-          await registry!.set(plugin, 'nebiKernelDependencies', packages);
-        },
-        { plugin: SETTINGS_ID, packages }
-      );
-      const request = page.waitForRequest(
-        '**/jupyterlab-launchpad/nebi/install-dependencies*'
-      );
-      await repair.click();
-      expect((await request).postDataJSON()).toMatchObject({
-        kernelDependencies: packages,
-        missingDependencies: ['numpy'],
-        notReadyReason: 'kernel-not-installed',
-        repair: true
-      });
-      await expect(repair).toBeEnabled();
-      await page.evaluate(() =>
-        window.jupyterapp.commands.execute('apputils:dismiss-notification')
-      );
-    }
   });
 });
 
@@ -422,6 +384,12 @@ test.describe('Nebi kernel metadata responsive layout', () => {
     const notebookSection = launcher.locator('.jp-Launcher-launchNotebook');
 
     await expect(notebookSection.locator('tbody tr')).toHaveCount(23);
+    await expect(
+      notebookSection
+        .locator('tbody tr')
+        .filter({ hasText: 'Nebi New Environment' })
+        .locator('[data-action="nebi-install-environment"]')
+    ).toBeVisible();
     await expect(
       notebookSection.locator('.jp-NebiStatus-ready').first()
     ).toBeVisible();
