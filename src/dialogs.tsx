@@ -235,6 +235,10 @@ export class KernelSelector extends ReactWidget {
     this.update();
   };
 
+  private _onFocusChange = (item: IKernelItem | null) => {
+    this._focusedItem = item;
+  };
+
   /**
    * Render the launcher to virtual DOM nodes.
    */
@@ -329,6 +333,7 @@ export class KernelSelector extends ReactWidget {
             this._selection = item;
             this.options.acceptDialog();
           }}
+          onFocusChange={this._onFocusChange}
           favouritesChanged={this._favoritesDatabase.changed}
           lastUsedChanged={this._lastUsedDatabase.changed}
           kernelTable={this.options.kernelTable}
@@ -349,6 +354,7 @@ export class KernelSelector extends ReactWidget {
                 this._selection = item;
                 this.options.acceptDialog();
               }}
+              onFocusChange={this._onFocusChange}
               hideColumns={['last-used', 'star']}
               favouritesChanged={this._favoritesDatabase.changed}
               lastUsedChanged={this._lastUsedDatabase.changed}
@@ -361,17 +367,20 @@ export class KernelSelector extends ReactWidget {
   }
 
   getValue(): Partial<Kernel.IModel> | null {
-    if (!this._selection) {
+    // Before JupyterLab 4.6 the dialog handles Enter before the row sees it
+    // and accepts with the default button, so use the focused row instead.
+    const selection = this._selection ?? this._focusedItem;
+    if (!selection) {
       return null;
     }
     // Update last used date
-    this._selection.markAsUsedNow().catch(console.warn);
+    selection.markAsUsedNow().catch(console.warn);
     // User selected an existing kernel
-    if (this._selection.metadata?.model) {
-      return this._selection.metadata.model as unknown as Kernel.IModel;
+    if (selection.metadata?.model) {
+      return selection.metadata.model as unknown as Kernel.IModel;
     }
     // User starts a new kernel
-    const args = this._selection.args;
+    const args = selection.args;
     const preference = args?.['kernelPreference'] as
       | { name?: string }
       | undefined;
@@ -383,6 +392,7 @@ export class KernelSelector extends ReactWidget {
   protected commands: CommandRegistry;
   private _settings: ISettingRegistry.ISettings;
   private _selection: IKernelItem | null = null;
+  private _focusedItem: IKernelItem | null = null;
   private _lastUsedDatabase: ILastUsedDatabase;
   private _favoritesDatabase: IFavoritesDatabase;
   private _name: string;

@@ -48,6 +48,8 @@ jest.mock('@jupyterlab/apputils', () => {
 
 import type { CommandRegistry } from '@lumino/commands';
 import { Signal } from '@lumino/signaling';
+import * as React from 'react';
+import { KernelTable } from '../components/table';
 import { KernelSelector } from '../dialogs';
 import type {
   IFavoritesDatabase,
@@ -223,6 +225,52 @@ describe('KernelSelector', () => {
     selector.onAfterDetach({} as any);
     dataChanged.emit();
     expect(updateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  describe('keyboard focus fallback', () => {
+    const focusedItem = {
+      command: 'notebook:create-new',
+      args: { isLauncher: true, kernelName: 'ir' },
+      markAsUsedNow: jest.fn(() => Promise.resolve())
+    } as unknown as IKernelItem;
+
+    function onFocusChange(
+      selector: KernelSelector
+    ): (item: IKernelItem | null) => void {
+      const tree = (selector as any).render();
+      const tables = React.Children.toArray(tree.props.children).filter(
+        (child: any) => child.type === KernelTable
+      ) as React.ReactElement[];
+      expect(tables).toHaveLength(1);
+      return tables[0].props.onFocusChange;
+    }
+
+    it('returns the focused row when the dialog is accepted without a click', () => {
+      const selector = createMockKernelSelector({ type: 'notebook' });
+      onFocusChange(selector)(focusedItem);
+      expect(selector.getValue()).toEqual({ name: 'ir' });
+    });
+
+    it('ignores a row after it loses focus', () => {
+      const selector = createMockKernelSelector({ type: 'notebook' });
+      const focusChanged = onFocusChange(selector);
+      focusChanged(focusedItem);
+      focusChanged(null);
+      expect(selector.getValue()).toBeNull();
+    });
+
+    it('prefers the clicked row over the focused row', () => {
+      const selector = createMockKernelSelector({
+        type: 'notebook',
+        selection: {
+          command: 'notebook:create-new',
+          args: { isLauncher: true, kernelName: 'python3' },
+          markAsUsedNow: jest.fn(() => Promise.resolve())
+        } as any
+      });
+      onFocusChange(selector)(focusedItem);
+      expect(selector.getValue()).toEqual({ name: 'python3' });
+    });
   });
 });
 
