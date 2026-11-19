@@ -27,12 +27,16 @@ jest.mock('@jupyterlab/apputils', () => {
       ...options,
       accept: false
     }));
+    static launchImpl: ((dialog: Dialog) => Promise<unknown>) | null = null;
+    constructor(public options: any) {}
     launch = jest.fn(() =>
-      Promise.resolve({
-        button: { accept: false },
-        value: null,
-        isChecked: null
-      })
+      Dialog.launchImpl
+        ? Dialog.launchImpl(this)
+        : Promise.resolve({
+            button: { accept: false },
+            value: null,
+            isChecked: null
+          })
     );
     resolve = jest.fn();
     node = document.createElement('div');
@@ -48,8 +52,6 @@ jest.mock('@jupyterlab/apputils', () => {
 
 import type { CommandRegistry } from '@lumino/commands';
 import { Signal } from '@lumino/signaling';
-import * as React from 'react';
-import { KernelTable } from '../components/table';
 import { KernelSelector } from '../dialogs';
 import type {
   IFavoritesDatabase,
@@ -226,68 +228,22 @@ describe('KernelSelector', () => {
     dataChanged.emit();
     expect(updateSpy).toHaveBeenCalledTimes(1);
   });
-
-  describe('keyboard focus fallback', () => {
-    const focusedItem = {
-      command: 'notebook:create-new',
-      args: { isLauncher: true, kernelName: 'ir' },
-      markAsUsedNow: jest.fn(() => Promise.resolve())
-    } as unknown as IKernelItem;
-
-    function onFocusChange(
-      selector: KernelSelector
-    ): (item: IKernelItem | null) => void {
-      const tree = (selector as any).render();
-      const tables = React.Children.toArray(tree.props.children).filter(
-        (child: any) => child.type === KernelTable
-      ) as React.ReactElement[];
-      expect(tables).toHaveLength(1);
-      return tables[0].props.onFocusChange;
-    }
-
-    it('returns the focused row when the dialog is accepted without a click', () => {
-      const selector = createMockKernelSelector({ type: 'notebook' });
-      onFocusChange(selector)(focusedItem);
-      expect(selector.getValue()).toEqual({ name: 'ir' });
-    });
-
-    it('ignores a row after it loses focus', () => {
-      const selector = createMockKernelSelector({ type: 'notebook' });
-      const focusChanged = onFocusChange(selector);
-      focusChanged(focusedItem);
-      focusChanged(null);
-      expect(selector.getValue()).toBeNull();
-    });
-
-    it('prefers the clicked row over the focused row', () => {
-      const selector = createMockKernelSelector({
-        type: 'notebook',
-        selection: {
-          command: 'notebook:create-new',
-          args: { isLauncher: true, kernelName: 'python3' },
-          markAsUsedNow: jest.fn(() => Promise.resolve())
-        } as any
-      });
-      onFocusChange(selector)(focusedItem);
-      expect(selector.getValue()).toEqual({ name: 'python3' });
-    });
-  });
 });
 
+import { Dialog } from '@jupyterlab/apputils';
 import { CustomSessionContextDialogs } from '../dialogs';
 
 describe('CustomSessionContextDialogs', () => {
-  it('cleans up runningChanged listeners when dialog resolves or cancels', async () => {
+  afterEach(() => {
+    (Dialog as any).launchImpl = null;
+  });
+
+  it.each([
+    ['closes', false],
+    ['fails to launch', true]
+  ])('stops relaying running changes once the dialog %s', async (_, fails) => {
     const sessionRunningChanged = new Signal<any, void>({});
     const kernelRunningChanged = new Signal<any, void>({});
-
-    const sessionConnectSpy = jest.spyOn(sessionRunningChanged, 'connect');
-    const sessionDisconnectSpy = jest.spyOn(
-      sessionRunningChanged,
-      'disconnect'
-    );
-    const kernelConnectSpy = jest.spyOn(kernelRunningChanged, 'connect');
-    const kernelDisconnectSpy = jest.spyOn(kernelRunningChanged, 'disconnect');
 
     const dialogs = new CustomSessionContextDialogs({
       database: {
@@ -331,11 +287,32 @@ describe('CustomSessionContextDialogs', () => {
       changeKernel: jest.fn()
     };
 
-    await dialogs.selectKernel(mockSessionContext);
+    const relayed = jest.fn();
+    let relayedWhileOpen = 0;
+    (Dialog as any).launchImpl = (dialog: any) => {
+      dialog.options.body.options.dataChanged.connect(relayed);
+      sessionRunningChanged.emit();
+      kernelRunningChanged.emit();
+      relayedWhileOpen = relayed.mock.calls.length;
+      return fails
+        ? Promise.reject(new Error('launch failed'))
+        : Promise.resolve({
+            button: { accept: false },
+            value: null,
+            isChecked: null
+          });
+    };
 
-    expect(sessionConnectSpy).toHaveBeenCalledTimes(1);
-    expect(sessionDisconnectSpy).toHaveBeenCalledTimes(1);
-    expect(kernelConnectSpy).toHaveBeenCalledTimes(1);
-    expect(kernelDisconnectSpy).toHaveBeenCalledTimes(1);
+    const done = dialogs.selectKernel(mockSessionContext);
+    if (fails) {
+      await expect(done).rejects.toThrow('launch failed');
+    } else {
+      await done;
+    }
+    sessionRunningChanged.emit();
+    kernelRunningChanged.emit();
+
+    expect(relayedWhileOpen).toBe(2);
+    expect(relayed).toHaveBeenCalledTimes(2);
   });
 });

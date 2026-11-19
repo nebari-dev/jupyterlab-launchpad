@@ -309,9 +309,9 @@ export function KernelTable(props: {
   query: string;
   onClick: (item: IKernelItem) => void;
   /**
-   * Called with the row that receives keyboard focus, and with `null` when it loses focus.
+   * Called with the row that receives focus and the element that has it.
    */
-  onFocusChange?: (item: IKernelItem | null) => void;
+  onRowFocus?: (item: IKernelItem, node: HTMLElement) => void;
   hideColumns?: string[];
   showWidgetType?: boolean;
   favouritesChanged: ISignal<IFavoritesDatabase, void>;
@@ -567,8 +567,7 @@ export function KernelTable(props: {
                   props.onClick(row);
                 }
               }}
-              onFocus={() => props.onFocusChange?.(row)}
-              onBlur={() => props.onFocusChange?.(null)}
+              onFocus={event => props.onRowFocus?.(row, event.currentTarget)}
               tabIndex={0}
             >
               <span

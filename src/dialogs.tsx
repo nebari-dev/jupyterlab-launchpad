@@ -235,8 +235,8 @@ export class KernelSelector extends ReactWidget {
     this.update();
   };
 
-  private _onFocusChange = (item: IKernelItem | null) => {
-    this._focusedItem = item;
+  private _onRowFocus = (item: IKernelItem, node: HTMLElement) => {
+    this._focusedRow = { item, node };
   };
 
   /**
@@ -333,7 +333,7 @@ export class KernelSelector extends ReactWidget {
             this._selection = item;
             this.options.acceptDialog();
           }}
-          onFocusChange={this._onFocusChange}
+          onRowFocus={this._onRowFocus}
           favouritesChanged={this._favoritesDatabase.changed}
           lastUsedChanged={this._lastUsedDatabase.changed}
           kernelTable={this.options.kernelTable}
@@ -354,7 +354,7 @@ export class KernelSelector extends ReactWidget {
                 this._selection = item;
                 this.options.acceptDialog();
               }}
-              onFocusChange={this._onFocusChange}
+              onRowFocus={this._onRowFocus}
               hideColumns={['last-used', 'star']}
               favouritesChanged={this._favoritesDatabase.changed}
               lastUsedChanged={this._lastUsedDatabase.changed}
@@ -367,9 +367,14 @@ export class KernelSelector extends ReactWidget {
   }
 
   getValue(): Partial<Kernel.IModel> | null {
-    // Before JupyterLab 4.6 the dialog handles Enter before the row sees it
-    // and accepts with the default button, so use the focused row instead.
-    const selection = this._selection ?? this._focusedItem;
+    // Before JupyterLab 4.6.6 (jupyterlab#20370) the dialog handles Enter
+    // before the row sees it and accepts with the default button, so use the
+    // row that still has focus instead.
+    const focused =
+      this._focusedRow?.node === document.activeElement
+        ? this._focusedRow.item
+        : null;
+    const selection = this._selection ?? focused;
     if (!selection) {
       return null;
     }
@@ -392,7 +397,7 @@ export class KernelSelector extends ReactWidget {
   protected commands: CommandRegistry;
   private _settings: ISettingRegistry.ISettings;
   private _selection: IKernelItem | null = null;
-  private _focusedItem: IKernelItem | null = null;
+  private _focusedRow: { item: IKernelItem; node: HTMLElement } | null = null;
   private _lastUsedDatabase: ILastUsedDatabase;
   private _favoritesDatabase: IFavoritesDatabase;
   private _name: string;

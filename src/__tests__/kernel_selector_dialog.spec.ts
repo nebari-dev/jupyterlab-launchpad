@@ -121,17 +121,51 @@ function pressEnter(element: HTMLElement): void {
   );
 }
 
-describe('Select Kernel dialog keyboard selection', () => {
-  beforeAll(() => {
-    if (!(globalThis as any).ResizeObserver) {
-      (globalThis as any).ResizeObserver = class {
-        observe() {}
-        unobserve() {}
-        disconnect() {}
-      };
-    }
+/**
+ * Render a kernel selector outside of a dialog, as the dialog body is rendered.
+ */
+function createSelector() {
+  const { database, commands, settings, kernelTable } = createOptions();
+  const acceptDialog = jest.fn();
+  const dataChanged = new Signal<any, void>({});
+  let currentSpecs: any = specs;
+  const selector = new KernelSelector({
+    data: () => ({
+      specs: currentSpecs,
+      sessions: [][Symbol.iterator](),
+      kernels: [][Symbol.iterator](),
+      preference: {}
+    }),
+    dataChanged,
+    name: 'Untitled.ipynb',
+    commands,
+    favoritesDatabase: database.favorites,
+    lastUsedDatabase: database.lastUsed,
+    kernelTable,
+    settings,
+    trans: nullTranslator.load('jupyterlab'),
+    acceptDialog,
+    type: 'notebook'
   });
+  Widget.attach(selector, document.body);
+  const setSpecs = (next: any) => {
+    currentSpecs = next;
+    dataChanged.emit();
+  };
+  return { selector, commands, acceptDialog, setSpecs };
+}
 
+beforeAll(() => {
+  if (!(globalThis as any).ResizeObserver) {
+    (globalThis as any).ResizeObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+  }
+});
+
+describe('Select Kernel dialog keyboard selection', () => {
   afterEach(() => {
     Dialog.flush();
   });
@@ -169,28 +203,7 @@ describe('Select Kernel dialog keyboard selection', () => {
   // Since JupyterLab 4.6.6 (jupyterlab#20370) the dialog leaves Enter on a
   // kernel row to the row itself, so the row must select, not launch, it.
   it('selects the kernel when Enter reaches the row', async () => {
-    const { database, commands, settings, kernelTable } = createOptions();
-    const acceptDialog = jest.fn();
-    const selector = new KernelSelector({
-      data: () => ({
-        specs,
-        sessions: [][Symbol.iterator](),
-        kernels: [][Symbol.iterator](),
-        preference: {}
-      }),
-      dataChanged: new Signal<any, void>({}),
-      name: 'Untitled.ipynb',
-      commands,
-      favoritesDatabase: database.favorites,
-      lastUsedDatabase: database.lastUsed,
-      kernelTable,
-      settings,
-      trans: nullTranslator.load('jupyterlab'),
-      acceptDialog,
-      type: 'notebook'
-    });
-    Widget.attach(selector, document.body);
-
+    const { selector, commands, acceptDialog } = createSelector();
     try {
       const row = await waitFor(() => findRow(selector.node, 'ir'));
       pressEnter(row);
@@ -199,6 +212,66 @@ describe('Select Kernel dialog keyboard selection', () => {
       expect(commands.execute).not.toHaveBeenCalled();
       expect(acceptDialog).toHaveBeenCalledTimes(1);
       expect(selector.getValue()).toEqual({ name: 'ir' });
+    } finally {
+      selector.dispose();
+    }
+  });
+});
+
+// Before JupyterLab 4.6.6 the dialog accepts on Enter without the row seeing
+// it, so the selector falls back to the row that has keyboard focus.
+describe('Kernel selector focused row fallback', () => {
+  it('returns the focused row', async () => {
+    const { selector } = createSelector();
+    try {
+      const row = await waitFor(() => findRow(selector.node, 'ir'));
+      row.focus();
+
+      expect(selector.getValue()).toEqual({ name: 'ir' });
+    } finally {
+      selector.dispose();
+    }
+  });
+
+  it('ignores a row after focus moves away from it', async () => {
+    const { selector } = createSelector();
+    try {
+      const row = await waitFor(() => findRow(selector.node, 'ir'));
+      row.focus();
+      selector.node
+        .querySelector<HTMLInputElement>('.jp-Launcher-searchBox input')!
+        .focus();
+
+      expect(selector.getValue()).toBeNull();
+    } finally {
+      selector.dispose();
+    }
+  });
+
+  it('ignores a focused row that is no longer rendered', async () => {
+    const { selector, setSpecs } = createSelector();
+    try {
+      const row = await waitFor(() => findRow(selector.node, 'ir'));
+      row.focus();
+      setSpecs({
+        default: 'python3',
+        kernelspecs: { python3: specs.kernelspecs.python3 }
+      });
+      await waitFor(() => !findRow(selector.node, 'ir'));
+
+      expect(selector.getValue()).toBeNull();
+    } finally {
+      selector.dispose();
+    }
+  });
+
+  it('prefers the clicked row over the focused row', async () => {
+    const { selector } = createSelector();
+    try {
+      (await waitFor(() => findRow(selector.node, 'python3'))).click();
+      findRow(selector.node, 'ir')!.focus();
+
+      expect(selector.getValue()).toEqual({ name: 'python3' });
     } finally {
       selector.dispose();
     }
