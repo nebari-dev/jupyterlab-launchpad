@@ -36,7 +36,7 @@ import type { ILauncher } from '@jupyterlab/launcher';
 import { JSONExt, ReadonlyJSONValue } from '@lumino/coreutils';
 import * as React from 'react';
 
-class CustomSessionContextDialogs extends SessionContextDialogs {
+export class CustomSessionContextDialogs extends SessionContextDialogs {
   constructor(protected options: CustomSessionContextDialogs.IOptions) {
     super(options);
     const translator = options.translator ?? nullTranslator;
@@ -73,12 +73,11 @@ class CustomSessionContextDialogs extends SessionContextDialogs {
     const settings = await this.options.settingRegistry.load(MAIN_PLUGIN_ID);
 
     const dataChanged = new Signal<CustomSessionContextDialogs, void>(this);
-    sessionContext.sessionManager.runningChanged.connect(() => {
+    const onRunningChanged = () => {
       dataChanged.emit();
-    });
-    this.options.kernelManager.runningChanged.connect(() => {
-      dataChanged.emit();
-    });
+    };
+    sessionContext.sessionManager.runningChanged.connect(onRunningChanged);
+    this.options.kernelManager.runningChanged.connect(onRunningChanged);
 
     const dialog = new Dialog<Partial<Kernel.IModel> | null>({
       title: trans.__('Select Kernel'),
@@ -115,7 +114,13 @@ class CustomSessionContextDialogs extends SessionContextDialogs {
     });
     dialog.node.classList.add('jp-KernelSelector-Dialog');
 
-    const result = await dialog.launch();
+    let result: Dialog.IResult<Partial<Kernel.IModel> | null>;
+    try {
+      result = await dialog.launch();
+    } finally {
+      sessionContext.sessionManager.runningChanged.disconnect(onRunningChanged);
+      this.options.kernelManager.runningChanged.disconnect(onRunningChanged);
+    }
 
     if (sessionContext.isDisposed || !result.button.accept) {
       return;
@@ -212,7 +217,7 @@ export class KernelSelector extends ReactWidget {
 
   onAfterAttach(msg: Message) {
     super.onAfterAttach(msg);
-    this.options.dataChanged.connect(this.update.bind(this));
+    this.options.dataChanged.connect(this._onDataChanged);
     requestAnimationFrame(() => {
       // Keep the height stable while filtering. CSS bounds the dialog width
       // to the viewport independently of the responsive table's contents.
@@ -223,8 +228,16 @@ export class KernelSelector extends ReactWidget {
 
   onAfterDetach(msg: Message) {
     super.onAfterDetach(msg);
-    this.options.dataChanged.disconnect(this.update);
+    this.options.dataChanged.disconnect(this._onDataChanged);
   }
+
+  private _onDataChanged = () => {
+    this.update();
+  };
+
+  private _onRowFocus = (item: IKernelItem, node: HTMLElement) => {
+    this._focusedRow = { item, node };
+  };
 
   /**
    * Render the launcher to virtual DOM nodes.
@@ -320,6 +333,7 @@ export class KernelSelector extends ReactWidget {
             this._selection = item;
             this.options.acceptDialog();
           }}
+          onRowFocus={this._onRowFocus}
           favouritesChanged={this._favoritesDatabase.changed}
           lastUsedChanged={this._lastUsedDatabase.changed}
           kernelTable={this.options.kernelTable}
@@ -340,6 +354,7 @@ export class KernelSelector extends ReactWidget {
                 this._selection = item;
                 this.options.acceptDialog();
               }}
+              onRowFocus={this._onRowFocus}
               hideColumns={['last-used', 'star']}
               favouritesChanged={this._favoritesDatabase.changed}
               lastUsedChanged={this._lastUsedDatabase.changed}
@@ -352,22 +367,37 @@ export class KernelSelector extends ReactWidget {
   }
 
   getValue(): Partial<Kernel.IModel> | null {
-    if (!this._selection) {
+    // Before JupyterLab 4.6.6 (jupyterlab#20370) the dialog handles Enter
+    // before the row sees it and accepts with the default button, so use the
+    // row that still has focus instead.
+    const focused =
+      this._focusedRow?.node === document.activeElement
+        ? this._focusedRow.item
+        : null;
+    const selection = this._selection ?? focused;
+    if (!selection) {
       return null;
     }
     // Update last used date
-    this._selection.markAsUsedNow().catch(console.warn);
+    selection.markAsUsedNow().catch(console.warn);
     // User selected an existing kernel
-    if (this._selection.metadata?.model) {
-      return this._selection.metadata.model as unknown as Kernel.IModel;
+    if (selection.metadata?.model) {
+      return selection.metadata.model as unknown as Kernel.IModel;
     }
     // User starts a new kernel
-    return { name: this._selection.args!.kernelName as string };
+    const args = selection.args;
+    const preference = args?.['kernelPreference'] as
+      | { name?: string }
+      | undefined;
+    const name =
+      (args?.['kernelName'] as string | undefined) ?? preference?.name;
+    return { name };
   }
 
   protected commands: CommandRegistry;
   private _settings: ISettingRegistry.ISettings;
   private _selection: IKernelItem | null = null;
+  private _focusedRow: { item: IKernelItem; node: HTMLElement } | null = null;
   private _lastUsedDatabase: ILastUsedDatabase;
   private _favoritesDatabase: IFavoritesDatabase;
   private _name: string;
