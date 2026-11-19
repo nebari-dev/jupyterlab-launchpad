@@ -10,9 +10,11 @@ jest.mock('../icons', () => ({
 }));
 
 import { Dialog } from '@jupyterlab/apputils';
+import { nullTranslator } from '@jupyterlab/translation';
 import { MessageLoop } from '@lumino/messaging';
 import { Signal } from '@lumino/signaling';
-import { CustomSessionContextDialogs } from '../dialogs';
+import { Widget } from '@lumino/widgets';
+import { CustomSessionContextDialogs, KernelSelector } from '../dialogs';
 
 const kernelspec = (name: string, display_name: string) => ({
   name,
@@ -22,8 +24,16 @@ const kernelspec = (name: string, display_name: string) => ({
   resources: {}
 });
 
-function createDialogs(): CustomSessionContextDialogs {
-  return new CustomSessionContextDialogs({
+const specs = {
+  default: 'python3',
+  kernelspecs: {
+    python3: kernelspec('python3', 'Python 3'),
+    ir: kernelspec('ir', 'R')
+  }
+};
+
+function createOptions() {
+  return {
     database: {
       favorites: {
         ready: Promise.resolve(),
@@ -47,18 +57,10 @@ function createDialogs(): CustomSessionContextDialogs {
       execute: jest.fn(() => Promise.resolve()),
       commandChanged: new Signal<any, any>({})
     } as any,
-    settingRegistry: {
-      load: jest.fn(() =>
-        Promise.resolve({
-          composite: {},
-          changed: new Signal<any, void>({}),
-          set: jest.fn(() => Promise.resolve())
-        })
-      )
-    } as any,
-    kernelManager: {
-      running: () => [][Symbol.iterator](),
-      runningChanged: new Signal<any, void>({})
+    settings: {
+      composite: {},
+      changed: new Signal<any, void>({}),
+      set: jest.fn(() => Promise.resolve())
     } as any,
     kernelTable: {
       changed: new Signal<any, void>({}),
@@ -67,6 +69,22 @@ function createDialogs(): CustomSessionContextDialogs {
       getColumnDefaultVisibility: () => true,
       getIconFallbackTitle: () => ''
     } as any
+  };
+}
+
+function createDialogs(): CustomSessionContextDialogs {
+  const { database, commands, settings, kernelTable } = createOptions();
+  return new CustomSessionContextDialogs({
+    database,
+    commands,
+    settingRegistry: {
+      load: jest.fn(() => Promise.resolve(settings))
+    } as any,
+    kernelManager: {
+      running: () => [][Symbol.iterator](),
+      runningChanged: new Signal<any, void>({})
+    } as any,
+    kernelTable
   });
 }
 
@@ -80,6 +98,27 @@ async function waitFor<T>(find: () => T | null | undefined): Promise<T> {
     await new Promise(resolve => setTimeout(resolve, 10));
   }
   throw new Error('Timed out waiting for the kernel selector to render');
+}
+
+function findRow(
+  container: ParentNode,
+  label: string
+): HTMLElement | undefined {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>('.jp-TableKernelItem')
+  ).find(element => element.textContent?.includes(label));
+}
+
+function pressEnter(element: HTMLElement): void {
+  element.focus();
+  element.dispatchEvent(
+    new KeyboardEvent('keydown', {
+      key: 'Enter',
+      keyCode: 13,
+      bubbles: true,
+      cancelable: true
+    })
+  );
 }
 
 describe('Select Kernel dialog keyboard selection', () => {
@@ -105,15 +144,7 @@ describe('Select Kernel dialog keyboard selection', () => {
       name: 'Untitled.ipynb',
       type: 'notebook',
       kernelPreference: {},
-      specsManager: {
-        specs: {
-          default: 'python3',
-          kernelspecs: {
-            python3: kernelspec('python3', 'Python 3'),
-            ir: kernelspec('ir', 'R')
-          }
-        }
-      },
+      specsManager: { specs },
       sessionManager: {
         running: () => [][Symbol.iterator](),
         runningChanged: new Signal<any, void>({})
@@ -123,26 +154,53 @@ describe('Select Kernel dialog keyboard selection', () => {
     };
 
     const done = createDialogs().selectKernel(sessionContext);
-    const row = await waitFor(() =>
-      Array.from(
-        document.querySelectorAll<HTMLElement>(
-          '.jp-KernelSelector-Dialog .jp-TableKernelItem'
-        )
-      ).find(element => element.textContent?.includes('ir'))
-    );
+    const row = await waitFor(() => {
+      const dialog = document.querySelector('.jp-KernelSelector-Dialog');
+      return dialog ? findRow(dialog, 'ir') : undefined;
+    });
 
-    row.focus();
-    row.dispatchEvent(
-      new KeyboardEvent('keydown', {
-        key: 'Enter',
-        keyCode: 13,
-        bubbles: true,
-        cancelable: true
-      })
-    );
+    pressEnter(row);
     await done;
 
     expect(sessionContext.shutdown).not.toHaveBeenCalled();
     expect(sessionContext.changeKernel).toHaveBeenCalledWith({ name: 'ir' });
+  });
+
+  // Since JupyterLab 4.6.6 (jupyterlab#20370) the dialog leaves Enter on a
+  // kernel row to the row itself, so the row must select, not launch, it.
+  it('selects the kernel when Enter reaches the row', async () => {
+    const { database, commands, settings, kernelTable } = createOptions();
+    const acceptDialog = jest.fn();
+    const selector = new KernelSelector({
+      data: () => ({
+        specs,
+        sessions: [][Symbol.iterator](),
+        kernels: [][Symbol.iterator](),
+        preference: {}
+      }),
+      dataChanged: new Signal<any, void>({}),
+      name: 'Untitled.ipynb',
+      commands,
+      favoritesDatabase: database.favorites,
+      lastUsedDatabase: database.lastUsed,
+      kernelTable,
+      settings,
+      trans: nullTranslator.load('jupyterlab'),
+      acceptDialog,
+      type: 'notebook'
+    });
+    Widget.attach(selector, document.body);
+
+    try {
+      const row = await waitFor(() => findRow(selector.node, 'ir'));
+      pressEnter(row);
+      row.blur();
+
+      expect(commands.execute).not.toHaveBeenCalled();
+      expect(acceptDialog).toHaveBeenCalledTimes(1);
+      expect(selector.getValue()).toEqual({ name: 'ir' });
+    } finally {
+      selector.dispose();
+    }
   });
 });
