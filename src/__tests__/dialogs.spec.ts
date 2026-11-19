@@ -152,23 +152,6 @@ function createMockKernelSelector(options: {
 }
 
 describe('KernelSelector', () => {
-  it('correctly resolves kernel name for console sessions with kernelPreference', () => {
-    const selector = createMockKernelSelector({
-      type: 'console',
-      selection: {
-        command: 'console:create',
-        args: {
-          isLauncher: true,
-          kernelPreference: { name: 'python3' }
-        },
-        markAsUsedNow: jest.fn(() => Promise.resolve())
-      } as any
-    });
-
-    const value = selector.getValue();
-    expect(value).toEqual({ name: 'python3' });
-  });
-
   it('correctly resolves kernel name for notebook sessions with kernelName', () => {
     const selector = createMockKernelSelector({
       type: 'notebook',

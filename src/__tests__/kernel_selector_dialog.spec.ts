@@ -53,7 +53,8 @@ function createOptions() {
       iconClass: () => '',
       icon: () => undefined,
       caption: () => '',
-      label: (_: string, args: any) => args.kernelName,
+      label: (_: string, args: any) =>
+        args.kernelName ?? args.kernelPreference?.name,
       execute: jest.fn(() => Promise.resolve()),
       commandChanged: new Signal<any, any>({})
     } as any,
@@ -109,9 +110,12 @@ function findRow(
   ).find(element => element.textContent?.includes(label));
 }
 
-function pressEnter(element: HTMLElement): void {
+/**
+ * Press Enter on an element; returns whether the key was left uncanceled.
+ */
+function pressEnter(element: HTMLElement): boolean {
   element.focus();
-  element.dispatchEvent(
+  return element.dispatchEvent(
     new KeyboardEvent('keydown', {
       key: 'Enter',
       keyCode: 13,
@@ -124,7 +128,7 @@ function pressEnter(element: HTMLElement): void {
 /**
  * Render a kernel selector outside of a dialog, as the dialog body is rendered.
  */
-function createSelector() {
+function createSelector(type = 'notebook') {
   const { database, commands, settings, kernelTable } = createOptions();
   const acceptDialog = jest.fn();
   const dataChanged = new Signal<any, void>({});
@@ -145,7 +149,7 @@ function createSelector() {
     settings,
     trans: nullTranslator.load('jupyterlab'),
     acceptDialog,
-    type: 'notebook'
+    type
   });
   Widget.attach(selector, document.body);
   const setSpecs = (next: any) => {
@@ -206,10 +210,27 @@ describe('Select Kernel dialog keyboard selection', () => {
     const { selector, commands, acceptDialog } = createSelector();
     try {
       const row = await waitFor(() => findRow(selector.node, 'ir'));
-      pressEnter(row);
+      const uncanceled = pressEnter(row);
       row.blur();
 
       expect(commands.execute).not.toHaveBeenCalled();
+      expect(acceptDialog).toHaveBeenCalledTimes(1);
+      expect(selector.getValue()).toEqual({ name: 'ir' });
+      // The dialog closes and returns the focus to the button that opened it,
+      // which would otherwise be clicked by the same Enter.
+      expect(uncanceled).toBe(false);
+    } finally {
+      selector.dispose();
+    }
+  });
+});
+
+describe('Console kernel selection', () => {
+  it('starts the kernel picked for a console', async () => {
+    const { selector, acceptDialog } = createSelector('console');
+    try {
+      (await waitFor(() => findRow(selector.node, 'ir'))).click();
+
       expect(acceptDialog).toHaveBeenCalledTimes(1);
       expect(selector.getValue()).toEqual({ name: 'ir' });
     } finally {

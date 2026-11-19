@@ -564,6 +564,9 @@ export function KernelTable(props: {
               onKeyDown={event => {
                 // TODO memoize func defs for perf
                 if (event.key === 'Enter') {
+                  // Otherwise the browser passes Enter on to the element that
+                  // gets the focus back when a dialog closes.
+                  event.preventDefault();
                   props.onClick(row);
                 }
               }}
