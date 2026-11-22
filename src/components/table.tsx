@@ -308,6 +308,10 @@ export function KernelTable(props: {
   blankMessage?: string;
   query: string;
   onClick: (item: IKernelItem) => void;
+  /**
+   * Called with the row that receives focus and the element that has it.
+   */
+  onRowFocus?: (item: IKernelItem, node: HTMLElement) => void;
   hideColumns?: string[];
   showWidgetType?: boolean;
   favouritesChanged: ISignal<IFavoritesDatabase, void>;
@@ -560,9 +564,13 @@ export function KernelTable(props: {
               onKeyDown={event => {
                 // TODO memoize func defs for perf
                 if (event.key === 'Enter') {
-                  row.execute();
+                  // Otherwise the browser passes Enter on to the element that
+                  // gets the focus back when a dialog closes.
+                  event.preventDefault();
+                  props.onClick(row);
                 }
               }}
+              onFocus={event => props.onRowFocus?.(row, event.currentTarget)}
               tabIndex={0}
             >
               <span
