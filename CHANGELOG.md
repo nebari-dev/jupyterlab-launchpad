@@ -4,6 +4,14 @@
 
 <!-- <END NEW CHANGELOG ENTRY> -->
 
+## `v1.2.2`
+
+- Fix Enter and console kernel selection in the Select Kernel dialog https://github.com/nebari-dev/jupyterlab-launchpad/pull/105
+- Save and verify Nebi workspace versions during Attempt fix https://github.com/nebari-dev/jupyterlab-launchpad/pull/109
+- Use Nebi jobs for workspace installation https://github.com/nebari-dev/jupyterlab-launchpad/pull/113
+- Keep Nebi actions from blocking Jupyter Server https://github.com/nebari-dev/jupyterlab-launchpad/pull/112
+- Build with jupyter-builder instead of the deprecated JupyterLab builder https://github.com/nebari-dev/jupyterlab-launchpad/pull/116
+
 ## `v1.2.1`
 
 - Fix Attempt fix for Nebi environments without a kernel, add configurable kernel packages, and improve repair error notifications https://github.com/nebari-dev/jupyterlab-launchpad/pull/100
