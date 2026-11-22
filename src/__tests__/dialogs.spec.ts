@@ -7,295 +7,467 @@ jest.mock('../icons', () => ({
   updateAvailableIcon: { react: () => null }
 }));
 
-jest.mock('../components/table', () => ({
-  KernelTable: () => null
-}));
-
-jest.mock('@jupyterlab/apputils', () => {
-  const { Widget } = jest.requireActual('@lumino/widgets');
-  class ReactWidget extends Widget {
-    render() {
-      return null;
-    }
-  }
-  class Dialog {
-    static okButton = jest.fn((options?: any) => ({
-      ...options,
-      accept: true
-    }));
-    static cancelButton = jest.fn((options?: any) => ({
-      ...options,
-      accept: false
-    }));
-    static launchImpl: ((dialog: Dialog) => Promise<unknown>) | null = null;
-    constructor(public options: any) {}
-    launch = jest.fn(() =>
-      Dialog.launchImpl
-        ? Dialog.launchImpl(this)
-        : Promise.resolve({
-            button: { accept: false },
-            value: null,
-            isChecked: null
-          })
-    );
-    resolve = jest.fn();
-    node = document.createElement('div');
-  }
-  class SessionContextDialogs {}
-  return {
-    ReactWidget,
-    Dialog,
-    SessionContextDialogs,
-    SessionContext: {}
-  };
-});
-
+import { Dialog, ISessionContext } from '@jupyterlab/apputils';
+import type { Kernel, KernelSpec, Session } from '@jupyterlab/services';
+import type { ISettingRegistry } from '@jupyterlab/settingregistry';
+import { nullTranslator } from '@jupyterlab/translation';
 import type { CommandRegistry } from '@lumino/commands';
+import type { ReadonlyPartialJSONObject } from '@lumino/coreutils';
+import { MessageLoop } from '@lumino/messaging';
 import { Signal } from '@lumino/signaling';
-import { KernelSelector } from '../dialogs';
+import { Widget } from '@lumino/widgets';
+import { CustomSessionContextDialogs, KernelSelector } from '../dialogs';
 import type {
   IFavoritesDatabase,
   ILastUsedDatabase,
-  ILaunchpadKernelTable,
-  IKernelItem
+  ILauncherDatabase,
+  ILaunchpadKernelTable
 } from '../types';
-import type { ISettingRegistry } from '@jupyterlab/settingregistry';
-import type { TranslationBundle } from '@jupyterlab/translation';
 
-function createMockKernelSelector(options: {
-  type: string;
-  selection?: Partial<IKernelItem>;
-}): KernelSelector {
+const kernelspec = (
+  name: string,
+  display_name: string
+): KernelSpec.ISpecModel => ({
+  name,
+  display_name,
+  language: 'python',
+  argv: [],
+  resources: {}
+});
+
+const specs: KernelSpec.ISpecModels = {
+  default: 'python3',
+  kernelspecs: {
+    python3: kernelspec('python3', 'Python 3'),
+    ir: kernelspec('ir', 'R')
+  }
+};
+
+/**
+ * A signal for a mock; the code under test never reads its sender.
+ */
+function createSignal<T, U = void>(): Signal<T, U> {
+  return new Signal<T, U>({} as T);
+}
+
+/**
+ * A signal that records the slots connected to and disconnected from it.
+ */
+function createSignalSpy() {
+  return {
+    connect: jest.fn((_slot: () => void) => true),
+    disconnect: jest.fn((_slot: () => void) => true)
+  };
+}
+
+function createOptions() {
+  const database = {
+    favorites: {
+      ready: Promise.resolve(),
+      get: () => false,
+      set: jest.fn(() => Promise.resolve()),
+      changed: createSignal<IFavoritesDatabase>()
+    },
+    lastUsed: {
+      ready: Promise.resolve(),
+      get: () => null,
+      recordAsUsed: jest.fn(() => Promise.resolve()),
+      recordAsUsedNow: jest.fn(() => Promise.resolve()),
+      changed: createSignal<ILastUsedDatabase>()
+    }
+  } satisfies ILauncherDatabase;
   const commands = {
     iconClass: () => '',
     icon: () => undefined,
     caption: () => '',
-    label: () => 'Python 3',
-    execute: jest.fn(() => Promise.resolve())
-  } as unknown as CommandRegistry;
-
-  const lastUsedDatabase = {
-    ready: Promise.resolve(),
-    get: () => null,
-    recordAsUsed: jest.fn(() => Promise.resolve()),
-    recordAsUsedNow: jest.fn(() => Promise.resolve()),
-    changed: new Signal<ILastUsedDatabase, void>({} as ILastUsedDatabase)
-  } satisfies ILastUsedDatabase;
-
-  const favoritesDatabase = {
-    ready: Promise.resolve(),
-    get: () => false,
-    set: jest.fn(() => Promise.resolve()),
-    changed: new Signal<IFavoritesDatabase, void>({} as IFavoritesDatabase)
-  } satisfies IFavoritesDatabase;
-
+    label: (_id: string, args: ReadonlyPartialJSONObject) => {
+      const preference = args.kernelPreference as { name?: string } | undefined;
+      return (args.kernelName as string | undefined) ?? preference?.name ?? '';
+    },
+    execute: jest.fn(() => Promise.resolve()),
+    commandChanged: createSignal<
+      CommandRegistry,
+      CommandRegistry.ICommandChangedArgs
+    >()
+  };
   const settings = {
-    composite: {}
+    composite: {},
+    changed: createSignal<ISettingRegistry.ISettings>(),
+    set: jest.fn(() => Promise.resolve())
   } as unknown as ISettingRegistry.ISettings;
-
   const kernelTable = {
+    changed: createSignal<ILaunchpadKernelTable>(),
+    getColumnDefaultVisibility: () => true,
+    setColumnDefaultVisibility: jest.fn(),
     registerMetadataColumn: jest.fn(),
-    getMetadataColumn: jest.fn(),
+    getMetadataColumn: () => undefined,
     getMetadataColumns: () => [],
     registerAction: jest.fn(),
     getActions: () => [],
     registerIconFallbackTitleProvider: jest.fn(),
-    getIconFallbackTitle: () => '',
-    setColumnDefaultVisibility: jest.fn(),
-    getColumnDefaultVisibility: () => true,
-    changed: new Signal<ILaunchpadKernelTable, void>(
-      {} as ILaunchpadKernelTable
-    )
+    getIconFallbackTitle: () => ''
   } satisfies ILaunchpadKernelTable;
-
-  const trans = {
-    __: (str: string, ...args: unknown[]) => str
-  } as unknown as TranslationBundle;
-
-  const dataChanged = new Signal<any, void>({});
-
-  const selector = new KernelSelector({
+  return {
+    database,
     commands,
-    lastUsedDatabase,
-    favoritesDatabase,
+    registry: commands as unknown as CommandRegistry,
     settings,
-    kernelTable,
-    trans,
-    data: () => ({
-      specs: {
-        default: 'python3',
-        kernelspecs: {
-          python3: {
-            name: 'python3',
-            display_name: 'Python 3',
-            language: 'python',
-            argv: ['python3'],
-            resources: {}
-          }
-        }
-      },
-      sessions: [] as any,
-      kernels: [][Symbol.iterator](),
-      preference: {} as any
-    }),
-    dataChanged,
-    acceptDialog: jest.fn(),
-    name: 'test',
-    type: options.type
-  });
-
-  if (options.selection) {
-    (selector as any)._selection = options.selection;
-  }
-
-  return selector;
+    kernelTable
+  };
 }
 
+function createDialogs(
+  kernelRunningChanged: object = createSignal<
+    Kernel.IManager,
+    Kernel.IModel[]
+  >()
+): CustomSessionContextDialogs {
+  const { database, registry, settings, kernelTable } = createOptions();
+  return new CustomSessionContextDialogs({
+    database,
+    commands: registry,
+    settingRegistry: {
+      load: jest.fn(() => Promise.resolve(settings))
+    } as unknown as ISettingRegistry,
+    kernelManager: {
+      running: () => [][Symbol.iterator](),
+      runningChanged: kernelRunningChanged
+    } as unknown as Kernel.IManager,
+    kernelTable
+  });
+}
+
+function createSessionContext(
+  runningChanged: object = createSignal<Session.IManager, Session.IModel[]>()
+) {
+  return {
+    isDisposed: false,
+    hasNoKernel: false,
+    kernelDisplayName: 'Python 3',
+    name: 'Untitled.ipynb',
+    type: 'notebook',
+    kernelPreference: {},
+    specsManager: { specs },
+    sessionManager: {
+      running: () => [][Symbol.iterator](),
+      runningChanged
+    },
+    changeKernel: jest.fn(() => Promise.resolve()),
+    shutdown: jest.fn(() => Promise.resolve())
+  };
+}
+
+/**
+ * Render a kernel selector outside of a dialog, as the dialog body is rendered.
+ */
+function createSelector(
+  options: {
+    type?: string;
+    sessions?: Session.IModel[];
+    kernels?: Kernel.IModel[];
+  } = {}
+) {
+  const { type = 'notebook', sessions = [], kernels = [] } = options;
+  const { database, commands, registry, settings, kernelTable } =
+    createOptions();
+  const acceptDialog = jest.fn();
+  const dataChanged = createSignal<CustomSessionContextDialogs>();
+  let currentSpecs = specs;
+  const selector = new KernelSelector({
+    data: () => ({
+      specs: currentSpecs,
+      sessions,
+      kernels: kernels[Symbol.iterator](),
+      preference: {}
+    }),
+    dataChanged,
+    name: 'Untitled.ipynb',
+    commands: registry,
+    favoritesDatabase: database.favorites,
+    lastUsedDatabase: database.lastUsed,
+    kernelTable,
+    settings,
+    trans: nullTranslator.load('jupyterlab'),
+    acceptDialog,
+    type
+  });
+  Widget.attach(selector, document.body);
+  const setSpecs = (next: KernelSpec.ISpecModels) => {
+    currentSpecs = next;
+    dataChanged.emit();
+  };
+  return { selector, commands, acceptDialog, dataChanged, setSpecs };
+}
+
+async function waitFor<T>(find: () => T | null | undefined): Promise<T> {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    MessageLoop.flush();
+    const found = find();
+    if (found) {
+      return found;
+    }
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  throw new Error('Timed out waiting for the kernel selector to render');
+}
+
+function findRows(container: ParentNode, label: string): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>('.jp-TableKernelItem')
+  ).filter(element => element.textContent?.includes(label));
+}
+
+function findRow(
+  container: ParentNode,
+  label: string
+): HTMLElement | undefined {
+  return findRows(container, label)[0];
+}
+
+/**
+ * Press Enter on an element; returns whether the key was left uncanceled.
+ */
+function pressEnter(element: HTMLElement): boolean {
+  element.focus();
+  return element.dispatchEvent(
+    new KeyboardEvent('keydown', {
+      key: 'Enter',
+      keyCode: 13,
+      bubbles: true,
+      cancelable: true
+    })
+  );
+}
+
+beforeAll(() => {
+  if (typeof globalThis.ResizeObserver === 'undefined') {
+    globalThis.ResizeObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+  }
+});
+
 describe('KernelSelector', () => {
-  it('correctly resolves kernel name for notebook sessions with kernelName', () => {
-    const selector = createMockKernelSelector({
-      type: 'notebook',
-      selection: {
-        command: 'notebook:create-new',
-        args: {
-          isLauncher: true,
-          kernelName: 'python3'
-        },
-        markAsUsedNow: jest.fn(() => Promise.resolve())
-      } as any
-    });
+  it.each(['notebook', 'console'])(
+    'starts the kernel picked for a %s',
+    async type => {
+      const { selector, acceptDialog } = createSelector({ type });
+      try {
+        (await waitFor(() => findRow(selector.node, 'ir'))).click();
 
-    const value = selector.getValue();
-    expect(value).toEqual({ name: 'python3' });
+        expect(acceptDialog).toHaveBeenCalledTimes(1);
+        expect(selector.getValue()).toEqual({ name: 'ir' });
+      } finally {
+        selector.dispose();
+      }
+    }
+  );
+
+  it('connects to the running kernel picked', async () => {
+    const kernel = { id: 'kernel-1', name: 'ir', execution_state: 'idle' };
+    const { selector } = createSelector({
+      sessions: [
+        {
+          id: 'session-1',
+          name: 'Other.ipynb',
+          path: 'Other.ipynb',
+          type: 'notebook',
+          kernel
+        }
+      ],
+      kernels: [kernel]
+    });
+    try {
+      // The first row starts a new kernel, the second lists the running one.
+      const rows = await waitFor(() => {
+        const found = findRows(selector.node, 'ir');
+        return found.length === 2 ? found : null;
+      });
+      rows[1].click();
+
+      expect(selector.getValue()).toEqual(kernel);
+    } finally {
+      selector.dispose();
+    }
   });
 
-  it('returns running kernel model when user selects an existing kernel', () => {
-    const mockModel = { id: 'kernel-123', name: 'python3' };
-    const selector = createMockKernelSelector({
-      type: 'notebook',
-      selection: {
-        command: 'notebook:create-new',
-        args: { isLauncher: true, kernelName: 'python3' },
-        metadata: { model: mockModel },
-        markAsUsedNow: jest.fn(() => Promise.resolve())
-      } as any
-    });
+  it('starts no kernel when no row was picked', async () => {
+    const { selector } = createSelector();
+    try {
+      await waitFor(() => findRow(selector.node, 'ir'));
 
-    const value = selector.getValue();
-    expect(value).toEqual(mockModel);
+      expect(selector.getValue()).toBeNull();
+    } finally {
+      selector.dispose();
+    }
   });
 
-  it('returns null if no selection was made', () => {
-    const selector = createMockKernelSelector({
-      type: 'notebook'
-    });
+  // Since JupyterLab 4.6.6 (jupyterlab#20370) the dialog leaves Enter on a
+  // kernel row to the row itself, so the row must select, not launch, it.
+  it('selects the kernel when Enter reaches the row', async () => {
+    const { selector, commands, acceptDialog } = createSelector();
+    try {
+      const row = await waitFor(() => findRow(selector.node, 'ir'));
+      const uncanceled = pressEnter(row);
+      row.blur();
 
-    const value = selector.getValue();
-    expect(value).toBeNull();
+      expect(commands.execute).not.toHaveBeenCalled();
+      expect(acceptDialog).toHaveBeenCalledTimes(1);
+      expect(selector.getValue()).toEqual({ name: 'ir' });
+      // The dialog closes and returns the focus to the button that opened it,
+      // which would otherwise be clicked by the same Enter.
+      expect(uncanceled).toBe(false);
+    } finally {
+      selector.dispose();
+    }
   });
 
-  it('connects and disconnects dataChanged on attach and detach without leaking', () => {
-    const dataChanged = new Signal<any, void>({});
-    const selector = createMockKernelSelector({ type: 'notebook' });
-    (selector as any).options.dataChanged = dataChanged;
+  it('stops updating once it is detached', async () => {
+    const update = jest.spyOn(KernelSelector.prototype, 'update');
+    const { selector, dataChanged } = createSelector();
+    try {
+      await waitFor(() => findRow(selector.node, 'ir'));
+      const calls = update.mock.calls.length;
+      dataChanged.emit();
+      expect(update).toHaveBeenCalledTimes(calls + 1);
 
-    const updateSpy = jest
-      .spyOn(selector, 'update')
-      .mockImplementation(() => {});
+      Widget.detach(selector);
+      dataChanged.emit();
+      expect(update).toHaveBeenCalledTimes(calls + 1);
+    } finally {
+      update.mockRestore();
+      selector.dispose();
+    }
+  });
 
-    selector.onAfterAttach({} as any);
-    dataChanged.emit();
-    expect(updateSpy).toHaveBeenCalledTimes(1);
+  // Before JupyterLab 4.6.6 the dialog accepts on Enter without the row seeing
+  // it, so the selector falls back to the row that has keyboard focus.
+  describe('focused row fallback', () => {
+    it('returns the focused row', async () => {
+      const { selector } = createSelector();
+      try {
+        const row = await waitFor(() => findRow(selector.node, 'ir'));
+        row.focus();
 
-    selector.onAfterDetach({} as any);
-    dataChanged.emit();
-    expect(updateSpy).toHaveBeenCalledTimes(1);
+        expect(selector.getValue()).toEqual({ name: 'ir' });
+      } finally {
+        selector.dispose();
+      }
+    });
+
+    it('ignores a row after focus moves away from it', async () => {
+      const { selector } = createSelector();
+      try {
+        const row = await waitFor(() => findRow(selector.node, 'ir'));
+        row.focus();
+        selector.node
+          .querySelector<HTMLInputElement>('.jp-Launcher-searchBox input')!
+          .focus();
+
+        expect(selector.getValue()).toBeNull();
+      } finally {
+        selector.dispose();
+      }
+    });
+
+    it('ignores a focused row that is no longer rendered', async () => {
+      const { selector, setSpecs } = createSelector();
+      try {
+        const row = await waitFor(() => findRow(selector.node, 'ir'));
+        row.focus();
+        setSpecs({
+          default: 'python3',
+          kernelspecs: { python3: specs.kernelspecs.python3 }
+        });
+        await waitFor(() => !findRow(selector.node, 'ir'));
+
+        expect(selector.getValue()).toBeNull();
+      } finally {
+        selector.dispose();
+      }
+    });
+
+    it('prefers the clicked row over the focused row', async () => {
+      const { selector } = createSelector();
+      try {
+        (await waitFor(() => findRow(selector.node, 'python3'))).click();
+        findRow(selector.node, 'ir')!.focus();
+
+        expect(selector.getValue()).toEqual({ name: 'python3' });
+      } finally {
+        selector.dispose();
+      }
+    });
   });
 });
 
-import { Dialog } from '@jupyterlab/apputils';
-import { CustomSessionContextDialogs } from '../dialogs';
-
 describe('CustomSessionContextDialogs', () => {
   afterEach(() => {
-    (Dialog as any).launchImpl = null;
+    jest.restoreAllMocks();
+    Dialog.flush();
+  });
+
+  // Uses the real JupyterLab Dialog: its keyboard handling decides whether
+  // Enter on a kernel row ever reaches the row's own handler.
+  it('starts the focused kernel on Enter instead of shutting down the current one', async () => {
+    const sessionContext = createSessionContext();
+
+    const done = createDialogs().selectKernel(
+      sessionContext as unknown as ISessionContext
+    );
+    const row = await waitFor(() => {
+      const dialog = document.querySelector('.jp-KernelSelector-Dialog');
+      return dialog ? findRow(dialog, 'ir') : undefined;
+    });
+
+    pressEnter(row);
+    await done;
+
+    expect(sessionContext.shutdown).not.toHaveBeenCalled();
+    expect(sessionContext.changeKernel).toHaveBeenCalledWith({ name: 'ir' });
   });
 
   it.each([
     ['closes', false],
-    ['fails to launch', true]
-  ])('stops relaying running changes once the dialog %s', async (_, fails) => {
-    const sessionRunningChanged = new Signal<any, void>({});
-    const kernelRunningChanged = new Signal<any, void>({});
+    ['fails to open', true]
+  ])(
+    'disconnects from running changes once the dialog %s',
+    async (_, fails) => {
+      const launch = jest.spyOn(Dialog.prototype, 'launch');
+      if (fails) {
+        launch.mockRejectedValue(new Error('launch failed'));
+      } else {
+        launch.mockResolvedValue({
+          button: Dialog.cancelButton(),
+          value: null,
+          isChecked: null
+        });
+      }
+      const sessionRunningChanged = createSignalSpy();
+      const kernelRunningChanged = createSignalSpy();
 
-    const dialogs = new CustomSessionContextDialogs({
-      database: {
-        favorites: {
-          ready: Promise.resolve(),
-          changed: new Signal<any, void>({})
-        } as any,
-        lastUsed: {
-          ready: Promise.resolve(),
-          changed: new Signal<any, void>({})
-        } as any
-      },
-      commands: {
-        iconClass: () => '',
-        icon: () => undefined,
-        caption: () => '',
-        label: () => ''
-      } as any,
-      settingRegistry: {
-        load: jest.fn(() => Promise.resolve({ composite: {} }))
-      } as any,
-      kernelManager: {
-        running: () => [][Symbol.iterator](),
-        runningChanged: kernelRunningChanged
-      } as any,
-      kernelTable: {
-        changed: new Signal<any, void>({})
-      } as any
-    });
+      const done = createDialogs(kernelRunningChanged).selectKernel(
+        createSessionContext(
+          sessionRunningChanged
+        ) as unknown as ISessionContext
+      );
+      if (fails) {
+        await expect(done).rejects.toThrow('launch failed');
+      } else {
+        await done;
+      }
 
-    const mockSessionContext: any = {
-      isDisposed: false,
-      hasNoKernel: true,
-      kernelDisplayName: 'No Kernel',
-      kernelPreference: { autoStartDefault: false },
-      specsManager: { specs: { kernelspecs: {} } },
-      sessionManager: {
-        running: () => [],
-        runningChanged: sessionRunningChanged
-      },
-      changeKernel: jest.fn()
-    };
-
-    const relayed = jest.fn();
-    let relayedWhileOpen = 0;
-    (Dialog as any).launchImpl = (dialog: any) => {
-      dialog.options.body.options.dataChanged.connect(relayed);
-      sessionRunningChanged.emit();
-      kernelRunningChanged.emit();
-      relayedWhileOpen = relayed.mock.calls.length;
-      return fails
-        ? Promise.reject(new Error('launch failed'))
-        : Promise.resolve({
-            button: { accept: false },
-            value: null,
-            isChecked: null
-          });
-    };
-
-    const done = dialogs.selectKernel(mockSessionContext);
-    if (fails) {
-      await expect(done).rejects.toThrow('launch failed');
-    } else {
-      await done;
+      for (const runningChanged of [
+        sessionRunningChanged,
+        kernelRunningChanged
+      ]) {
+        expect(runningChanged.connect).toHaveBeenCalledTimes(1);
+        expect(runningChanged.disconnect).toHaveBeenCalledWith(
+          runningChanged.connect.mock.calls[0][0]
+        );
+      }
     }
-    sessionRunningChanged.emit();
-    kernelRunningChanged.emit();
-
-    expect(relayedWhileOpen).toBe(2);
-    expect(relayed).toHaveBeenCalledTimes(2);
-  });
+  );
 });
